@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../pages/home_page.dart';
 
 class MyButton extends StatelessWidget {
   const MyButton({super.key});
@@ -7,7 +8,10 @@ class MyButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        print("Sign in"); //TO SIGN IN
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
       },
       child: Container(
         width: 350,

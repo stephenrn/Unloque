@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unloque/components/my_button.dart';
+import 'package:unloque/components/signinButton.dart';
 import '../components/my_textfield.dart';
 
 class LoginPage extends StatelessWidget {
@@ -17,7 +17,6 @@ class LoginPage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 50),
-
               //Sign in txt
               //Welcome Back
               Padding(
@@ -25,10 +24,12 @@ class LoginPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Sign In',
-                      style:
-                          TextStyle(fontSize: 55, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 55,
+                          color: Colors.grey[800],
+                          fontWeight: FontWeight.bold),
                     ),
                     Text('Welcome Back!',
                         style:
