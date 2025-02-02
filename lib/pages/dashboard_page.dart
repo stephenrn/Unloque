@@ -1,10 +1,34 @@
 import 'package:flutter/material.dart';
+import '../components/auto_image_slider.dart';
+import '../models/slider_item.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    List<SliderItem> sliderItems = [
+      SliderItem(
+        categoryLabel: 'Education',
+        icon: Icons.book,
+        date: '2023-10-01',
+        headline: 'EduPH Opportunity 2.0',
+        backgroundImage:
+            'https://www.borgenmagazine.com/wp-content/uploads/2024/08/8644294742_96b35cd70a_k.jpg',
+        route: '/sampleartceducation',
+      ),
+      SliderItem(
+        categoryLabel: 'Healthcare',
+        icon: Icons.health_and_safety,
+        date: '2023-10-02',
+        headline: 'New Health Trends',
+        backgroundImage:
+            'https://sa.kapamilya.com/absnews/abscbnnews/media/2022/news/09/12/20220824-florita-cagayan-valley-medical-jc-3516.jpg',
+        route: '/sampleartchealthcare',
+      ),
+      // Add more items as needed
+    ];
+
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 90,
@@ -42,8 +66,19 @@ class DashboardPage extends StatelessWidget {
         ],
       ),
       backgroundColor: Colors.grey[300],
-      body: Center(
-        child: Text("Home Page"),
+      body: Column(
+        children: [
+          const SizedBox(height: 50),
+          AutoImageSlider(
+            items: sliderItems,
+          ),
+          // Other widgets can be added here
+          Expanded(
+            child: Center(
+              child: Text("Home Page"),
+            ),
+          ),
+        ],
       ),
     );
   }
