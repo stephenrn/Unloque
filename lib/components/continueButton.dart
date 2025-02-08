@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../pages/home_page.dart';
 
 class MyButton extends StatelessWidget {
-  const MyButton({super.key});
+  final Widget route;
+  final String label;
+
+  const MyButton({super.key, required this.route, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -10,7 +12,7 @@ class MyButton extends StatelessWidget {
       onTap: () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => route),
         );
       },
       child: Container(
@@ -22,7 +24,7 @@ class MyButton extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            'Continue',
+            label,
             style: const TextStyle(
               fontSize: 20,
               color: Colors.white,

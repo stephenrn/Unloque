@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:unloque/components/my_textfield.dart';
 import 'package:unloque/components/continueButton.dart';
-import 'package:unloque/components/google_button.dart'; // Add this import statement
-import '../components/my_textfield.dart';
+import 'package:unloque/components/google_button.dart';
 import 'home_page.dart';
-import 'sign_up_page.dart';
 
-class LoginPage extends StatelessWidget {
-  LoginPage({super.key});
+class SignUpPage extends StatelessWidget {
+  SignUpPage({super.key});
 
   //text editing controllers
+  final usernameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -22,39 +23,36 @@ class LoginPage extends StatelessWidget {
             Column(
               children: [
                 const SizedBox(height: 50),
-                //Sign in txt
-                //Welcome Back
+                //Sign up txt
+                //Create Account
                 Padding(
                   padding: const EdgeInsets.only(left: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Sign In',
+                        'Sign Up',
                         style: TextStyle(
                             fontSize: 55,
                             color: Colors.grey[800],
                             fontWeight: FontWeight.bold),
                       ),
-                      Text('Welcome Back!',
+                      Text('Create an Account!',
                           style: TextStyle(
                               fontSize: 14, color: Colors.grey[800])),
                       Row(
                         children: [
                           Text(
-                            'Are you a new User? ',
+                            'Already have an account? ',
                             style: TextStyle(
                                 fontSize: 14, color: Colors.grey[800]),
                           ),
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => SignUpPage()),
-                              );
+                              Navigator.pop(context);
                             },
                             child: Text(
-                              'Sign Up',
+                              'Sign In',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -71,6 +69,15 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 50),
                 //Username txtfield
                 MyTextfield(
+                  controller: usernameController,
+                  label: 'Username',
+                  hint: 'Enter your username',
+                  obscureText: false,
+                ),
+
+                const SizedBox(height: 17),
+                //Email txtfield
+                MyTextfield(
                   controller: emailController,
                   label: 'Email',
                   hint: 'Enter your email',
@@ -86,21 +93,17 @@ class LoginPage extends StatelessWidget {
                   obscureText: true,
                 ),
 
-                const SizedBox(height: 10),
-                //Forgot Password
-                Center(
-                  child: Text(
-                    'Forgot Password?',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                const SizedBox(height: 17),
+                //Confirm Password txtfield
+                MyTextfield(
+                  controller: confirmPasswordController,
+                  label: 'Confirm Password',
+                  hint: 'Confirm your password',
+                  obscureText: true,
                 ),
               ],
             ),
-            const SizedBox(height: 200),
+            const SizedBox(height: 30),
             Column(
               children: [
                 //Continue button
@@ -109,38 +112,22 @@ class LoginPage extends StatelessWidget {
                   label: 'Continue',
                 ),
                 const SizedBox(height: 10),
-                // Divider with "or"
+                //Or line
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey[400],
-                        ),
-                      ),
+                      Expanded(child: Divider(thickness: 1, color: Colors.grey[400])),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          'or',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: Text('or', style: TextStyle(color: Colors.grey[600])),
                       ),
-                      Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey[400],
-                        ),
-                      ),
+                      Expanded(child: Divider(thickness: 1, color: Colors.grey[400])),
                     ],
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Google button
+                //Google button
                 GoogleButton(),
               ],
             ),
