@@ -78,7 +78,7 @@ class LoginPage extends StatelessWidget {
                 obscureText: true,
               ),
 
-              const SizedBox(height: 300),
+              const SizedBox(height: 10),
               //Forgot Password
               Center(
                 child: Text(
