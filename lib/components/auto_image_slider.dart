@@ -5,7 +5,7 @@ import '../models/slider_item.dart';
 class AutoImageSlider extends StatelessWidget {
   final List<SliderItem> items;
 
-  AutoImageSlider({required this.items});
+  const AutoImageSlider({super.key, required this.items});
 
   @override
   Widget build(BuildContext context) {
