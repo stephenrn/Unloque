@@ -1,16 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unloque/components/continueButton.dart';
-import 'package:unloque/components/google_button.dart'; // Add this import statement
+import 'package:unloque/components/google_button.dart';
 import '../components/my_textfield.dart';
 import 'home_page.dart';
-import 'sign_up_page.dart';
 
-class LoginPage extends StatelessWidget {
-  LoginPage({super.key});
+class LoginPage extends StatefulWidget {
+  final Function toggleView;
 
-  //text editing controllers
+  LoginPage({super.key, required this.toggleView});
+
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  bool isLoading = false;
+
+  Future<void> signIn() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      showErrorSnackbar('Please fill in all fields');
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
+    } catch (e) {
+      showErrorSnackbar(e.toString());
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void showErrorSnackbar(String message) {
+    final snackBar = SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.red,
+      behavior: SnackBarBehavior.floating,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +67,6 @@ class LoginPage extends StatelessWidget {
             Column(
               children: [
                 const SizedBox(height: 50),
-                //Sign in txt
-                //Welcome Back
                 Padding(
                   padding: const EdgeInsets.only(left: 20),
                   child: Column(
@@ -32,26 +75,30 @@ class LoginPage extends StatelessWidget {
                       Text(
                         'Sign In',
                         style: TextStyle(
-                            fontSize: 55,
-                            color: Colors.grey[800],
-                            fontWeight: FontWeight.bold),
+                          fontSize: 55,
+                          color: Colors.grey[800],
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      Text('Welcome Back!',
-                          style: TextStyle(
-                              fontSize: 14, color: Colors.grey[800])),
+                      Text(
+                        'Welcome Back!',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[800],
+                        ),
+                      ),
                       Row(
                         children: [
                           Text(
                             'Are you a new User? ',
                             style: TextStyle(
-                                fontSize: 14, color: Colors.grey[800]),
+                              fontSize: 14,
+                              color: Colors.grey[800],
+                            ),
                           ),
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => SignUpPage()),
-                              );
+                              widget.toggleView();
                             },
                             child: Text(
                               'Sign Up',
@@ -63,31 +110,25 @@ class LoginPage extends StatelessWidget {
                             ),
                           ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 50),
-                //Username txtfield
                 MyTextfield(
                   controller: emailController,
                   label: 'Email',
                   hint: 'Enter your email',
                   obscureText: false,
                 ),
-
                 const SizedBox(height: 17),
-                //Password txtfield
                 MyTextfield(
                   controller: passwordController,
                   label: 'Password',
                   hint: 'Enter your password',
                   obscureText: true,
                 ),
-
                 const SizedBox(height: 10),
-                //Forgot Password
                 Center(
                   child: Text(
                     'Forgot Password?',
@@ -103,13 +144,12 @@ class LoginPage extends StatelessWidget {
             const SizedBox(height: 200),
             Column(
               children: [
-                //Continue button
                 MyButton(
-                  route: HomePage(),
+                  onTap: signIn,
                   label: 'Continue',
+                  isLoading: isLoading,
                 ),
                 const SizedBox(height: 10),
-                // Divider with "or"
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -140,7 +180,6 @@ class LoginPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Google button
                 GoogleButton(),
               ],
             ),

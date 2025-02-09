@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:unloque/pages/login_page.dart';
+import 'package:unloque/auth/login_or_register.dart';
 import 'package:unloque/pages/home_page.dart';
 import 'package:unloque/pages/sample_artc_education_page.dart';
 import 'package:unloque/pages/sample_artc_healthcare_page.dart';
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => LoginPage(),
+        '/': (context) => LoginOrRegister(),
         'home': (context) => HomePage(),
         '/sampleartceducation': (context) => SampleArtcEducationPage(),
         '/sampleartchealthcare': (context) => SampleArtcHealthcarePage(),
