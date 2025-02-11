@@ -4,7 +4,7 @@ import 'package:unloque/components/continueButton.dart';
 import 'package:unloque/components/google_button.dart';
 import '../components/my_textfield.dart';
 import 'home_page.dart';
-import 'forget_password_page.dart'; // Add this import
+import 'forget_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   final Function toggleView;
@@ -20,6 +20,20 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
   final _auth = FirebaseAuth.instance;
   bool isLoading = false;
+  bool isFormFilled = false; // Add this property
+
+  @override
+  void initState() {
+    super.initState();
+    emailController.addListener(_checkFormFilled);
+    passwordController.addListener(_checkFormFilled);
+  }
+
+  void _checkFormFilled() {
+    setState(() {
+      isFormFilled = emailController.text.isNotEmpty && passwordController.text.isNotEmpty;
+    });
+  }
 
   Future<void> signIn() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
@@ -61,138 +75,169 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      body: SafeArea(
-        child: Column(
-          children: [
-            Column(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color.fromARGB(255, 53, 147, 255), Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
               children: [
-                const SizedBox(height: 50),
-                Padding(
-                  padding: const EdgeInsets.only(left: 20),
+                SizedBox(height: 30),
+                Text(
+                  'Unloque',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 30,
+                    color: Color(0xFF1D1D1D),
+                  ),
+                ),
+                SizedBox(height: 40),
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.93,
+                  constraints: BoxConstraints(maxWidth: 400),
+                  padding: EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey[900]!, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 5,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      SizedBox(height: 10),
                       Text(
                         'Sign In',
                         style: TextStyle(
-                          fontSize: 55,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 50,
                           color: Colors.grey[800],
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                      SizedBox(height: 8),
                       Text(
-                        'Welcome Back!',
+                        'Welcome Back! Sign in to continue.',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[800],
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                          color: Color(0xFF4A4A4A),
+                          height: 1.4,
                         ),
                       ),
-                      Row(
-                        children: [
-                          Text(
-                            'Are you a new User? ',
+                      SizedBox(height: 30),
+                      MyTextfield(
+                        controller: emailController,
+                        label: 'Email',
+                        hint: 'Enter your email',
+                        obscureText: false,
+                      ),
+                      SizedBox(height: 20),
+                      MyTextfield(
+                        controller: passwordController,
+                        label: 'Password',
+                        hint: 'Enter your password',
+                        obscureText: true,
+                      ),
+                      SizedBox(height: 10),
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => ForgetPasswordPage()),
+                            );
+                          },
+                          child: Text(
+                            'Forgot Password?',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[800],
+                              fontSize: 15,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () {
-                              widget.toggleView();
-                            },
-                            child: Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                        ),
+                      ),
+                      SizedBox(height: 30),
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            widget.toggleView();
+                          },
+                          child: RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Are you a new User? ',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: 'Sign Up',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Color(0xFF007AFF),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      MyButton(
+                        onTap: signIn,
+                        label: 'Sign In',
+                        isLoading: isLoading,
+                        isOutlined: !isFormFilled, // Change this property
+                        isEnabled: isFormFilled, // Add this property
+                      ),
+                      SizedBox(height: 0.1),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey[600], thickness: 1)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              child: Text(
+                                'Or',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            Expanded(child: Divider(color: Colors.grey[600], thickness: 1)),
+                          ],
+                        ),
                       ),
+                      SizedBox(height: 0.1),
+                      GoogleButton(),
+                      SizedBox(height: 10),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 50),
-                MyTextfield(
-                  controller: emailController,
-                  label: 'Email',
-                  hint: 'Enter your email',
-                  obscureText: false,
-                ),
-                const SizedBox(height: 17),
-                MyTextfield(
-                  controller: passwordController,
-                  label: 'Password',
-                  hint: 'Enter your password',
-                  obscureText: true,
-                ),
-                const SizedBox(height: 10),
-                Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ForgetPasswordPage()),
-                      );
-                    },
-                    child: Text(
-                      'Forgot Password?',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.grey[500],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 200),
-            Column(
-              children: [
-                MyButton(
-                  onTap: signIn,
-                  label: 'Continue',
-                  isLoading: isLoading,
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey[400],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          'or',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey[400],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                GoogleButton(),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
