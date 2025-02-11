@@ -43,10 +43,10 @@ class _MyTextfieldState extends State<MyTextfield> {
             width: double.infinity,
             height: 30,
             decoration: BoxDecoration(
-              color: Colors.grey[850],
+              color: Color.fromARGB(255, 177, 213, 255),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(9),
+                topRight: Radius.circular(9),
               ),
             ),
             alignment: Alignment.centerLeft,
@@ -59,7 +59,7 @@ class _MyTextfieldState extends State<MyTextfield> {
                     widget.label, //variable label
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[350],
+                      color: Colors.black,
                     ),
                   ),
                   const Text(
@@ -75,7 +75,7 @@ class _MyTextfieldState extends State<MyTextfield> {
           ),
           Container(
             width: double.infinity,
-            height: 2,
+            height: 1,
             color: Colors.black,
           ),
           // Lower half - Input Field

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../pages/sign_in_page.dart';
-import '../pages/sign_up_page.dart';
-import '../pages/forget_password_page.dart'; // Add this import
+import '../pages/sign_in_card.dart';
+import '../pages/sign_up_card.dart';
 
 class LoginOrRegister extends StatefulWidget {
   @override
@@ -19,6 +18,12 @@ class _LoginOrRegisterState extends State<LoginOrRegister> {
 
   @override
   Widget build(BuildContext context) {
-    return showSignIn ? LoginPage(toggleView: toggleView) : SignUpPage(toggleView: toggleView);
+    return Scaffold(
+      body: Center(
+        child: showSignIn
+            ? SignInCard(onBack: toggleView)
+            : SignUpCard(onBack: toggleView),
+      ),
+    );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Add this import
-import 'package:unloque/auth/login_or_register.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:unloque/pages/welcome_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -9,7 +9,7 @@ class ProfilePage extends StatelessWidget {
     await FirebaseAuth.instance.signOut();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => LoginOrRegister()),
+      MaterialPageRoute(builder: (context) => WelcomePage()),
     );
   }
 
