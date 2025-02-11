@@ -5,38 +5,40 @@ class GoogleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      child: OutlinedButton(
-        onPressed: () {
-          print("Continue with Google");
-        },
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.black),
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8), // Same border radius as MyButton
+    return GestureDetector(
+      onTap: () {
+        print("Continue with Google");
+      },
+      child: Center(
+        child: Container(
+          width: 300,
+          height: 45, // Make the button thinner
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.black, width: 2), // Add border
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'lib/images/google.png',
-              height: 24,
-              width: 24,
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'lib/images/google.png',
+                  height: 24,
+                  width: 24,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Continue with Google',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold, // Make the label bold
+                    color: Colors.black, // Text color
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Continue with Google',
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

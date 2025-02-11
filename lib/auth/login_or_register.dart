@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../pages/sign_in_page.dart';
 import '../pages/sign_up_page.dart';
+import '../pages/forget_password_page.dart'; // Add this import
 
 class LoginOrRegister extends StatefulWidget {
   @override

@@ -20,7 +20,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final usernameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
   String errorMessage = '';
@@ -29,14 +28,8 @@ class _SignUpPageState extends State<SignUpPage> {
   Future<void> signUp() async {
     if (usernameController.text.isEmpty ||
         emailController.text.isEmpty ||
-        passwordController.text.isEmpty ||
-        confirmPasswordController.text.isEmpty) {
+        passwordController.text.isEmpty) {
       showErrorSnackbar('Please fill in all fields');
-      return;
-    }
-
-    if (passwordController.text.trim() != confirmPasswordController.text.trim()) {
-      showErrorSnackbar('Passwords do not match');
       return;
     }
 
@@ -87,128 +80,135 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Column(
-                  children: [
-                    const SizedBox(height: 50),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              fontSize: 55,
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Create an Account!',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[800],
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                'Already have an account? ',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  widget.toggleView();
-                                },
-                                child: Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 50),
-                    MyTextfield(
-                      controller: usernameController,
-                      label: 'Username',
-                      hint: 'Enter your username',
-                      obscureText: false,
-                    ),
-                    const SizedBox(height: 17),
-                    MyTextfield(
-                      controller: emailController,
-                      label: 'Email',
-                      hint: 'Enter your email',
-                      obscureText: false,
-                    ),
-                    const SizedBox(height: 17),
-                    MyTextfield(
-                      controller: passwordController,
-                      label: 'Password',
-                      hint: 'Enter your password',
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 17),
-                    MyTextfield(
-                      controller: confirmPasswordController,
-                      label: 'Confirm Password',
-                      hint: 'Confirm your password',
-                      obscureText: true,
-                    ),
-                  ],
+      body: Container(
+        color: Colors.white,
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.94,
+              constraints: BoxConstraints(maxWidth: 400), // Make the card even longer
+              padding: EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.white, Color(0xFF91C2FA)], // Gradient from white to blue
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-                const SizedBox(height: 30),
-                Column(
-                  children: [
-                    MyButton(
-                      onTap: signUp,
-                      label: 'Continue',
-                      isLoading: isLoading,
-                    ),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(child: Divider(thickness: 1, color: Colors.grey[400])),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text('or', style: TextStyle(color: Colors.grey[600])),
-                          ),
-                          Expanded(child: Divider(thickness: 1, color: Colors.grey[400])),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    GoogleButton(),
-                  ],
-                ),
-              ],
-            ),
-            if (isLoading)
-              Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey, width: 1), // Grey outline
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2), // More visible shadow
+                    blurRadius: 5,
+                    offset: Offset(0, 10),
+                  ),
+                ],
               ),
-          ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 30),
+                  Text(
+                    '   Unloque',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 30,
+                      color: Color(0xFF1D1D1D),
+                    ),
+                  ),
+                  SizedBox(height: 30),
+                  Text(
+                    'Sign Up',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 50,
+                      color: Colors.grey[800], // Dark grey
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Ready to improve your well-being? Create an account and find everything you need in one place to support your needs.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                      color: Color(0xFF4A4A4A),
+                      height: 1.4,
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  MyTextfield(
+                    controller: emailController,
+                    label: 'Email',
+                    hint: 'Enter your email',
+                    obscureText: false,
+                  ),
+                  SizedBox(height: 16),
+                  MyTextfield(
+                    controller: usernameController,
+                    label: 'Username',
+                    hint: 'Enter your name',
+                    obscureText: false,
+                  ),
+                  SizedBox(height: 16),
+                  MyTextfield(
+                    controller: passwordController,
+                    label: 'Password',
+                    hint: 'Create new password',
+                    obscureText: true,
+                  ),
+                  SizedBox(height: 24),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        widget.toggleView();
+                      },
+                      child: Text(
+                        'Already have an account? Sign in',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF007AFF),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  MyButton(
+                    onTap: signUp,
+                    label: 'Sign Up',
+                    isLoading: isLoading,
+                    isOutlined: true, // Add this property to make the button outlined
+                  ),
+                  SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.grey[600], thickness: 2)), // Thicker divider
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5), // More padding
+                          child: Text(
+                            'Or',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Colors.grey[600], thickness: 2)), // Thicker divider
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  GoogleButton(),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

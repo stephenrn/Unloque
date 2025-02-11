@@ -18,9 +18,9 @@ class MyTextfield extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 350,
-      height: 85,
+      height: 80,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 1),
+        border: Border.all(color: Colors.black, width: 2),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -30,7 +30,7 @@ class MyTextfield extends StatelessWidget {
             width: double.infinity,
             height: 30,
             decoration: BoxDecoration(
-              color: Colors.grey[400],
+              color: Colors.grey[850],
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
@@ -38,30 +38,52 @@ class MyTextfield extends StatelessWidget {
             ),
             alignment: Alignment.centerLeft,
             child: Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
-                label, //variable label
-                style: const TextStyle(
-                  fontSize: 17,
-                ),
+              padding: const EdgeInsets.only(left: 10, right: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label, //variable label
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[350],
+                    ),
+                  ),
+                  const Text(
+                    '*',
+                    style: TextStyle(
+                      fontSize: 25,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           Container(
             width: double.infinity,
-            height: 1,
+            height: 2,
             color: Colors.black,
           ),
           // Lower half - Input Field
           Expanded(
-            child: TextField(
-              controller: controller, //variable controller
-              obscureText: obscureText, //variable obscureText
-              decoration: InputDecoration(
-                hintText: hint, //variable hint
-                hintStyle: const TextStyle(color: Colors.grey),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                border: InputBorder.none,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                ),
+              ),
+              child: TextField(
+                controller: controller, //variable controller
+                obscureText: obscureText, //variable obscureText
+                decoration: InputDecoration(
+                  hintText: hint, //variable hint
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                  border: InputBorder.none,
+                ),
               ),
             ),
           ),

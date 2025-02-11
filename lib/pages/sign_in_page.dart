@@ -4,6 +4,7 @@ import 'package:unloque/components/continueButton.dart';
 import 'package:unloque/components/google_button.dart';
 import '../components/my_textfield.dart';
 import 'home_page.dart';
+import 'forget_password_page.dart'; // Add this import
 
 class LoginPage extends StatefulWidget {
   final Function toggleView;
@@ -130,12 +131,20 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 10),
                 Center(
-                  child: Text(
-                    'Forgot Password?',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.bold,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ForgetPasswordPage()),
+                      );
+                    },
+                    child: Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
