@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class MyTextfield extends StatelessWidget {
-  final controller;
+class MyTextfield extends StatefulWidget {
+  final TextEditingController controller;
   final String label;
   final String hint;
   final bool obscureText;
@@ -15,12 +15,25 @@ class MyTextfield extends StatelessWidget {
   });
 
   @override
+  _MyTextfieldState createState() => _MyTextfieldState();
+}
+
+class _MyTextfieldState extends State<MyTextfield> {
+  bool _obscureText = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.obscureText;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       width: 350,
       height: 80,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 2),
+        border: Border.all(color: Colors.black, width: 1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -43,7 +56,7 @@ class MyTextfield extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    label, //variable label
+                    widget.label, //variable label
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[350],
@@ -71,19 +84,36 @@ class MyTextfield extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(8),
-                  bottomRight: Radius.circular(8),
+                  bottomLeft: Radius.circular(9),
+                  bottomRight: Radius.circular(9),
                 ),
               ),
-              child: TextField(
-                controller: controller, //variable controller
-                obscureText: obscureText, //variable obscureText
-                decoration: InputDecoration(
-                  hintText: hint, //variable hint
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                  border: InputBorder.none,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: widget.controller, //variable controller
+                      obscureText: _obscureText, //variable obscureText
+                      decoration: InputDecoration(
+                        hintText: widget.hint, //variable hint
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  if (widget.obscureText)
+                    IconButton(
+                      icon: Icon(
+                        _obscureText ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureText = !_obscureText;
+                        });
+                      },
+                    ),
+                ],
               ),
             ),
           ),

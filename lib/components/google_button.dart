@@ -16,7 +16,7 @@ class GoogleButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black, width: 2), // Add border
+            border: Border.all(color: Colors.black, width: 1), // Add border
           ),
           child: Center(
             child: Row(
@@ -33,7 +33,7 @@ class GoogleButton extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold, // Make the label bold
-                    color: Colors.black, // Text color
+                    color: Colors.grey[800], // Text color
                   ),
                 ),
               ],
