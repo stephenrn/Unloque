@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:unloque/pages/welcome_page.dart';
-import 'package:unloque/auth/login_or_register.dart';
+import 'package:unloque/auth/auth_gate.dart';
 import 'package:unloque/pages/home_page.dart';
 import 'package:unloque/pages/sample_artc_education_page.dart';
 import 'package:unloque/pages/sample_artc_healthcare_page.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -23,9 +23,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      initialRoute: '/',
+      home: AuthGate(), // Change this line
       routes: {
-        '/': (context) => WelcomePage(),
         'home': (context) => HomePage(),
         '/sampleartceducation': (context) => SampleArtcEducationPage(),
         '/sampleartchealthcare': (context) => SampleArtcHealthcarePage(),
