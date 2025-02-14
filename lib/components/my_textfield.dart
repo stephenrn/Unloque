@@ -5,6 +5,7 @@ class MyTextfield extends StatefulWidget {
   final String label;
   final String hint;
   final bool obscureText;
+  final void Function(String)? onChanged;  // Add this line
 
   const MyTextfield({
     super.key,
@@ -12,6 +13,7 @@ class MyTextfield extends StatefulWidget {
     required this.label,
     required this.hint,
     required this.obscureText,
+    this.onChanged,  // Add this line
   });
 
   @override
@@ -94,6 +96,7 @@ class _MyTextfieldState extends State<MyTextfield> {
                     child: TextField(
                       controller: widget.controller, //variable controller
                       obscureText: _obscureText, //variable obscureText
+                      onChanged: widget.onChanged,  // Add this line
                       decoration: InputDecoration(
                         hintText: widget.hint, //variable hint
                         hintStyle: const TextStyle(color: Colors.grey),
@@ -118,6 +121,44 @@ class _MyTextfieldState extends State<MyTextfield> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class MyTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final bool obscureText;
+  final void Function(String)? onChanged;
+
+  const MyTextField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    this.obscureText = false,
+    this.onChanged, required String label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: hintText,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 15,
+          ),
+        ),
       ),
     );
   }

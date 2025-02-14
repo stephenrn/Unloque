@@ -31,20 +31,19 @@ class AuthService {
       final UserCredential userCredential = 
           await _auth.signInWithCredential(credential);
 
-      // Store user info in Firestore if it's a new user
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'email': userCredential.user!.email,
-          'username': userCredential.user!.displayName,
-          'photoUrl': userCredential.user!.photoURL,
-          'createdAt': Timestamp.now(),
-        });
-      }
-
       return userCredential;
     } catch (e) {
       print("Error signing in with Google: $e");
       return null;
     }
+  }
+
+  Future<void> createUserProfile(String uid, String email, String username) async {
+    await _firestore.collection('users').doc(uid).set({
+      'email': email,
+      'username': username,
+      'photoUrl': _auth.currentUser?.photoURL,
+      'createdAt': Timestamp.now(),
+    });
   }
 }

@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:unloque/components/username_dialog.dart';
 import 'package:unloque/services/auth_service.dart';
 import '../pages/home_page.dart';
 
@@ -25,10 +27,39 @@ class _GoogleButtonState extends State<GoogleButton> {
       print("Sign in result: ${userCredential?.user?.email ?? 'null'}");
       
       if (userCredential != null && context.mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-        );
+        // Check if user exists in Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .get();
+
+        if (!userDoc.exists && context.mounted) {
+          // Show username dialog for new users
+          final username = await showDialog<String>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => UsernameDialog(),
+          );
+
+          if (username != null && context.mounted) {
+            // Create user profile with custom username
+            await _authService.createUserProfile(
+              userCredential.user!.uid,
+              userCredential.user!.email!,
+              username,
+            );
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          }
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => HomePage()),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
