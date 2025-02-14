@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../components/auto_image_slider.dart';
 import '../models/slider_item.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
+  _DashboardPageState createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  @override
   Widget build(BuildContext context) {
+    User? user = FirebaseAuth.instance.currentUser;
+
     List<SliderItem> sliderItems = [
       SliderItem(
         categoryLabel: 'Education',
@@ -35,20 +44,47 @@ class DashboardPage extends StatelessWidget {
         backgroundColor: Colors.grey[200],
         title: Padding(
           padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Unloque',
-                  style: TextStyle(
-                      fontSize: 40,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.bold)),
-              Text('Mabuhay!',
-                  style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic)),
-            ],
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Text('Loading...',
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic));
+              }
+              if (snapshot.hasError) {
+                return Text('Error',
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic));
+              }
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return Text('No Data',
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic));
+              }
+              String username = snapshot.data!['username'];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Unloque',
+                      style: TextStyle(
+                          fontSize: 40,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.bold)),
+                  Text('Mabuhay $username!',
+                      style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic)),
+                ],
+              );
+            },
           ),
         ),
         bottom: PreferredSize(

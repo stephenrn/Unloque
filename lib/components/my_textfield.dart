@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class MyTextfield extends StatelessWidget {
-  final controller;
+class MyTextfield extends StatefulWidget {
+  final TextEditingController controller;
   final String label;
   final String hint;
   final bool obscureText;
@@ -15,10 +15,23 @@ class MyTextfield extends StatelessWidget {
   });
 
   @override
+  _MyTextfieldState createState() => _MyTextfieldState();
+}
+
+class _MyTextfieldState extends State<MyTextfield> {
+  bool _obscureText = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.obscureText;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       width: 350,
-      height: 85,
+      height: 80,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black, width: 1),
         borderRadius: BorderRadius.circular(10),
@@ -30,20 +43,33 @@ class MyTextfield extends StatelessWidget {
             width: double.infinity,
             height: 30,
             decoration: BoxDecoration(
-              color: Colors.grey[400],
+              color: Color.fromARGB(255, 177, 213, 255),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(9),
+                topRight: Radius.circular(9),
               ),
             ),
             alignment: Alignment.centerLeft,
             child: Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
-                label, //variable label
-                style: const TextStyle(
-                  fontSize: 17,
-                ),
+              padding: const EdgeInsets.only(left: 10, right: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.label, //variable label
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const Text(
+                    '*',
+                    style: TextStyle(
+                      fontSize: 25,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -54,14 +80,40 @@ class MyTextfield extends StatelessWidget {
           ),
           // Lower half - Input Field
           Expanded(
-            child: TextField(
-              controller: controller, //variable controller
-              obscureText: obscureText, //variable obscureText
-              decoration: InputDecoration(
-                hintText: hint, //variable hint
-                hintStyle: const TextStyle(color: Colors.grey),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                border: InputBorder.none,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(9),
+                  bottomRight: Radius.circular(9),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: widget.controller, //variable controller
+                      obscureText: _obscureText, //variable obscureText
+                      decoration: InputDecoration(
+                        hintText: widget.hint, //variable hint
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  if (widget.obscureText)
+                    IconButton(
+                      icon: Icon(
+                        _obscureText ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureText = !_obscureText;
+                        });
+                      },
+                    ),
+                ],
               ),
             ),
           ),

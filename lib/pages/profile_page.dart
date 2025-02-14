@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:unloque/pages/login_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:unloque/pages/welcome_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  Future<void> signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => WelcomePage()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +34,7 @@ class ProfilePage extends StatelessWidget {
           ),
           SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
-            },
+            onPressed: () => signOut(context),
             child: Text('Sign Out'),
           ),
         ],
