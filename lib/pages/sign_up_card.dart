@@ -91,129 +91,135 @@ class _SignUpCardState extends State<SignUpCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.93,
-      constraints: BoxConstraints(maxWidth: 400),
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[900]!, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 5,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 10),
-          Text(
-            'Sign Up',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w800,
-              fontSize: 50,
-              color: Colors.grey[800],
+    return Padding(
+      padding: const EdgeInsets.only(top: 100),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.93,
+        constraints: BoxConstraints(maxWidth: 400),
+        padding: EdgeInsets.only(left:24, right: 24, bottom: 24, top: 5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[800]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 5,
+              offset: Offset(0, 10),
             ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Ready to improve your well-being? Create an account and find everything you need in one place to support your needs.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-              color: Color(0xFF4A4A4A),
-              height: 1.4,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
+              onPressed: widget.onBack,
             ),
-          ),
-          SizedBox(height: 30),
-          MyTextfield(
-            controller: emailController,
-            label: 'Email',
-            hint: 'Enter your email',
-            obscureText: false,
-          ),
-          SizedBox(height: 20),
-          MyTextfield(
-            controller: usernameController,
-            label: 'Username',
-            hint: 'Enter your name',
-            obscureText: false,
-          ),
-          SizedBox(height: 20),
-          MyTextfield(
-            controller: passwordController,
-            label: 'Password',
-            hint: 'Create new password',
-            obscureText: true,
-          ),
-          SizedBox(height: 30),
-          Center(
-            child: GestureDetector(
-              onTap: () {
-                widget.onBack();
-              },
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Already have an account? ',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black,
+            Text(
+              'Sign Up',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w800,
+                fontSize: 50,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Ready to improve your well-being? Create an account and find everything you need in one place to support your needs.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                color: Color(0xFF4A4A4A),
+                height: 1.4,
+              ),
+            ),
+            SizedBox(height: 30),
+            MyTextfield(
+              controller: emailController,
+              label: 'Email',
+              hint: 'Enter your email',
+              obscureText: false,
+            ),
+            SizedBox(height: 20),
+            MyTextfield(
+              controller: usernameController,
+              label: 'Username',
+              hint: 'Enter your name',
+              obscureText: false,
+            ),
+            SizedBox(height: 20),
+            MyTextfield(
+              controller: passwordController,
+              label: 'Password',
+              hint: 'Create new password',
+              obscureText: true,
+            ),
+            SizedBox(height: 30),
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  widget.onBack();
+                },
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Already have an account? ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: 'Sign in',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF007AFF),
-                        fontStyle: FontStyle.italic,
+                      TextSpan(
+                        text: 'Sign in',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF007AFF),
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          SizedBox(height: 10),
-          MyButton(
-            onTap: signUp,
-            label: 'Sign Up',
-            isLoading: isLoading,
-            isOutlined: !isFormFilled,
-            isEnabled: isFormFilled,
-          ),
-          SizedBox(height: 0.1),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(child: Divider(color: Colors.grey[600], thickness: 1)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: Text(
-                    'Or',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+            SizedBox(height: 10),
+            MyButton(
+              onTap: signUp,
+              label: 'Sign Up',
+              isLoading: isLoading,
+              isOutlined: !isFormFilled,
+              isEnabled: isFormFilled,
+            ),
+            SizedBox(height: 0.1),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey[600], thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: Text(
+                      'Or',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ),
-                ),
-                Expanded(child: Divider(color: Colors.grey[600], thickness: 1)),
-              ],
+                  Expanded(child: Divider(color: Colors.grey[600], thickness: 1)),
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 0.1),
-          GoogleButton(),
-          SizedBox(height: 10),
-        ],
+            SizedBox(height: 0.1),
+            GoogleButton(),
+            SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }
