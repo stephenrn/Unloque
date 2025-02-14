@@ -1,43 +1,95 @@
 import 'package:flutter/material.dart';
+import 'package:unloque/services/auth_service.dart';
+import '../pages/home_page.dart';
 
-class GoogleButton extends StatelessWidget {
+class GoogleButton extends StatefulWidget {
   const GoogleButton({super.key});
+
+  @override
+  State<GoogleButton> createState() => _GoogleButtonState();
+}
+
+class _GoogleButtonState extends State<GoogleButton> {
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  Future<void> handleGoogleSignIn() async {
+    print("Google Sign In button pressed");
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print("Calling AuthService.signInWithGoogle()");
+      final userCredential = await _authService.signInWithGoogle();
+      print("Sign in result: ${userCredential?.user?.email ?? 'null'}");
+      
+      if (userCredential != null && context.mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to sign in with Google: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        print("Continue with Google");
-      },
+      onTap: _isLoading ? null : handleGoogleSignIn,
       child: Center(
         child: Container(
           width: 300,
-          height: 45, // Make the button thinner
+          height: 45,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black, width: 1), // Add border
+            border: Border.all(color: Colors.black, width: 1),
           ),
           child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'lib/images/google.png',
-                  height: 24,
-                  width: 24,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Continue with Google',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold, // Make the label bold
-                    color: Colors.grey[800], // Text color
+            child: _isLoading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[800]!),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'lib/images/google.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
