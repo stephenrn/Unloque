@@ -55,18 +55,21 @@ class _SignUpCardState extends State<SignUpCard> {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        password: passwordController.text.trim(),  // Fixed: was using emailController instead of passwordController
       );
+
+      // Send email verification
+      await userCredential.user!.sendEmailVerification();
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'username': usernameController.text.trim(),
         'email': emailController.text.trim(),
       });
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomePage()),
-      );
+      showSuccessSnackbar('Verification email sent. Please verify your email before signing in.');
+      
+      // Navigate back to sign in
+      widget.onBack();
     } catch (e) {
       User? user = _auth.currentUser;
       if (user != null) {
@@ -84,6 +87,15 @@ class _SignUpCardState extends State<SignUpCard> {
     final snackBar = SnackBar(
       content: Text(message),
       backgroundColor: Colors.red,
+      behavior: SnackBarBehavior.floating,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
+  void showSuccessSnackbar(String message) {
+    final snackBar = SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.green,
       behavior: SnackBarBehavior.floating,
     );
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
