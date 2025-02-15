@@ -19,19 +19,31 @@ class AutoImageSlider extends StatelessWidget {
             children: [
               Text(
                 'Breaking News',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.grey[800],
                 ),
               ),
               TextButton(
                 onPressed: () {
                   // Navigate to news feed page
                 },
-                child: Row(
-                  children: [
-                    Text('Show All'),
-                    Icon(Icons.arrow_forward, size: 16),
-                  ],
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.grey[300],
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  minimumSize: Size(0, 25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: Text(
+                  'Show All',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ],
@@ -40,8 +52,9 @@ class AutoImageSlider extends StatelessWidget {
         CarouselSlider(
           options: CarouselOptions(
             aspectRatio: 16/9,
-            viewportFraction: 0.85,
+            viewportFraction: 0.80, // Increased from 0.85
             enlargeCenterPage: true,
+            enlargeFactor: 0.25, // Added to reduce the enlargement effect
             autoPlay: true,
             autoPlayInterval: Duration(seconds: 5),
           ),
@@ -62,7 +75,7 @@ class NewsCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, item.route),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 5.0, vertical: 8.0),
+        margin: EdgeInsets.symmetric(horizontal: 2.0, vertical: 8.0), // Reduced from horizontal: 5.0
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -107,13 +120,13 @@ class NewsCard extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: CategoryColors.colors[item.categoryLabel] ?? Colors.grey,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         item.categoryLabel.toUpperCase(),
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

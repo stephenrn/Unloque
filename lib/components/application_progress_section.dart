@@ -14,7 +14,8 @@ class ApplicationProgressSection extends StatelessWidget {
         'deadline': 'Dec 31, 2023',
         'status': 'Ongoing',
         'progress': 65.0,
-        'categoryColor': Colors.purple,
+        'categoryColor': Colors.purple[200],
+        'organizationLogo': Icons.school, // Added organization logo
       },
       {
         'category': 'Healthcare',
@@ -22,7 +23,8 @@ class ApplicationProgressSection extends StatelessWidget {
         'deadline': 'Jan 15, 2024',
         'status': 'Pending',
         'progress': 25.0,
-        'categoryColor': Colors.green,
+        'categoryColor': Colors.cyan[400],
+        'organizationLogo': Icons.local_hospital, // Added organization logo
       },
       {
         'category': 'Technology',
@@ -30,7 +32,8 @@ class ApplicationProgressSection extends StatelessWidget {
         'deadline': 'Dec 20, 2023',
         'status': 'Approved',
         'progress': 85.0,
-        'categoryColor': Colors.blue,
+        'categoryColor': Colors.green[300],
+        'organizationLogo': Icons.computer, // Added organization logo
       },
       {
         'category': 'Agriculture',
@@ -38,7 +41,8 @@ class ApplicationProgressSection extends StatelessWidget {
         'deadline': 'Jan 5, 2024',
         'status': 'Ongoing',
         'progress': 45.0,
-        'categoryColor': Colors.green[700]!,
+        'categoryColor': Colors.blue[300]!,
+        'organizationLogo': Icons.agriculture, // Added organization logo
       },
       {
         'category': 'Business',
@@ -46,7 +50,8 @@ class ApplicationProgressSection extends StatelessWidget {
         'deadline': 'Dec 25, 2023',
         'status': 'Pending',
         'progress': 15.0,
-        'categoryColor': Colors.orange,
+        'categoryColor': Colors.orange[300],
+        'organizationLogo': Icons.business, // Added organization logo
       },
     ];
 
@@ -60,8 +65,8 @@ class ApplicationProgressSection extends StatelessWidget {
               Text(
                 'You Have ${applications.length} In Progress Applications',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
                   color: Colors.grey[100],
                 ),
               ),
@@ -69,28 +74,28 @@ class ApplicationProgressSection extends StatelessWidget {
                 onPressed: () {
                   // TODO: Navigate to all applications
                 },
-                child: Row(
-                  children: [
-                    Text(
-                      'Show All',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 12,
-                      color: Colors.blue[700],
-                    ),
-                  ],
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.grey[200],
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0), // Reduced vertical padding from 1 to 0
+                  minimumSize: Size(0, 25), // Added to control minimum height
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: Text(
+                  'Show All',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ],
           ),
         ),
         SizedBox(
-          height: 170, // Increased from 150
+          height: 180, // Reduced from 200
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 8),
@@ -104,6 +109,7 @@ class ApplicationProgressSection extends StatelessWidget {
                 status: app['status'] as String,
                 progress: app['progress'] as double,
                 categoryColor: app['categoryColor'] as Color,
+                organizationLogo: app['organizationLogo'] as IconData, // Added this line
               );
             },
           ),
