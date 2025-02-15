@@ -31,57 +31,59 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 1,
-            color: Colors.black,
-          ),
-          BottomNavigationBar(
-            backgroundColor: Colors.grey[200],
-            currentIndex: _selectedIndex,
-            onTap: _navigateBottomBar,
-            selectedItemColor: Colors.black,
-            unselectedItemColor: Colors.grey[500],
-            type: BottomNavigationBarType.fixed,
-            elevation: 0, // Remove elevation
-            items: const [
-              BottomNavigationBarItem(
-                icon: Padding(
-                  padding:
-                      EdgeInsets.only(top: 10, left: 60), // Indent icon closer
-                  child: Icon(Icons.dashboard, size: 30), // Make icon bigger
-                ),
-                label: '', // Remove label
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 20,
+              offset: Offset(0, -8),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.grey[200],
+          currentIndex: _selectedIndex,
+          onTap: _navigateBottomBar,
+          selectedItemColor: Colors.black,
+          unselectedItemColor: Colors.grey[500],
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Padding(
+                padding:
+                    EdgeInsets.only(top: 10, left: 60), // Indent icon closer
+                child: Icon(Icons.dashboard, size: 30), // Make icon bigger
               ),
-              BottomNavigationBarItem(
-                icon: Padding(
-                  padding:
-                      EdgeInsets.only(top: 10, left: 25), // Indent icon closer
-                  child: Icon(Icons.map, size: 30), // Make icon bigger
-                ),
-                label: '', // Remove label
+              label: '', // Remove label
+            ),
+            BottomNavigationBarItem(
+              icon: Padding(
+                padding:
+                    EdgeInsets.only(top: 10, left: 25), // Indent icon closer
+                child: Icon(Icons.map, size: 30), // Make icon bigger
               ),
-              BottomNavigationBarItem(
-                icon: Padding(
-                  padding:
-                      EdgeInsets.only(top: 10, right: 25), // Indent icon closer
-                  child: Icon(Icons.history, size: 30), // Make icon bigger
-                ),
-                label: '', // Remove label
+              label: '', // Remove label
+            ),
+            BottomNavigationBarItem(
+              icon: Padding(
+                padding:
+                    EdgeInsets.only(top: 10, right: 25), // Indent icon closer
+                child: Icon(Icons.history, size: 30), // Make icon bigger
               ),
-              BottomNavigationBarItem(
-                icon: Padding(
-                  padding:
-                      EdgeInsets.only(top: 10, right: 80), // Indent icon closer
-                  child: Icon(Icons.person, size: 30), // Make icon bigger
-                ),
-                label: '', // Remove label
+              label: '', // Remove label
+            ),
+            BottomNavigationBarItem(
+              icon: Padding(
+                padding:
+                    EdgeInsets.only(top: 10, right: 80), // Indent icon closer
+                child: Icon(Icons.person, size: 30), // Make icon bigger
               ),
-            ],
-          ),
-        ],
+              label: '', // Remove label
+            ),
+          ],
+        ),
       ),
     );
   }
