@@ -21,26 +21,6 @@ class _MapPageState extends State<MapPage> {
     debugPrint('MapShapeSource initialized');
   }
 
-  void _showShapeDetails(String name) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('City Details'),
-          content: Text('City: $name'),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     debugPrint('Building MapPage');
