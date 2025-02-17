@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_maps/maps.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
+import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
 
 class MapPage extends StatefulWidget {
   MapPage({Key? key}) : super(key: key);
@@ -17,6 +18,9 @@ class _MapPageState extends State<MapPage> {
   int _selectedIndex = -1;
   int _selectedSublayerIndex = -1;
   late MapZoomPanBehavior _zoomPanBehavior;
+  bool _isLoading = true;
+  late FloatingSearchBarController _searchBarController;
+  String _searchTerm = '';
 
   List<_DataModel> _generateDataModel() {
     return <_DataModel>[
@@ -66,6 +70,7 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void initState() {
+    _searchBarController = FloatingSearchBarController();
     _zoomPanBehavior = MapZoomPanBehavior(
       enablePanning: true,
       enablePinching: true,
@@ -90,130 +95,298 @@ class _MapPageState extends State<MapPage> {
       primaryValueMapper: (int index) => _data[index].name,
     );
     debugPrint('MapShapeSource initialized');
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchBarController.dispose();
+    super.dispose();
+  }
+
+  List<_DataModel> _getFilteredList() {
+    if (_searchTerm.isEmpty) return [];
+    return _data.where((item) => 
+      item.name.toLowerCase().contains(_searchTerm.toLowerCase())
+    ).toList();
+  }
+
+  void _selectMunicity(_DataModel selected) {
+    final index = _data.indexWhere((item) => item.name == selected.name);
+    if (index != -1) {
+      _zoomPanBehavior.focalLatLng = MapLatLng(
+        selected.latitude,
+        selected.longitude
+      );
+      _zoomPanBehavior.zoomLevel = 9;
+      setState(() {
+        _selectedSublayerIndex = index;
+        
+        // Add snackbar display
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.blue,
+          duration: const Duration(seconds: 3),
+          content: Container(
+            height: 100,
+            padding: const EdgeInsets.only(top: 8),
+            child: Center(
+              child: Column(
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Text(selected.name,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge!
+                              .copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: GestureDetector(
+                            onTap: () {
+                              ScaffoldMessenger.of(context)
+                                  .removeCurrentSnackBar();
+                            },
+                            child: const Icon(Icons.close,
+                                color: Colors.white),
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: <Widget>[
+                      Text("hello",
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium!
+                              .copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.white))
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ));
+      });
+    }
+    _searchBarController.close();
+  }
+
+  void _handleEnterPress() {
+    final filteredList = _getFilteredList();
+    if (filteredList.isNotEmpty) {
+      _selectMunicity(filteredList.first);
+    }
+  }
+
+  void _handleSearch(String query) {
+    final filteredList = _getFilteredList();
+    if (filteredList.isNotEmpty) {
+      _selectMunicity(filteredList.first);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     debugPrint('Building MapPage with selectedIndex: $_selectedIndex');
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SfMaps(
-          layers: [
-            MapShapeLayer(
-              loadingBuilder: (BuildContext context) {
-                return const SizedBox(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: SfMaps(
+              layers: [
+                MapShapeLayer(
+                  loadingBuilder: (BuildContext context) {
+                    return const Center(
+                      child: SizedBox(
+                        height: 25,
+                        width: 25,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                        ),
+                      ),
+                    );
+                  },
+                  source: _shapeSource,
+                  color: const Color.fromARGB(255, 218, 216, 216), // Set the color to blue
+                  strokeColor: Colors.white, // Set the stroke color to white
+                  strokeWidth: 1,
+                  selectedIndex: _selectedIndex,
+                  selectionSettings: const MapSelectionSettings(
+                      color: Color.fromRGBO(87, 247, 212, 1),
+                      strokeColor: Colors.white,
+                      strokeWidth: 1),
+                  zoomPanBehavior: _zoomPanBehavior,
+                  onSelectionChanged: (int index) {
+                    setState(() {
+                      if (index != _selectedIndex) {
+                        _selectedIndex = -1;
+                        _selectedIndex = index;
+                      } else {
+                        _selectedIndex = -1;
+                      }
+                    });
+                  },
+                  sublayers: [
+                    MapShapeSublayer(
+                      source: _sublayerSource,
+                      color: const Color.fromARGB(255, 156, 156, 156), // Solid red default color
+                      strokeColor: const Color.fromARGB(255, 201, 201, 201),
+                      strokeWidth: 1,
+                      selectedIndex: _selectedSublayerIndex,
+                      selectionSettings: const MapSelectionSettings(
+                        color: Color.fromARGB(255, 116, 92, 255),
+                        strokeColor: Color.fromARGB(255, 0, 0, 0),
+                        strokeWidth: 1
+                      ),
+                      onSelectionChanged: (int index) {
+                        _zoomPanBehavior.focalLatLng = MapLatLng(
+                          _data[index].latitude,
+                          _data[index].longitude
+                        );
+                        _zoomPanBehavior.zoomLevel = 9;
+                        
+                        setState(() {
+                          if (index != _selectedSublayerIndex) {
+                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              backgroundColor: Colors.blue,
+                              duration: const Duration(seconds: 3),
+                              content: Container(
+                                height: 100,
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Center(
+                                  child: Column(
+                                    children: <Widget>[
+                                      Row(
+                                        children: <Widget>[
+                                          Text(_data[index].name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleLarge!
+                                                  .copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold)),
+                                          Expanded(
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  ScaffoldMessenger.of(context)
+                                                      .removeCurrentSnackBar();
+                                                },
+                                                child: const Icon(Icons.close,
+                                                    color: Colors.white),
+                                              ),
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: <Widget>[
+                                          Text("hello",
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium!
+                                                  .copyWith(
+                                                      fontStyle: FontStyle.italic,
+                                                      color: Colors.white))
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ));
+                            _selectedSublayerIndex = -1;
+                            _selectedSublayerIndex = index;
+                          } else {
+                            _selectedSublayerIndex = -1;
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                )
+              ],
+            ),
+          ),
+          FloatingSearchBar(
+            controller: _searchBarController,
+            hint: 'Search municipalities...',
+            scrollPadding: const EdgeInsets.only(top: 16, bottom: 56),
+            transitionDuration: const Duration(milliseconds: 800),
+            transitionCurve: Curves.easeInOut,
+            physics: const BouncingScrollPhysics(),
+            axisAlignment: 0.0,
+            openAxisAlignment: 0.0,
+            width: 600,
+            debounceDelay: const Duration(milliseconds: 500),
+            onQueryChanged: (query) {
+              setState(() {
+                _searchTerm = query;
+              });
+            },
+            onSubmitted: _handleSearch,
+            textInputAction: TextInputAction.search,
+            transition: CircularFloatingSearchBarTransition(),
+            actions: [
+              FloatingSearchBarAction(
+                showIfOpened: false,
+                child: CircularButton(
+                  icon: const Icon(Icons.place),
+                  onPressed: () {},
+                ),
+              ),
+            ],
+            builder: (context, transition) {
+              final filteredList = _getFilteredList();
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Material(
+                  color: Colors.white,
+                  elevation: 4.0,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: filteredList.map((place) => ListTile(
+                      title: Text(place.name),
+                      onTap: () => _selectMunicity(place),
+                    )).toList(),
+                  ),
+                ),
+              );
+            },
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.white.withOpacity(0.5),
+              child: const Center(
+                child: SizedBox(
                   height: 25,
                   width: 25,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
                   ),
-                );
-              },
-              source: _shapeSource,
-              color: const Color.fromARGB(255, 218, 216, 216), // Set the color to blue
-              strokeColor: Colors.white, // Set the stroke color to white
-              strokeWidth: 1,
-              selectedIndex: _selectedIndex,
-              selectionSettings: const MapSelectionSettings(
-                  color: Color.fromRGBO(87, 247, 212, 1),
-                  strokeColor: Colors.white,
-                  strokeWidth: 1),
-              zoomPanBehavior: _zoomPanBehavior,
-              onSelectionChanged: (int index) {
-                setState(() {
-                  if (index != _selectedIndex) {
-                    _selectedIndex = -1;
-                    _selectedIndex = index;
-                  } else {
-                    _selectedIndex = -1;
-                  }
-                });
-              },
-              sublayers: [
-                MapShapeSublayer(
-                  source: _sublayerSource,
-                  color: const Color.fromARGB(255, 156, 156, 156), // Solid red default color
-                  strokeColor: const Color.fromARGB(255, 201, 201, 201),
-                  strokeWidth: 1,
-                  selectedIndex: _selectedSublayerIndex,
-                  selectionSettings: const MapSelectionSettings(
-                    color: Color.fromARGB(255, 116, 92, 255),
-                    strokeColor: Color.fromARGB(255, 0, 0, 0),
-                    strokeWidth: 1
-                  ),
-                  onSelectionChanged: (int index) {
-                    _zoomPanBehavior.focalLatLng = MapLatLng(
-                      _data[index].latitude,
-                      _data[index].longitude
-                    );
-                    _zoomPanBehavior.zoomLevel = 9;
-                    
-                    setState(() {
-                      if (index != _selectedSublayerIndex) {
-                        ScaffoldMessenger.of(context).removeCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          backgroundColor: Colors.blue,
-                          duration: const Duration(seconds: 3),
-                          content: Container(
-                            height: 100,
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Center(
-                              child: Column(
-                                children: <Widget>[
-                                  Row(
-                                    children: <Widget>[
-                                      Text(_data[index].name,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge!
-                                              .copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold)),
-                                      Expanded(
-                                        child: Align(
-                                          alignment: Alignment.centerRight,
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              ScaffoldMessenger.of(context)
-                                                  .removeCurrentSnackBar();
-                                            },
-                                            child: const Icon(Icons.close,
-                                                color: Colors.white),
-                                          ),
-                                        ),
-                                      )
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: <Widget>[
-                                      Text("hello",
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium!
-                                              .copyWith(
-                                                  fontStyle: FontStyle.italic,
-                                                  color: Colors.white))
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ));
-                        _selectedSublayerIndex = -1;
-                        _selectedSublayerIndex = index;
-                      } else {
-                        _selectedSublayerIndex = -1;
-                      }
-                    });
-                  },
                 ),
-              ],
-            )
-          ],
-        ),
+              ),
+            ),
+        ],
       ),
     );
   }
