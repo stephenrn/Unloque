@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "77901567813-m5qnnbqfsf6l7riqufqsqvle7cbvr6rk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "2e13ff323bd74e9fe15852c704ef962974524b90"
+          }
+        },
+        {
           "client_id": "77901567813-3o9earqcfviql3m2frj9qnv322nsthsr.apps.googleusercontent.com",
           "client_type": 3
         }
