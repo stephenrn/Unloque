@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
+import '../pages/category_details_page.dart';
 
 class Category {
   final String name;
   final String description;
   final IconData icon;
   final Color color;
-  final String route;
 
   Category({
     required this.name,
     required this.description,
     required this.icon,
     required this.color,
-    required this.route,
   });
 }
 
@@ -25,21 +24,18 @@ class CategoriesSection extends StatelessWidget {
       description: 'Access Education Support',
       icon: Icons.school_outlined,
       color: Colors.blue[300]!,
-      route: '/education',
     ),
     Category(
       name: 'Social',
       description: 'Empowering Communities',
       icon: Icons.people_outline,
       color: Colors.green[300]!,
-      route: '/social',
     ),
     Category(
       name: 'Healthcare',
       description: 'Health & Wellness',
       icon: Icons.local_hospital_outlined,
       color: Colors.red[300]!,
-      route: '/healthcare',
     ),
   ];
 
@@ -89,7 +85,17 @@ class CategoryCard extends StatelessWidget {
         elevation: 2, // Add elevation to Material
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () => Navigator.pushNamed(context, category.route),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CategoryDetailsPage(
+                  categoryName: category.name,
+                  categoryColor: category.color,
+                ),
+              ),
+            );
+          },
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.all(12), // reduced from 16 to 12
