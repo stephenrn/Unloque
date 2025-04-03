@@ -30,6 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  file_picker: ^10.0.0
   carousel_slider: ^5.0.0
   syncfusion_flutter_maps: ^28.2.5
   material_floating_search_bar_2: ^0.5.0
