@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:unloque/pages/application_details_page.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 class ApplicationFormPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -14,6 +19,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   String? selectedOption; // For multiple-choice selection
   Map<String, bool> checkboxValues = {}; // For checkbox selections
   Map<String, DateTime?> selectedDates = {}; // For date selections
+  Map<String, List<Map<String, String>>> attachedFilesMap =
+      {}; // Persistent state for multiple attachment questions
 
   @override
   void initState() {
@@ -26,6 +33,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         }
       } else if (form['type'] == 'date') {
         selectedDates[form['label']] = null; // Initialize dates as null
+      } else if (form['type'] == 'attachment') {
+        attachedFilesMap[form['label']] = []; // Initialize attachment list
       }
     }
   }
@@ -108,29 +117,99 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[800]!, width: 0.5),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.application['programName'],
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Section: Title, Logo, and Subtitle
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Colors.grey[200],
+                              child: Icon(
+                                widget.application['organizationLogo'],
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.application['programName'],
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  widget.application['organizationName'],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Bottom Section: Due Date
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(15),
+                            bottomRight: Radius.circular(15),
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          widget.application['organizationName'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.calendar_today,
+                                    color: Colors.grey[800], size: 16),
+                                SizedBox(width: 8),
+                                RichText(
+                                  text: TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'Due: ',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[800],
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: widget.application['deadline'],
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[800],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              widget.application['category'],
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -280,7 +359,122 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                               ],
                             );
                           case 'attachment':
-                            return SizedBox.shrink();
+                            if (!attachedFilesMap.containsKey(form['label'])) {
+                              attachedFilesMap[form['label']] = [];
+                            }
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  form['label'],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    FilePickerResult? result = await FilePicker
+                                        .platform
+                                        .pickFiles(allowMultiple: true);
+                                    if (result != null) {
+                                      final appDir =
+                                          await getApplicationDocumentsDirectory();
+                                      for (var file in result.files) {
+                                        final filePath = file.path!;
+                                        final fileName = file.name;
+
+                                        if (filePath.startsWith('http')) {
+                                          // Download file from Google Drive
+                                          final response = await http
+                                              .get(Uri.parse(filePath));
+                                          final localFile =
+                                              File('${appDir.path}/$fileName');
+                                          await localFile
+                                              .writeAsBytes(response.bodyBytes);
+                                          setState(() {
+                                            attachedFilesMap[form['label']]!
+                                                .add({
+                                              'name': fileName,
+                                              'path': localFile.path,
+                                            });
+                                          });
+                                        } else {
+                                          // Copy local file
+                                          final localFile = await File(filePath)
+                                              .copy('${appDir.path}/$fileName');
+                                          setState(() {
+                                            attachedFilesMap[form['label']]!
+                                                .add({
+                                              'name': fileName,
+                                              'path': localFile.path,
+                                            });
+                                          });
+                                        }
+                                      }
+                                    }
+                                  },
+                                  icon: Icon(Icons.attach_file),
+                                  label: Text('Upload Files'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey[300],
+                                    foregroundColor: Colors.grey[800],
+                                  ),
+                                ),
+                                if (attachedFilesMap[form['label']]!
+                                    .isNotEmpty) ...[
+                                  SizedBox(height: 8),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: attachedFilesMap[form['label']]!
+                                        .map((file) {
+                                      return Row(
+                                        children: [
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () async {
+                                                final filePath = file['path'];
+                                                if (filePath != null) {
+                                                  await OpenFilex.open(
+                                                      filePath);
+                                                } else {
+                                                  print('File path is null');
+                                                }
+                                              },
+                                              child: Text(
+                                                file['name']!,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.blue,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                attachedFilesMap[form['label']]!
+                                                    .remove(file);
+                                              });
+                                            },
+                                            icon: Icon(Icons.close,
+                                                color: Colors.red),
+                                            tooltip: 'Remove file',
+                                          ),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                                SizedBox(height: 16),
+                              ],
+                            );
                           default:
                             return SizedBox.shrink();
                         }

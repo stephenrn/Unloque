@@ -63,7 +63,21 @@ class AvailableApplicationsData {
               ]
             },
             {'type': 'date', 'label': 'Date of Birth'},
-            {'type': 'attachment', 'label': 'Upload Supporting Documents'}
+            {
+              'type': 'attachment',
+              'label': 'Upload Supporting Documents',
+              'placeholder': 'Attach your files here...'
+            },
+            {
+              'type': 'attachment',
+              'label': 'Upload Identification Documents',
+              'placeholder': 'Attach your ID files here...'
+            },
+            {
+              'type': 'attachment',
+              'label': 'Upload Financial Documents',
+              'placeholder': 'Attach your financial files here...'
+            }
           ]
         }
       },
