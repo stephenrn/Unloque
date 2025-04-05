@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unloque/pages/application_form_page.dart';
+import 'package:unloque/data/available_applications_data.dart';
 
 class ApplicationProgressCard extends StatelessWidget {
   final String category;
@@ -7,6 +9,8 @@ class ApplicationProgressCard extends StatelessWidget {
   final String status;
   final Color categoryColor;
   final IconData organizationLogo;
+  final String organizationName;
+  final String id;
 
   const ApplicationProgressCard({
     super.key,
@@ -16,6 +20,8 @@ class ApplicationProgressCard extends StatelessWidget {
     required this.status,
     required this.categoryColor,
     required this.organizationLogo,
+    required this.organizationName,
+    required this.id,
   });
 
   @override
@@ -33,7 +39,21 @@ class ApplicationProgressCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
           onTap: () {
-            // TODO: Navigate to details page
+            final applicationDetails =
+                AvailableApplicationsData.getAllApplications().firstWhere(
+              (app) => app['id'] == id,
+              orElse: () => {},
+            );
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ApplicationFormPage(application: {
+                  ...applicationDetails,
+                  'status': status,
+                }),
+              ),
+            );
           },
           child: Stack(
             children: [
@@ -61,7 +81,8 @@ class ApplicationProgressCard extends StatelessWidget {
                               ),
                             ),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
@@ -92,14 +113,16 @@ class ApplicationProgressCard extends StatelessWidget {
                   ),
                   Spacer(),
                   Container(
-                    padding: EdgeInsets.only(left: 12, right: 12, top: 20, bottom: 8),
+                    padding: EdgeInsets.only(
+                        left: 12, right: 12, top: 20, bottom: 8),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.calendar_today, size: 12, color: Colors.black87),
+                            Icon(Icons.calendar_today,
+                                size: 12, color: Colors.black87),
                             SizedBox(width: 4),
                             Text(
                               deadline,
@@ -136,7 +159,7 @@ class ApplicationProgressCard extends StatelessWidget {
                                 margin: EdgeInsets.symmetric(horizontal: 2),
                                 height: 4,
                                 decoration: BoxDecoration(
-                                  color: index < segmentProgress 
+                                  color: index < segmentProgress
                                       ? Colors.black
                                       : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(2),

@@ -13,7 +13,8 @@ class HistoryPage extends StatelessWidget {
         appBar: AppBar(
           toolbarHeight: 100, // Add this to increase AppBar height
           title: Padding(
-            padding: EdgeInsets.symmetric(vertical: 16), // Reduced from 100 to 16
+            padding:
+                EdgeInsets.symmetric(vertical: 16), // Reduced from 100 to 16
             child: Text(
               'My Applications',
               style: TextStyle(
@@ -47,7 +48,8 @@ class HistoryPage extends StatelessWidget {
             ),
             unselectedLabelColor: Colors.grey[600],
             labelColor: Colors.grey[200],
-            dividerColor: Colors.transparent, // Add this to remove the grey separator line
+            dividerColor: Colors
+                .transparent, // Add this to remove the grey separator line
             indicator: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
@@ -56,7 +58,8 @@ class HistoryPage extends StatelessWidget {
                 ),
               ),
             ),
-            padding: EdgeInsets.symmetric(horizontal: 0, vertical: 4), // Reduced padding
+            padding: EdgeInsets.symmetric(
+                horizontal: 0, vertical: 4), // Reduced padding
             isScrollable: false, // Force tabs to be evenly distributed
           ),
         ),
@@ -88,13 +91,29 @@ class ApplicationList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final applications = ApplicationData.getApplicationsByStatus(status);
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      itemBuilder: (context, index) => ApplicationCard(
-        application: applications[index],
-      ),
-      itemCount: applications.length,
+    final userId = 'user-id'; // Replace with actual user ID from authentication
+
+    return FutureBuilder(
+      future: ApplicationData.getApplicationsByStatus(userId, status),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error loading applications'));
+        } else if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+          return Center(child: Text('No applications found'));
+        }
+
+        final applications = snapshot.data as List;
+
+        return ListView.builder(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          itemBuilder: (context, index) => ApplicationCard(
+            application: applications[index],
+          ),
+          itemCount: applications.length,
+        );
+      },
     );
   }
 }
@@ -110,7 +129,8 @@ class ApplicationCard extends StatelessWidget {
     final Color lightColor = baseColor.withOpacity(0.15);
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6), // Reduced from 8
+      margin:
+          EdgeInsets.symmetric(horizontal: 16, vertical: 6), // Reduced from 8
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -145,7 +165,7 @@ class ApplicationCard extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: 10), // Reduced from 12
-                
+
                 // Application title
                 Text(
                   application['programName'],
@@ -156,12 +176,13 @@ class ApplicationCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 10), // Reduced from 12
-                
+
                 // Status and deadline
                 Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 1),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 1),
                       decoration: BoxDecoration(
                         color: baseColor,
                         borderRadius: BorderRadius.circular(12),
@@ -201,10 +222,11 @@ class ApplicationCard extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: 10), // Reduced from 12
-                
+
                 // Progress section
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.start,  // Changed from spaceBetween
+                  mainAxisAlignment:
+                      MainAxisAlignment.start, // Changed from spaceBetween
                   children: [
                     Text(
                       'Progress',
@@ -219,7 +241,7 @@ class ApplicationCard extends StatelessWidget {
                 Row(
                   children: List.generate(3, (index) {
                     final int segmentProgress;
-                    
+
                     if (application['status'] == 'Ongoing') {
                       segmentProgress = 1;
                     } else if (application['status'] == 'Pending') {
@@ -235,7 +257,9 @@ class ApplicationCard extends StatelessWidget {
                         margin: EdgeInsets.symmetric(horizontal: 2),
                         height: 4,
                         decoration: BoxDecoration(
-                          color: index < segmentProgress ? Colors.grey[600] : Colors.grey[300],
+                          color: index < segmentProgress
+                              ? Colors.grey[600]
+                              : Colors.grey[300],
                           borderRadius: BorderRadius.circular(2),
                           border: Border.all(
                             color: Colors.black.withOpacity(0.1),
@@ -249,14 +273,15 @@ class ApplicationCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Footer
           InkWell(
             onTap: () {
               // Handle view details
             },
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6), // Reduced from 8
+              padding: EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 6), // Reduced from 8
               decoration: BoxDecoration(
                 color: baseColor,
                 borderRadius: BorderRadius.vertical(

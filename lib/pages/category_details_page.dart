@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/available_applications_data.dart';
 import 'application_details_page.dart';
+import 'application_form_page.dart';
 
 class CategoryDetailsPage extends StatelessWidget {
   final String categoryName;
@@ -113,8 +114,12 @@ class AvailableApplicationCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                ApplicationDetailsPage(application: application),
+            builder: (context) => ApplicationDetailsPage(
+              application: {
+                ...application,
+                'details': application['details'], // Ensure details are passed
+              },
+            ),
           ),
         );
       },

@@ -4,16 +4,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:unloque/components/application_progress_section.dart';
 import 'package:unloque/components/categories_section.dart';
 import '../components/auto_image_slider.dart';
-import '../models/slider_item.dart';// Add this import
+import '../models/slider_item.dart'; // Add this import
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  _DashboardPageState createState() => _DashboardPageState();
+  DashboardPageState createState() => DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class DashboardPageState extends State<DashboardPage> {
+  final GlobalKey<ApplicationProgressSectionState> _progressSectionKey =
+      GlobalKey();
+
+  void refreshProgressSection() {
+    _progressSectionKey.currentState?.refreshApplications();
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -32,7 +39,8 @@ class _DashboardPageState extends State<DashboardPage> {
         categoryLabel: 'Scholarship',
         source: 'DOST-SEI',
         date: 'Feb 15, 2024',
-        headline: 'Applications Open for 2025 DOST-SEI Undergraduate Scholarships',
+        headline:
+            'Applications Open for 2025 DOST-SEI Undergraduate Scholarships',
         backgroundImage:
             'https://sa.kapamilya.com/absnews/abscbnnews/media/2022/news/09/12/20220824-florita-cagayan-valley-medical-jc-3516.jpg',
         route: '/sampleartchealthcare',
@@ -43,7 +51,7 @@ class _DashboardPageState extends State<DashboardPage> {
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(100),
         child: AppBar(
-          scrolledUnderElevation: 0.0,  // Add this line
+          scrolledUnderElevation: 0.0, // Add this line
           toolbarHeight: 80,
           backgroundColor: Colors.grey[850],
           elevation: 0,
@@ -51,7 +59,10 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               SizedBox(height: 30),
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user?.uid)
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Text('Loading...',
@@ -81,8 +92,11 @@ class _DashboardPageState extends State<DashboardPage> {
                       CircleAvatar(
                         radius: 22,
                         backgroundColor: Colors.grey[400],
-                        backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-                        child: photoUrl == null ? Icon(Icons.person, color: Colors.white) : null,
+                        backgroundImage:
+                            photoUrl != null ? NetworkImage(photoUrl) : null,
+                        child: photoUrl == null
+                            ? Icon(Icons.person, color: Colors.white)
+                            : null,
                       ),
                       SizedBox(width: 15),
                       Column(
@@ -110,7 +124,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         ],
                       ),
                       Spacer(),
-                      Icon(Icons.notifications_none_outlined, size: 30, color: Colors.white),
+                      Icon(Icons.notifications_none_outlined,
+                          size: 30, color: Colors.white),
                       SizedBox(width: 5),
                     ],
                   );
@@ -145,13 +160,12 @@ class _DashboardPageState extends State<DashboardPage> {
                           fontStyle: FontStyle.italic,
                         ),
                         prefixIcon: Icon(Icons.search_outlined,
-                            color: Colors.grey[800],
-                            size: 22),
+                            color: Colors.grey[800], size: 22),
                         suffixIcon: Icon(Icons.tune_outlined,
-                            color: Colors.grey[800],
-                            size: 22),
+                            color: Colors.grey[800], size: 22),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                       ),
                     ),
                   ),
@@ -165,7 +179,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       bottomRight: Radius.circular(15),
                     ),
                   ),
-                  child: ApplicationProgressSection(),
+                  child: ApplicationProgressSection(key: _progressSectionKey),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 5),

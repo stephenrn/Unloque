@@ -37,6 +37,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         attachedFilesMap[form['label']] = []; // Initialize attachment list
       }
     }
+    print(widget.application);
   }
 
   Future<void> _selectDate(BuildContext context, String label) async {
@@ -146,7 +147,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                 ),
                                 SizedBox(height: 4),
                                 Text(
-                                  widget.application['organizationName'],
+                                  widget.application['organizationName'] ??
+                                      'Unknown Organization',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[600],

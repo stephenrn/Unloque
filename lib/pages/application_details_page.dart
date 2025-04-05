@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unloque/pages/application_form_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/pages/dashboard_page.dart';
 
 Color darkenColor(Color color, [double amount = 0.1]) {
   final hsl = HSLColor.fromColor(color);
@@ -286,14 +288,32 @@ class ApplicationDetailsPage extends StatelessWidget {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
         child: ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
+            final userId =
+                'user-id'; // Replace with actual user ID from authentication
+            final applicationData = {
+              'id': application['id'], // Store only the ID of the application
+              'status': 'Ongoing',
+            };
+
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .collection('applications')
+                .add(applicationData);
+
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) =>
                     ApplicationFormPage(application: application),
               ),
-            );
+            ).then((_) {
+              // Trigger refresh on the dashboard after returning
+              final dashboardState =
+                  context.findAncestorStateOfType<DashboardPageState>();
+              dashboardState?.refreshProgressSection();
+            });
           },
           style: ElevatedButton.styleFrom(
             backgroundColor:

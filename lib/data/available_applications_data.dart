@@ -4,6 +4,7 @@ class AvailableApplicationsData {
   static List<Map<String, dynamic>> getAllApplications() {
     return [
       {
+        'id': 'dost_science_scholarship',
         'category': 'Education',
         'programName': 'DOST Science Scholarship',
         'organizationName': 'Department of Science and Technology',
@@ -82,6 +83,7 @@ class AvailableApplicationsData {
         }
       },
       {
+        'id': 'public_school_teachers_grant',
         'category': 'Education',
         'programName': 'Public School Teachers Grant',
         'organizationName': 'Department of Education',
@@ -108,6 +110,7 @@ class AvailableApplicationsData {
         }
       },
       {
+        'id': 'medical_technology_scholarship',
         'category': 'Healthcare',
         'programName': 'Medical Technology Scholarship',
         'organizationName': 'Department of Health',
@@ -135,6 +138,7 @@ class AvailableApplicationsData {
         }
       },
       {
+        'id': 'youth_leadership_program',
         'category': 'Social',
         'programName': 'Youth Leadership Program',
         'organizationName': 'Department of Social Welfare',

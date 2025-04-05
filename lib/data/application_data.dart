@@ -1,74 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'available_applications_data.dart';
 
 class ApplicationData {
-  static List<Map<String, dynamic>> getSampleApplications() {
-    return [
-      {
-        'category': 'Education',
-        'programName': 'CHED Merit Scholarship Program',
-        'organizationName': 'Commission on Higher Education',
-        'deadline': 'Dec 31, 2023',
-        'status': 'Ongoing',
-        'categoryColor': Colors.blue[200],
-        'organizationLogo': Icons.school,
-      },
-      {
-        'category': 'Education',
-        'programName': 'DepEd Teachers Scholarship',
-        'organizationName': 'Department of Education',
-        'deadline': 'Jan 15, 2024',
-        'status': 'Pending',
-        'categoryColor': Colors.blue[200],
-        'organizationLogo': Icons.school,
-      },
-      {
-        'category': 'Healthcare',
-        'programName': 'DOH Medical Scholarship',
-        'organizationName': 'Department of Health',
-        'deadline': 'Dec 20, 2023',
-        'status': 'Ongoing',
-        'categoryColor': Colors.green[200],
-        'organizationLogo': Icons.local_hospital,
-      },
-      {
-        'category': 'Healthcare',
-        'programName': 'Provincial Health Grant',
-        'organizationName': 'Provincial Health Office',
-        'deadline': 'Jan 5, 2024',
-        'status': 'Completed',
-        'categoryColor': Colors.green[200],
-        'organizationLogo': Icons.local_hospital,
-      },
-      {
-        'category': 'Social',
-        'programName': 'DSWD Youth Development',
-        'organizationName': 'Department of Social Welfare',
-        'deadline': 'Dec 25, 2023',
-        'status': 'Pending',
-        'categoryColor': Colors.purple[200],
-        'organizationLogo': Icons.people,
-      },
-      {
-        'category': 'Social',
-        'programName': 'Community Leadership Grant',
-        'organizationName': 'Local Government Unit',
-        'deadline': 'Jan 20, 2024',
-        'status': 'Ongoing',
-        'categoryColor': Colors.purple[200],
-        'organizationLogo': Icons.people,
-      },
-    ];
+  static Future<List<Map<String, dynamic>>> getUserApplications(
+      String userId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('applications')
+        .get();
+
+    final availableApplications =
+        AvailableApplicationsData.getAllApplications();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      final applicationDetails = availableApplications.firstWhere(
+        (app) => app['id'] == data['id'],
+        orElse: () => {}, // Return an empty map instead of null
+      );
+
+      return {
+        'id': data['id'],
+        'status': data['status'],
+        ...?applicationDetails,
+      };
+    }).toList();
   }
 
-  static List<Map<String, dynamic>> getApplicationsByStatus(String status) {
-    final allApplications = getSampleApplications();
-    
-    if (status.toLowerCase() == 'all') {
-      return allApplications;
-    }
-    
-    return allApplications.where((app) => 
-      app['status'].toString().toLowerCase() == status.toLowerCase()
-    ).toList();
+  static Future<List<Map<String, dynamic>>> getApplicationsByStatus(
+      String userId, String status) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('applications')
+        .where('status', isEqualTo: status == 'all' ? null : status)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'category': data['category'],
+        'programName': data['programName'],
+        'organizationName': data['organizationName'],
+        'deadline': data['deadline'],
+        'status': data['status'],
+        'categoryColor': Color(data['categoryColor']),
+        'organizationLogo':
+            IconData(data['organizationLogo'], fontFamily: 'MaterialIcons'),
+      };
+    }).toList();
   }
 }
