@@ -16,15 +16,10 @@ class ApplicationProgressSectionState
     setState(() {});
   }
 
-  Future<void> fetchAdditionalData() async {
-    // Logic to fetch and process additional data
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: ApplicationData.getUserApplications(
-          'user-id'), // Replace with actual user ID from authentication
+      future: ApplicationData.getUserApplications(), // Updated method call
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -85,7 +80,8 @@ class ApplicationProgressSectionState
                 itemBuilder: (context, index) {
                   final app = applications[index];
                   return ApplicationProgressCard(
-                    category: app['category'],
+                    category:
+                        app['category'] ?? 'Unknown', // Handle null category
                     programName: app['programName'],
                     deadline: app['deadline'],
                     status: app['status'],

@@ -10,6 +10,20 @@ class _UsernameDialogState extends State<UsernameDialog> {
   final TextEditingController _usernameController = TextEditingController();
   bool _isValid = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _usernameController.addListener(() {
+      _validateUsername(_usernameController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
+  }
+
   void _validateUsername(String value) {
     setState(() {
       _isValid = value.length >= 3 && value.length <= 20;
@@ -56,13 +70,16 @@ class _UsernameDialogState extends State<UsernameDialog> {
             const SizedBox(height: 20),
             GestureDetector(
               onTap: _isValid
-                  ? () => Navigator.pop(context, _usernameController.text.trim())
+                  ? () =>
+                      Navigator.pop(context, _usernameController.text.trim())
                   : null,
               child: Container(
                 width: double.infinity,
                 height: 45,
                 decoration: BoxDecoration(
-                  color: _isValid ? const Color.fromARGB(255, 76, 160, 255) : Colors.grey,
+                  color: _isValid
+                      ? const Color.fromARGB(255, 76, 160, 255)
+                      : Colors.grey,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Center(

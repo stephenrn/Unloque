@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:unloque/pages/application_form_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:unloque/pages/dashboard_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 Color darkenColor(Color color, [double amount = 0.1]) {
   final hsl = HSLColor.fromColor(color);
@@ -91,7 +92,9 @@ class ApplicationDetailsPage extends StatelessWidget {
                             CircleAvatar(
                               backgroundColor: Colors.grey[200],
                               child: Icon(
-                                application['organizationLogo'],
+                                application['organizationLogo'] ??
+                                    Icons
+                                        .help_outline, // Provide a default value
                                 color: Colors.grey[800],
                               ),
                             ),
@@ -151,7 +154,8 @@ class ApplicationDetailsPage extends StatelessWidget {
                                         ),
                                       ),
                                       TextSpan(
-                                        text: application['deadline'],
+                                        text: application['deadline'] ??
+                                            'No Deadline', // Handle null deadline
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.bold,
@@ -164,7 +168,8 @@ class ApplicationDetailsPage extends StatelessWidget {
                               ],
                             ),
                             Text(
-                              application['category'],
+                              application['category'] ??
+                                  'Unknown Category', // Handle null category
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -289,18 +294,26 @@ class ApplicationDetailsPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: ElevatedButton(
           onPressed: () async {
-            final userId =
-                'user-id'; // Replace with actual user ID from authentication
+            final user = FirebaseAuth.instance.currentUser;
+            if (user == null) {
+              // Handle case where user is not signed in
+              return;
+            }
+
             final applicationData = {
               'id': application['id'], // Store only the ID of the application
               'status': 'Ongoing',
             };
 
+            // Use the application ID as the document name
             await FirebaseFirestore.instance
                 .collection('users')
-                .doc(userId)
-                .collection('applications')
-                .add(applicationData);
+                .doc(user.uid) // Use the signed-in user's ID
+                .collection(
+                    'users-application') // Store in 'users-application' collection
+                .doc(application[
+                    'id']) // Use the application ID as the document name
+                .set(applicationData); // Set the application data
 
             Navigator.push(
               context,

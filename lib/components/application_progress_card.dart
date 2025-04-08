@@ -31,7 +31,7 @@ class ApplicationProgressCard extends StatelessWidget {
       height: 180,
       margin: EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: categoryColor,
+        color: categoryColor ?? Colors.grey, // Handle null categoryColor
         borderRadius: BorderRadius.circular(15),
       ),
       child: Material(
@@ -42,7 +42,7 @@ class ApplicationProgressCard extends StatelessWidget {
             final applicationDetails =
                 AvailableApplicationsData.getAllApplications().firstWhere(
               (app) => app['id'] == id,
-              orElse: () => {},
+              orElse: () => {}, // Handle missing application details
             );
 
             Navigator.push(
@@ -75,7 +75,9 @@ class ApplicationProgressCard extends StatelessWidget {
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
-                                organizationLogo,
+                                organizationLogo ??
+                                    Icons
+                                        .help_outline, // Provide a default value if null
                                 size: 16,
                                 color: Colors.black87,
                               ),
@@ -88,7 +90,9 @@ class ApplicationProgressCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                status,
+                                status.isNotEmpty
+                                    ? status
+                                    : 'Unknown', // Handle null or empty status
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
@@ -100,7 +104,7 @@ class ApplicationProgressCard extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          category,
+                          category.isNotEmpty ? category : 'Unknown',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -125,7 +129,7 @@ class ApplicationProgressCard extends StatelessWidget {
                                 size: 12, color: Colors.black87),
                             SizedBox(width: 4),
                             Text(
-                              deadline,
+                              deadline.isNotEmpty ? deadline : 'No Deadline',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.black87,
@@ -161,7 +165,8 @@ class ApplicationProgressCard extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: index < segmentProgress
                                       ? Colors.black
-                                      : Colors.grey[200],
+                                      : Colors.grey[200] ??
+                                          Colors.grey, // Provide fallback color
                                   borderRadius: BorderRadius.circular(2),
                                   border: Border.all(
                                     color: Colors.black.withOpacity(0.1),
@@ -192,19 +197,22 @@ class ApplicationProgressCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: Colors.grey[800],
+                            color: Colors.grey[800] ??
+                                Colors.black, // Provide fallback color
                           ),
                         ),
                         SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
-                            color: Colors.grey[800],
+                            color: Colors.grey[800] ??
+                                Colors.black, // Provide fallback color
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.arrow_outward_rounded,
-                            color: Colors.grey[200],
+                            color: Colors.grey[200] ??
+                                Colors.grey, // Provide fallback color
                             size: 12,
                           ),
                         ),
@@ -218,7 +226,7 @@ class ApplicationProgressCard extends StatelessWidget {
                 left: 12,
                 right: 12,
                 child: Text(
-                  programName,
+                  programName.isNotEmpty ? programName : 'Unknown Program',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,

@@ -53,7 +53,8 @@ class DashboardPageState extends State<DashboardPage> {
         child: AppBar(
           scrolledUnderElevation: 0.0, // Add this line
           toolbarHeight: 80,
-          backgroundColor: Colors.grey[850],
+          backgroundColor:
+              Colors.grey[850] ?? Colors.grey, // Provide fallback color
           elevation: 0,
           title: Column(
             children: [
@@ -68,21 +69,21 @@ class DashboardPageState extends State<DashboardPage> {
                     return Text('Loading...',
                         style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey[600],
+                            color: Colors.grey[600] ?? Colors.grey,
                             fontStyle: FontStyle.italic));
                   }
                   if (snapshot.hasError) {
                     return Text('Error',
                         style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey[600],
+                            color: Colors.grey[600] ?? Colors.grey,
                             fontStyle: FontStyle.italic));
                   }
                   if (!snapshot.hasData || !snapshot.data!.exists) {
                     return Text('No Data',
                         style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey[600],
+                            color: Colors.grey[600] ?? Colors.grey,
                             fontStyle: FontStyle.italic));
                   }
                   String username = snapshot.data!['username'];
@@ -91,7 +92,7 @@ class DashboardPageState extends State<DashboardPage> {
                     children: [
                       CircleAvatar(
                         radius: 22,
-                        backgroundColor: Colors.grey[400],
+                        backgroundColor: Colors.grey[400] ?? Colors.grey,
                         backgroundImage:
                             photoUrl != null ? NetworkImage(photoUrl) : null,
                         child: photoUrl == null
@@ -117,7 +118,7 @@ class DashboardPageState extends State<DashboardPage> {
                               Text('$username!',
                                   style: TextStyle(
                                       fontSize: 22,
-                                      color: Colors.blue[200],
+                                      color: Colors.blue[200] ?? Colors.blue,
                                       fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -135,34 +136,42 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
-      backgroundColor: Colors.grey[100],
+      backgroundColor:
+          Colors.grey[100] ?? Colors.white, // Provide fallback color
       body: Stack(
         children: [
           SingleChildScrollView(
             child: Column(
               children: [
                 Container(
-                  color: Colors.grey[850],
+                  color:
+                      Colors.grey[850] ?? Colors.grey, // Provide fallback color
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: Colors.grey[200] ??
+                          Colors.grey, // Provide fallback color
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: TextField(
-                      style: TextStyle(color: Colors.grey[800]),
+                      style: TextStyle(
+                          color: Colors.grey[800] ??
+                              Colors.black), // Provide fallback color
                       decoration: InputDecoration(
                         hintText: 'Search for programs...',
                         hintStyle: TextStyle(
-                          color: Colors.grey[500],
+                          color: Colors.grey[500] ??
+                              Colors.grey, // Provide fallback color
                           fontSize: 15,
                           fontStyle: FontStyle.italic,
                         ),
                         prefixIcon: Icon(Icons.search_outlined,
-                            color: Colors.grey[800], size: 22),
+                            color: Colors.grey[800] ?? Colors.black,
+                            size: 22), // Provide fallback color
                         suffixIcon: Icon(Icons.tune_outlined,
-                            color: Colors.grey[800], size: 22),
+                            color: Colors.grey[800] ?? Colors.black,
+                            size: 22), // Provide fallback color
                         border: InputBorder.none,
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -173,7 +182,8 @@ class DashboardPageState extends State<DashboardPage> {
                 Container(
                   padding: EdgeInsets.only(bottom: 40),
                   decoration: BoxDecoration(
-                    color: Colors.grey[850],
+                    color: Colors.grey[850] ??
+                        Colors.grey, // Provide fallback color
                     borderRadius: BorderRadius.only(
                       bottomLeft: Radius.circular(15),
                       bottomRight: Radius.circular(15),

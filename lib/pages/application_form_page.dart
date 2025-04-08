@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ApplicationFormPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -20,24 +22,121 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   Map<String, bool> checkboxValues = {}; // For checkbox selections
   Map<String, DateTime?> selectedDates = {}; // For date selections
   Map<String, List<Map<String, String>>> attachedFilesMap =
-      {}; // Persistent state for multiple attachment questions
+      {}; // For attachments
+  Map<String, TextEditingController> textControllers =
+      {}; // For short answer and paragraph inputs
 
   @override
   void initState() {
     super.initState();
+    loadFormData(); // Load saved form data when the page is initialized
     final forms = widget.application['details']['forms'] ?? [];
     for (var form in forms) {
       if (form['type'] == 'checkbox') {
         for (var option in form['options']) {
-          checkboxValues[option] = false; // Initialize all checkboxes as false
+          checkboxValues[option] = false; // Default to unchecked
         }
+      } else if (form['type'] == 'date') {
       } else if (form['type'] == 'date') {
         selectedDates[form['label']] = null; // Initialize dates as null
       } else if (form['type'] == 'attachment') {
-        attachedFilesMap[form['label']] = []; // Initialize attachment list
+        attachedFilesMap[form['label']] =
+            attachedFilesMap[form['label']] ?? []; // Ensure non-null list
+      } else if (form['type'] == 'short_answer' ||
+          form['type'] == 'paragraph') {
+        textControllers[form['label']] =
+            TextEditingController(); // Initialize text controllers
       }
     }
-    print(widget.application);
+  }
+
+  @override
+  void dispose() {
+    // Dispose all text controllers to avoid memory leaks
+    for (var controller in textControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> saveFormData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Handle case where user is not signed in
+      return;
+    }
+
+    final formData = {
+      'short_answers': textControllers.map((key, controller) =>
+          MapEntry(key, controller.text)), // Store short answer responses
+      'paragraphs': textControllers.map((key, controller) =>
+          MapEntry(key, controller.text)), // Store paragraph responses
+      'multiple_choice': selectedOption, // Store selected option
+      'checkboxes': checkboxValues, // Store checkbox selections
+      'dates': selectedDates.map((key, value) =>
+          MapEntry(key, value?.toIso8601String())), // Store selected dates
+      'attachments': attachedFilesMap, // Store attached files
+    };
+
+    // Update the existing document in the 'users-application' collection
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('users-application')
+        .doc(widget
+            .application['id']) // Use the application ID as the document ID
+        .update({'form_data': formData}); // Update the 'form_data' field
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Form data saved successfully!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> loadFormData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('users-application')
+        .doc(widget
+            .application['id']) // Use the application ID as the document ID
+        .get();
+
+    if (doc.exists && doc.data() != null) {
+      final formData = doc.data()!['form_data'] ?? {};
+      setState(() {
+        selectedOption = formData['multiple_choice'];
+        checkboxValues = Map<String, bool>.from(formData['checkboxes'] ?? {});
+        selectedDates = Map<String, DateTime?>.from(
+          (formData['dates'] ?? {}).map((key, value) => MapEntry(
+                key,
+                value != null
+                    ? DateTime.parse(value)
+                    : null, // Handle null values
+              )),
+        );
+        attachedFilesMap = (formData['attachments'] ?? {})
+            .map<String, List<Map<String, String>>>(
+          (key, value) => MapEntry(
+            key as String, // Explicitly cast the key to String
+            (value as List<dynamic>)
+                .map((item) => Map<String, String>.from(item))
+                .toList(), // Safely cast each item to Map<String, String>
+          ),
+        );
+        textControllers.forEach((key, controller) {
+          controller.text =
+              formData['short_answers']?[key] ?? ''; // Load short answers
+        });
+      });
+    }
   }
 
   Future<void> _selectDate(BuildContext context, String label) async {
@@ -100,7 +199,12 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   ),
                 ),
               ),
-              SizedBox(width: 28),
+              IconButton(
+                onPressed:
+                    saveFormData, // Save form data when the button is pressed
+                icon: Icon(Icons.save, color: Colors.grey[800]),
+                tooltip: 'Save Form',
+              ),
             ],
           ),
         ),
@@ -116,7 +220,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   decoration: BoxDecoration(
                     color: widget.application['categoryColor'],
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[800]!, width: 0.5),
+                    border: Border.all(
+                        color: Colors.grey[800] ?? Colors.black, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,7 +234,9 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                             CircleAvatar(
                               backgroundColor: Colors.grey[200],
                               child: Icon(
-                                widget.application['organizationLogo'],
+                                widget.application['organizationLogo'] ??
+                                    Icons
+                                        .help_outline, // Provide a default value
                                 color: Colors.grey[800],
                               ),
                             ),
@@ -188,7 +295,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                         ),
                                       ),
                                       TextSpan(
-                                        text: widget.application['deadline'],
+                                        text: widget.application['deadline'] ??
+                                            'No Deadline', // Handle null deadline
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.bold,
@@ -201,7 +309,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                               ],
                             ),
                             Text(
-                              widget.application['category'],
+                              widget.application['category'] ??
+                                  'Unknown Category', // Handle null category
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -223,263 +332,215 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[800]!, width: 0.5),
+                    border: Border.all(
+                        color: Colors.grey[800] ?? Colors.black, width: 0.5),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: forms.map<Widget>((form) {
-                        switch (form['type']) {
-                          case 'short_answer':
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  form['label'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Render each form question
+                            if (form['type'] == 'short_answer' ||
+                                form['type'] == 'paragraph') ...[
+                              Text(
+                                form['label'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
-                                SizedBox(height: 8),
-                                TextField(
-                                  decoration: InputDecoration(
-                                    hintText: form['placeholder'],
-                                    border: OutlineInputBorder(),
-                                  ),
+                              ),
+                              SizedBox(height: 8),
+                              TextField(
+                                controller: textControllers[form['label']],
+                                maxLines: form['type'] == 'paragraph' ? 5 : 1,
+                                decoration: InputDecoration(
+                                  hintText: form['placeholder'],
+                                  border: OutlineInputBorder(),
                                 ),
-                                SizedBox(height: 16),
-                              ],
-                            );
-                          case 'paragraph':
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  form['label'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
+                              ),
+                            ] else if (form['type'] == 'multiple_choice') ...[
+                              Text(
+                                form['label'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
-                                SizedBox(height: 8),
-                                TextField(
-                                  maxLines: 5,
-                                  decoration: InputDecoration(
-                                    hintText: form['placeholder'],
-                                    border: OutlineInputBorder(),
-                                  ),
+                              ),
+                              SizedBox(height: 8),
+                              ...form['options'].map<Widget>((option) {
+                                return RadioListTile(
+                                  value: option,
+                                  groupValue: selectedOption,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedOption = value as String?;
+                                    });
+                                  },
+                                  title: Text(option),
+                                );
+                              }).toList(),
+                            ] else if (form['type'] == 'checkbox') ...[
+                              Text(
+                                form['label'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
-                                SizedBox(height: 16),
-                              ],
-                            );
-                          case 'multiple_choice':
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  form['label'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
+                              ),
+                              SizedBox(height: 8),
+                              ...form['options'].map<Widget>((option) {
+                                return CheckboxListTile(
+                                  value: checkboxValues[option],
+                                  tristate: true,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      checkboxValues[option] = value ?? false;
+                                    });
+                                  },
+                                  title: Text(option),
+                                );
+                              }).toList(),
+                            ] else if (form['type'] == 'date') ...[
+                              Text(
+                                form['label'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
-                                SizedBox(height: 8),
-                                ...form['options'].map<Widget>((option) {
-                                  return RadioListTile(
-                                    value: option,
-                                    groupValue: selectedOption,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        selectedOption = value as String?;
-                                      });
-                                    },
-                                    title: Text(option),
-                                  );
-                                }).toList(),
-                                SizedBox(height: 16),
-                              ],
-                            );
-                          case 'checkbox':
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  form['label'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
+                              ),
+                              SizedBox(height: 8),
+                              TextField(
+                                decoration: InputDecoration(
+                                  hintText: selectedDates[form['label']] == null
+                                      ? 'Select a date'
+                                      : '${selectedDates[form['label']]!.toLocal()}'
+                                          .split(' ')[0],
+                                  border: OutlineInputBorder(),
                                 ),
-                                SizedBox(height: 8),
-                                ...form['options'].map<Widget>((option) {
-                                  return CheckboxListTile(
-                                    value: checkboxValues[option],
-                                    onChanged: (value) {
-                                      setState(() {
-                                        checkboxValues[option] = value!;
-                                      });
-                                    },
-                                    title: Text(option),
-                                  );
-                                }).toList(),
-                                SizedBox(height: 16),
-                              ],
-                            );
-                          case 'date':
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  form['label'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
+                                readOnly: true,
+                                onTap: () =>
+                                    _selectDate(context, form['label']),
+                              ),
+                            ] else if (form['type'] == 'attachment') ...[
+                              Text(
+                                form['label'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
-                                SizedBox(height: 8),
-                                TextField(
-                                  decoration: InputDecoration(
-                                    hintText: selectedDates[form['label']] ==
-                                            null
-                                        ? 'Select a date'
-                                        : '${selectedDates[form['label']]!.toLocal()}'
-                                            .split(' ')[0],
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  readOnly: true,
-                                  onTap: () =>
-                                      _selectDate(context, form['label']),
-                                ),
-                                SizedBox(height: 16),
-                              ],
-                            );
-                          case 'attachment':
-                            if (!attachedFilesMap.containsKey(form['label'])) {
-                              attachedFilesMap[form['label']] = [];
-                            }
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  form['label'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                ElevatedButton.icon(
-                                  onPressed: () async {
-                                    FilePickerResult? result = await FilePicker
-                                        .platform
-                                        .pickFiles(allowMultiple: true);
-                                    if (result != null) {
-                                      final appDir =
-                                          await getApplicationDocumentsDirectory();
-                                      for (var file in result.files) {
-                                        final filePath = file.path!;
-                                        final fileName = file.name;
+                              ),
+                              SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  FilePickerResult? result = await FilePicker
+                                      .platform
+                                      .pickFiles(allowMultiple: true);
+                                  if (result != null) {
+                                    final appDir =
+                                        await getApplicationDocumentsDirectory();
+                                    for (var file in result.files) {
+                                      final filePath = file.path!;
+                                      final fileName = file.name;
 
-                                        if (filePath.startsWith('http')) {
-                                          // Download file from Google Drive
-                                          final response = await http
-                                              .get(Uri.parse(filePath));
-                                          final localFile =
-                                              File('${appDir.path}/$fileName');
-                                          await localFile
-                                              .writeAsBytes(response.bodyBytes);
-                                          setState(() {
-                                            attachedFilesMap[form['label']]!
-                                                .add({
-                                              'name': fileName,
-                                              'path': localFile.path,
-                                            });
+                                      if (filePath.startsWith('http')) {
+                                        // Download file from Google Drive
+                                        final response =
+                                            await http.get(Uri.parse(filePath));
+                                        final localFile =
+                                            File('${appDir.path}/$fileName');
+                                        await localFile
+                                            .writeAsBytes(response.bodyBytes);
+                                        setState(() {
+                                          attachedFilesMap[form['label']]!.add({
+                                            'name': fileName,
+                                            'path': localFile.path,
                                           });
-                                        } else {
-                                          // Copy local file
-                                          final localFile = await File(filePath)
-                                              .copy('${appDir.path}/$fileName');
-                                          setState(() {
-                                            attachedFilesMap[form['label']]!
-                                                .add({
-                                              'name': fileName,
-                                              'path': localFile.path,
-                                            });
+                                        });
+                                      } else {
+                                        // Copy local file
+                                        final localFile = await File(filePath)
+                                            .copy('${appDir.path}/$fileName');
+                                        setState(() {
+                                          attachedFilesMap[form['label']]!.add({
+                                            'name': fileName,
+                                            'path': localFile.path,
                                           });
-                                        }
+                                        });
                                       }
                                     }
-                                  },
-                                  icon: Icon(Icons.attach_file),
-                                  label: Text('Upload Files'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey[300],
-                                    foregroundColor: Colors.grey[800],
-                                  ),
+                                  }
+                                },
+                                icon: Icon(Icons.attach_file),
+                                label: Text('Upload Files'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      Colors.grey[300] ?? Colors.grey,
+                                  foregroundColor:
+                                      Colors.grey[800] ?? Colors.black,
                                 ),
-                                if (attachedFilesMap[form['label']]!
-                                    .isNotEmpty) ...[
-                                  SizedBox(height: 8),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: attachedFilesMap[form['label']]!
-                                        .map((file) {
-                                      return Row(
-                                        children: [
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () async {
-                                                final filePath = file['path'];
-                                                if (filePath != null) {
-                                                  await OpenFilex.open(
-                                                      filePath);
-                                                } else {
-                                                  print('File path is null');
-                                                }
-                                              },
-                                              child: Text(
-                                                file['name']!,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Colors.blue,
-                                                  decoration:
-                                                      TextDecoration.underline,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (attachedFilesMap[form['label']] != null &&
+                                  attachedFilesMap[form['label']]!
+                                      .isNotEmpty) ...[
+                                SizedBox(height: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: attachedFilesMap[form['label']]!
+                                      .map((file) {
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              final filePath = file['path'];
+                                              if (filePath != null) {
+                                                await OpenFilex.open(filePath);
+                                              } else {
+                                                print('File path is null');
+                                              }
+                                            },
+                                            child: Text(
+                                              file['name']!,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.blue,
+                                                decoration:
+                                                    TextDecoration.underline,
                                               ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                          IconButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                attachedFilesMap[form['label']]!
-                                                    .remove(file);
-                                              });
-                                            },
-                                            icon: Icon(Icons.close,
-                                                color: Colors.red),
-                                            tooltip: 'Remove file',
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                                SizedBox(height: 16),
+                                        ),
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              attachedFilesMap[form['label']]!
+                                                  .remove(file);
+                                            });
+                                          },
+                                          icon: Icon(Icons.close,
+                                              color: Colors.red),
+                                          tooltip: 'Remove file',
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                               ],
-                            );
-                          default:
-                            return SizedBox.shrink();
-                        }
+                            ],
+                            SizedBox(
+                                height: 24), // Add spacing between questions
+                          ],
+                        );
                       }).toList(),
                     ),
                   ),

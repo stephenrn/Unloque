@@ -91,10 +91,9 @@ class ApplicationList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId = 'user-id'; // Replace with actual user ID from authentication
-
     return FutureBuilder(
-      future: ApplicationData.getApplicationsByStatus(userId, status),
+      future: ApplicationData.getApplicationsByStatus(
+          status), // Updated method call
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());

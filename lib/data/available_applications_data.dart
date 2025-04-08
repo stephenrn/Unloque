@@ -106,7 +106,34 @@ class AvailableApplicationsData {
               'Must have a satisfactory performance rating.'
             ],
             'extra': 'Priority will be given to teachers in underserved areas.'
-          }
+          },
+          'forms': [
+            {
+              'type': 'short_answer',
+              'label': 'Full Name',
+              'placeholder': 'Enter your full name'
+            },
+            {
+              'type': 'paragraph',
+              'label': 'Why do you want this grant?',
+              'placeholder': 'Write your answer here...'
+            },
+            {
+              'type': 'checkbox',
+              'label': 'Documents Submitted',
+              'options': [
+                'Transcript of Records',
+                'Teaching License',
+                'Letter of Intent'
+              ]
+            },
+            {'type': 'date', 'label': 'Date of Birth'},
+            {
+              'type': 'attachment',
+              'label': 'Upload Supporting Documents',
+              'placeholder': 'Attach your files here...'
+            }
+          ]
         }
       },
       {
@@ -134,7 +161,39 @@ class AvailableApplicationsData {
             ],
             'extra':
                 'Preference will be given to students from underserved areas.'
-          }
+          },
+          'forms': [
+            {
+              'type': 'short_answer',
+              'label': 'Full Name',
+              'placeholder': 'Enter your full name'
+            },
+            {
+              'type': 'paragraph',
+              'label': 'Why do you want to pursue medical technology?',
+              'placeholder': 'Write your answer here...'
+            },
+            {
+              'type': 'multiple_choice',
+              'label': 'Preferred Area of Practice',
+              'options': ['Clinical Laboratory', 'Public Health', 'Research']
+            },
+            {
+              'type': 'checkbox',
+              'label': 'Documents Submitted',
+              'options': [
+                'Transcript of Records',
+                'Birth Certificate',
+                'ID Picture'
+              ]
+            },
+            {'type': 'date', 'label': 'Date of Birth'},
+            {
+              'type': 'attachment',
+              'label': 'Upload Supporting Documents',
+              'placeholder': 'Attach your files here...'
+            }
+          ]
         }
       },
       {
@@ -162,7 +221,34 @@ class AvailableApplicationsData {
             ],
             'extra':
                 'Special consideration for applicants from marginalized communities.'
-          }
+          },
+          'forms': [
+            {
+              'type': 'short_answer',
+              'label': 'Full Name',
+              'placeholder': 'Enter your full name'
+            },
+            {
+              'type': 'paragraph',
+              'label': 'Describe your leadership experience.',
+              'placeholder': 'Write your answer here...'
+            },
+            {
+              'type': 'checkbox',
+              'label': 'Documents Submitted',
+              'options': [
+                'Resume',
+                'Recommendation Letter',
+                'Community Involvement Proof'
+              ]
+            },
+            {'type': 'date', 'label': 'Date of Birth'},
+            {
+              'type': 'attachment',
+              'label': 'Upload Supporting Documents',
+              'placeholder': 'Attach your files here...'
+            }
+          ]
         }
       },
     ];
