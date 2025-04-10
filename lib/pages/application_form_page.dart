@@ -34,9 +34,10 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
     for (var form in forms) {
       if (form['type'] == 'checkbox') {
         for (var option in form['options']) {
-          checkboxValues[option] = false; // Default to unchecked
+          if (!checkboxValues.containsKey(option)) {
+            checkboxValues[option] = false; // Ensure default value is false
+          }
         }
-      } else if (form['type'] == 'date') {
       } else if (form['type'] == 'date') {
         selectedDates[form['label']] = null; // Initialize dates as null
       } else if (form['type'] == 'attachment') {
@@ -156,6 +157,15 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   @override
   Widget build(BuildContext context) {
     final forms = widget.application['details']['forms'] ?? [];
+
+    // Pre-initialize all checkbox values before rendering
+    for (var form in forms) {
+      if (form['type'] == 'checkbox') {
+        for (var option in form['options']) {
+          checkboxValues.putIfAbsent(option, () => false);
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -396,9 +406,13 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                               ),
                               SizedBox(height: 8),
                               ...form['options'].map<Widget>((option) {
+                                // Make sure the value is never null
+                                final bool isChecked =
+                                    checkboxValues[option] ?? false;
+
                                 return CheckboxListTile(
-                                  value: checkboxValues[option],
-                                  tristate: true,
+                                  value: isChecked,
+                                  tristate: false,
                                   onChanged: (value) {
                                     setState(() {
                                       checkboxValues[option] = value ?? false;
