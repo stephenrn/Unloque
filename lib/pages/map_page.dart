@@ -33,6 +33,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Tab controller for bottom sheet tabs
   late TabController _tabController;
 
+  // Add new state variable for filter selection
+  String _selectedFilter = 'General'; // Default selected filter
+
   List<_DataModel> _generateDataModel() {
     return <_DataModel>[
       _DataModel('Agdangan', 13.885378, 121.9359),
@@ -197,6 +200,87 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           MapLatLng(_quezonProvince.latitude, _quezonProvince.longitude);
       _zoomPanBehavior.zoomLevel = 5;
     });
+  }
+
+  // Add method to handle filter selection
+  void _onFilterSelected(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    // Here you would add logic to filter map data based on selected category
+  }
+
+  // Create widget for filter buttons with improved positioning and no splash
+  Widget _buildFilterChips() {
+    // Define all filter options
+    final List<String> filters = [
+      'General',
+      'Healthcare',
+      'Social',
+      'Education'
+    ];
+
+    return Positioned(
+      top: 120, // Position precisely below search bar
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 32,
+        alignment: Alignment.centerLeft, // Align to left side
+        child: ListView(
+          shrinkWrap: true,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(left: 16), // Left padding only
+          children: filters.map((filter) {
+            final isSelected = _selectedFilter == filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Theme(
+                data: ThemeData(
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  // Disable any shadow or elevation
+                  chipTheme: ChipThemeData(
+                    elevation: 0,
+                    pressElevation: 0,
+                    shadowColor: Colors.transparent,
+                  ),
+                ),
+                child: RawChip(
+                  // Use RawChip for more control
+                  label: Text(
+                    filter,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  selected: isSelected,
+                  onSelected: (_) => _onFilterSelected(filter),
+                  backgroundColor: Colors.blue
+                      .shade50, // Changed from shade100 to shade50 for lighter blue
+                  selectedColor: Colors.blue.shade600,
+                  showCheckmark: false,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  elevation: 0, // No elevation
+                  pressElevation: 0, // No elevation when pressed
+                  shadowColor: Colors.transparent, // No shadow
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide.none, // No border
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 
   Widget _buildBottomSheet() {
@@ -759,6 +843,10 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
               );
             },
           ),
+
+          // Add filter chips below search bar
+          _buildFilterChips(),
+
           if (_isLoading)
             Container(
               color: Colors.white.withOpacity(0.5),
