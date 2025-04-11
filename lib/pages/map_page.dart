@@ -679,6 +679,12 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // Change the background of the map to light blue
+          Container(
+            color: Colors
+                .blue.shade100, // Light blue background for the entire map
+          ),
+
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: SfMaps(
@@ -696,9 +702,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                     );
                   },
                   source: _shapeSource,
-                  color: const Color.fromARGB(
-                      255, 218, 216, 216), // Set the color to blue
-                  strokeColor: Colors.white, // Set the stroke color to white
+                  color: Colors.white, // Changed to white for PHGeoJSON
+                  strokeColor: Colors.white, // Light blue border
                   strokeWidth: 1,
                   selectedIndex: _selectedIndex,
                   selectionSettings: const MapSelectionSettings(
@@ -719,14 +724,14 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                   sublayers: [
                     MapShapeSublayer(
                       source: _sublayerSource,
-                      color: const Color.fromARGB(
-                          255, 156, 156, 156), // Solid red default color
-                      strokeColor: const Color.fromARGB(255, 201, 201, 201),
+                      color: Colors.grey[300], // Slightly transparent white
+                      strokeColor:
+                          Colors.grey[800], // Darker blue border for contrast
                       strokeWidth: 1,
                       selectedIndex: _selectedSublayerIndex,
                       selectionSettings: const MapSelectionSettings(
-                          color: Color.fromARGB(255, 116, 92, 255),
-                          strokeColor: Color.fromARGB(255, 0, 0, 0),
+                          color: Color.fromARGB(255, 27, 160, 227),
+                          strokeColor: Color.fromARGB(255, 255, 255, 255),
                           strokeWidth: 1),
                       onSelectionChanged: (int index) {
                         _zoomPanBehavior.focalLatLng = MapLatLng(
