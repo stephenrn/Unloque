@@ -36,6 +36,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Add new state variable for filter selection
   String _selectedFilter = 'General'; // Default selected filter
 
+  // Add a state variable to track search bar open state
+  bool _isSearchBarOpen = false;
+
   List<_DataModel> _generateDataModel() {
     return <_DataModel>[
       _DataModel('Agdangan', 13.885378, 121.9359),
@@ -212,6 +215,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Create widget for filter buttons with improved positioning and no splash
   Widget _buildFilterChips() {
+    // If search bar is open, don't show the filter chips
+    if (_isSearchBarOpen) return const SizedBox.shrink();
+
     // Define all filter options
     final List<String> filters = [
       'General',
@@ -782,6 +788,13 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                 size: 20, onTap: () {}, // Smaller size without padding
               ),
             ],
+
+            // Add onFocusChanged callback to track when search bar is open
+            onFocusChanged: (isFocused) {
+              setState(() {
+                _isSearchBarOpen = isFocused;
+              });
+            },
 
             // Other existing properties
             iconColor: Colors.grey,
