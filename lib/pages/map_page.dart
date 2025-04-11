@@ -167,7 +167,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   void _toggleBottomSheetExpansion() {
     setState(() {
       _isBottomSheetExpanded = !_isBottomSheetExpanded;
-      _bottomSheetHeight = _isBottomSheetExpanded ? 350.0 : 120.0;
+      _bottomSheetHeight = _isBottomSheetExpanded
+          ? 700.0
+          : 120.0; // Increased expanded height from 350 to 500
     });
   }
 
@@ -295,39 +297,109 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
               // Divider for consistent visual separation
               Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
 
-              // Tab Bar with fixed height
-              Container(
-                height: 40, // Fixed height for tab bar
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: Colors.blue,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Colors.blue,
-                  labelStyle: const TextStyle(fontSize: 14),
-                  indicatorWeight: 2.0,
-                  tabs: const [
-                    Tab(text: 'Data Analysis'),
-                    Tab(text: 'Data Summary'),
-                    Tab(text: 'Insights'),
-                  ],
-                ),
-              ),
-
-              // Tab content with consistent padding
-              if (_isBottomSheetExpanded)
+              // Show different content based on whether we're showing Quezon Province or a specific municipality
+              if (isDefaultView) // Only show tabs for Quezon Province
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
+                  child: Column(
                     children: [
-                      _buildDataAnalysisTab(displayLocation, isDefaultView),
-                      _buildDataSummaryTab(displayLocation, isDefaultView),
-                      _buildInsightsTab(displayLocation, isDefaultView),
+                      // Tab Bar with fixed height
+                      Container(
+                        height: 40, // Fixed height for tab bar
+                        child: TabBar(
+                          controller: _tabController,
+                          labelColor: Colors.blue,
+                          unselectedLabelColor: Colors.grey,
+                          indicatorColor: Colors.blue,
+                          labelStyle: const TextStyle(fontSize: 14),
+                          indicatorWeight: 2.0,
+                          tabs: const [
+                            Tab(text: 'Data Analysis'),
+                            Tab(text: 'Data Summary'),
+                            Tab(text: 'Insights'),
+                          ],
+                        ),
+                      ),
+
+                      // Tab content with consistent padding
+                      if (_isBottomSheetExpanded)
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildDataAnalysisTab(
+                                  displayLocation, isDefaultView),
+                              _buildDataSummaryTab(
+                                  displayLocation, isDefaultView),
+                              _buildInsightsTab(displayLocation, isDefaultView),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
-                ),
+                )
+              else // For municipalities, show a simpler layout
+                _isBottomSheetExpanded
+                    ? Expanded(
+                        child: _buildMunicipalityContent(displayLocation),
+                      )
+                    : const SizedBox
+                        .shrink(), // No additional content when collapsed for municipalities
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // New method to build municipality-specific content without tabs
+  Widget _buildMunicipalityContent(_DataModel location) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Municipality info section
+          Text(
+            'About ${location.name}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Information about this municipality is currently being compiled. Here is what we know so far:',
+          ),
+          const SizedBox(height: 16),
+
+          // Municipality data
+          _buildMunicipalityDataSummary(location),
+
+          const SizedBox(height: 24),
+
+          // Additional sections can be added here for municipality-specific information
+          const Text(
+            'Geographic Features',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+              '${location.name} is located at coordinates ${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)} within Quezon Province.'),
+
+          const SizedBox(height: 24),
+          const Text(
+            'Local Economy',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text('Data on local economic activities will be added soon.'),
+        ],
       ),
     );
   }
@@ -590,9 +662,47 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
               ],
             ),
           ),
+
+          // Updated simple left-aligned title text
+          Positioned(
+            top: 35,
+            left: 26, // Left-aligned
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: const Text(
+                'Welfare Distribution Map',
+                style: TextStyle(
+                  fontSize: 26, // Increased font size
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+
           FloatingSearchBar(
             controller: _searchBarController,
+            margins: const EdgeInsets.fromLTRB(16, 75, 16, 16),
             hint: 'Search municipalities...',
+            height: 40, // Small height
+
+            // Replace button with plain icon without margins
+            leadingActions: [
+              FloatingSearchBarAction.icon(
+                icon: const Icon(
+                  Icons.search,
+                  color: Colors.grey,
+                  size: 20,
+                ),
+                showIfOpened: true,
+                size: 20, onTap: () {}, // Smaller size without padding
+              ),
+            ],
+
+            // Other existing properties
+            iconColor: Colors.grey,
+            queryStyle: const TextStyle(fontSize: 14),
+            hintStyle: const TextStyle(fontSize: 14),
             scrollPadding: const EdgeInsets.only(top: 16, bottom: 56),
             transitionDuration: const Duration(milliseconds: 800),
             transitionCurve: Curves.easeInOut,
@@ -601,6 +711,10 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             openAxisAlignment: 0.0,
             width: 600,
             debounceDelay: const Duration(milliseconds: 500),
+            borderRadius: BorderRadius.circular(15),
+            elevation: 0,
+            border: BorderSide(color: Colors.grey.shade900, width: 0.5),
+            backgroundColor: Colors.white,
             onQueryChanged: (query) {
               setState(() {
                 _searchTerm = query;
@@ -621,10 +735,17 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             builder: (context, transition) {
               final filteredList = _getFilteredList();
               return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                    20), // Match dropdown corners with search bar
                 child: Material(
                   color: Colors.white,
-                  elevation: 4.0,
+                  elevation: 0, // Remove shadow from dropdown
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                        color: Colors.grey.shade300,
+                        width: 1.0), // Add outline to dropdown
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: filteredList
