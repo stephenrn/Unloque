@@ -365,7 +365,7 @@ class ApplicationCard extends StatelessWidget {
               ),
             ),
 
-            // Footer - Changed from InkWell to Container
+            // Footer - Replace InkWell with Container
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(

@@ -199,6 +199,8 @@ class DashboardPageState extends State<DashboardPage> {
                   ),
                   Container(
                     padding: EdgeInsets.only(bottom: 40),
+                    // Use fixed height instead of minimum height
+                    height: 280, // Fixed height to prevent any adjustment
                     decoration: BoxDecoration(
                       color: Colors.grey[850] ??
                           Colors.grey, // Provide fallback color
