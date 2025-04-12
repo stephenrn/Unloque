@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:unloque/pages/application_details_page.dart'; // Add this import
 
 class ApplicationPendingPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -183,126 +184,141 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                 // Application Header Section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: widget.application['categoryColor'],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.grey[800] ?? Colors.black,
-                        width: 0.5,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ApplicationDetailsPage(
+                            application: widget.application,
+                            hideApplyButton: true, // Don't show Apply button
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: widget.application['categoryColor'],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.grey[800] ?? Colors.black,
+                          width: 0.5,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top Section: Title, Logo, and Subtitle
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.grey[200],
-                                child: Icon(
-                                  widget.application['organizationLogo'] ??
-                                      Icons.help_outline,
-                                  color: Colors.grey[800],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Top Section: Title, Logo, and Subtitle
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: Colors.grey[200],
+                                  child: Icon(
+                                    widget.application['organizationLogo'] ??
+                                        Icons.help_outline,
+                                    color: Colors.grey[800],
+                                  ),
                                 ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.application['programName'],
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[800],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        widget.application[
+                                                'organizationName'] ??
+                                            'Unknown Organization',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Bottom Section: Due Date
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(15),
+                                bottomRight: Radius.circular(15),
                               ),
-                              SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
                                   children: [
-                                    Text(
-                                      widget.application['programName'],
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[800],
+                                    Icon(Icons.calendar_today,
+                                        color: Colors.grey[800], size: 16),
+                                    SizedBox(width: 8),
+                                    RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: 'Submitted: ',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text: DateTime.now()
+                                                .toString()
+                                                .split(' ')[0],
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      widget.application['organizationName'] ??
-                                          'Unknown Organization',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Bottom Section: Due Date
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(15),
-                              bottomRight: Radius.circular(15),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.calendar_today,
-                                      color: Colors.grey[800], size: 16),
-                                  SizedBox(width: 8),
-                                  RichText(
-                                    text: TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: 'Submitted: ',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[800],
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: DateTime.now()
-                                              .toString()
-                                              .split(' ')[0],
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey[800],
-                                          ),
-                                        ),
-                                      ],
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber[100],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'Pending',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.amber[800],
                                     ),
                                   ),
-                                ],
-                              ),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber[100],
-                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Text(
-                                  'Pending',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber[800],
-                                  ),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

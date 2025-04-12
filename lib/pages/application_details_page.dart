@@ -12,8 +12,13 @@ Color darkenColor(Color color, [double amount = 0.1]) {
 
 class ApplicationDetailsPage extends StatelessWidget {
   final Map<String, dynamic> application;
+  final bool hideApplyButton; // New parameter to control button visibility
 
-  const ApplicationDetailsPage({super.key, required this.application});
+  const ApplicationDetailsPage({
+    super.key,
+    required this.application,
+    this.hideApplyButton = false, // Default is to show the button
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -290,89 +295,91 @@ class ApplicationDetailsPage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ElevatedButton(
-          onPressed: () async {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
-              // Handle case where user is not signed in
-              return;
-            }
+      bottomNavigationBar: hideApplyButton
+          ? null // No bottom bar when hideApplyButton is true
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) {
+                    // Handle case where user is not signed in
+                    return;
+                  }
 
-            // Check if the application already exists
-            final applicationDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('users-application')
-                .doc(application['id'])
-                .get();
+                  // Check if the application already exists
+                  final applicationDoc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .collection('users-application')
+                      .doc(application['id'])
+                      .get();
 
-            if (applicationDoc.exists) {
-              // Show dialog if application already exists
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('Application Already Exists'),
-                    content: Text(
-                        'You have already applied for this opportunity. You can view it in your applications list.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text('OK'),
-                      ),
-                    ],
-                  );
+                  if (applicationDoc.exists) {
+                    // Show dialog if application already exists
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text('Application Already Exists'),
+                          content: Text(
+                              'You have already applied for this opportunity. You can view it in your applications list.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: Text('OK'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    return;
+                  }
+
+                  // If application doesn't exist, proceed with adding it
+                  final applicationData = {
+                    'id': application['id'],
+                    'status': 'Ongoing',
+                  };
+
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .collection('users-application')
+                      .doc(application['id'])
+                      .set(applicationData);
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ApplicationFormPage(application: application),
+                    ),
+                  ).then((_) {
+                    // Trigger refresh on the dashboard after returning
+                    final dashboardState =
+                        context.findAncestorStateOfType<DashboardPageState>();
+                    dashboardState?.refreshProgressSection();
+                  });
                 },
-              );
-              return;
-            }
-
-            // If application doesn't exist, proceed with adding it
-            final applicationData = {
-              'id': application['id'],
-              'status': 'Ongoing',
-            };
-
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('users-application')
-                .doc(application['id'])
-                .set(applicationData);
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    ApplicationFormPage(application: application),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: darkenColor(
+                      application['categoryColor']!), // Darken the color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24), // Make it rounder
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(
+                  'Apply Now',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-            ).then((_) {
-              // Trigger refresh on the dashboard after returning
-              final dashboardState =
-                  context.findAncestorStateOfType<DashboardPageState>();
-              dashboardState?.refreshProgressSection();
-            });
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                darkenColor(application['categoryColor']!), // Darken the color
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24), // Make it rounder
             ),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          child: Text(
-            'Apply Now',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

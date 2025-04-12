@@ -801,116 +801,132 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Header Section
+                  // Header Section - Make it tappable
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: widget.application['categoryColor'],
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: Colors.grey[800] ?? Colors.black,
-                            width: 0.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top Section: Title, Logo, and Subtitle
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: Colors.grey[200],
-                                  child: Icon(
-                                    widget.application['organizationLogo'] ??
-                                        Icons
-                                            .help_outline, // Provide a default value
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.application['programName'],
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[800],
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      widget.application['organizationName'] ??
-                                          'Unknown Organization',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ApplicationDetailsPage(
+                              application: widget.application,
+                              hideApplyButton: true, // Don't show Apply button
                             ),
                           ),
-                          // Bottom Section: Due Date
-                          Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(15),
-                                bottomRight: Radius.circular(15),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: widget.application['categoryColor'],
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Colors.grey[800] ?? Colors.black,
+                              width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top Section: Title, Logo, and Subtitle
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: Colors.grey[200],
+                                    child: Icon(
+                                      widget.application['organizationLogo'] ??
+                                          Icons
+                                              .help_outline, // Provide a default value
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.application['programName'],
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[800],
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        widget.application[
+                                                'organizationName'] ??
+                                            'Unknown Organization',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today,
-                                        color: Colors.grey[800], size: 16),
-                                    SizedBox(width: 8),
-                                    RichText(
-                                      text: TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: 'Due: ',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[800],
+                            // Bottom Section: Due Date
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(15),
+                                  bottomRight: Radius.circular(15),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.calendar_today,
+                                          color: Colors.grey[800], size: 16),
+                                      SizedBox(width: 8),
+                                      RichText(
+                                        text: TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: 'Due: ',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[800],
+                                              ),
                                             ),
-                                          ),
-                                          TextSpan(
-                                            text: widget
-                                                    .application['deadline'] ??
-                                                'No Deadline', // Handle null deadline
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[800],
+                                            TextSpan(
+                                              text: widget.application[
+                                                      'deadline'] ??
+                                                  'No Deadline', // Handle null deadline
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey[800],
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  widget.application['category'] ??
-                                      'Unknown Category', // Handle null category
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  Text(
+                                    widget.application['category'] ??
+                                        'Unknown Category', // Handle null category
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
