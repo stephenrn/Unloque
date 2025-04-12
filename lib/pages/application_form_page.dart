@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unloque/pages/application_details_page.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -35,6 +36,12 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   String uploadProgressMessage = '';
   int totalFilesToUpload = 0;
   int currentFileUploadIndex = 0;
+
+  // Track files to be deleted from storage when saving
+  Set<String> filesToDelete = {}; // Stores download URLs of files to be deleted
+
+  // Track original state of files
+  Map<String, List<Map<String, dynamic>>> originalAttachedFilesMap = {};
 
   @override
   void initState() {
@@ -76,13 +83,35 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         return;
       }
 
-      // Count total files that need uploading
+      // First, delete files that were removed by the user
+      if (filesToDelete.isNotEmpty) {
+        setState(() {
+          uploadProgressMessage = 'Removing deleted files...';
+        });
+
+        for (String downloadUrl in filesToDelete) {
+          try {
+            // Get reference from the download URL and delete
+            final ref = FirebaseStorage.instance.refFromURL(downloadUrl);
+            await ref.delete();
+            print('Successfully deleted file with URL: $downloadUrl');
+          } catch (e) {
+            print('Error deleting file from storage: $e');
+            // Continue with other deletions
+          }
+        }
+
+        // Clear delete set after processing
+        filesToDelete.clear();
+      }
+
+      // Count total files that need uploading (only new files without download URLs)
       totalFilesToUpload = 0;
       for (var label in attachedFilesMap.keys) {
         for (var fileData in attachedFilesMap[label]!) {
           if (fileData['path'] != null &&
               (fileData['downloadUrl'] == null ||
-                  !fileData['path'].toString().startsWith('http'))) {
+                  fileData['downloadUrl'].toString().isEmpty)) {
             totalFilesToUpload++;
           }
         }
@@ -98,18 +127,55 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         });
       }
 
+      // Create a deep copy of the attachedFilesMap to store updated data
+      final updatedAttachedFilesMap = <String, List<Map<String, dynamic>>>{};
+      for (var label in attachedFilesMap.keys) {
+        updatedAttachedFilesMap[label] = [];
+      }
+
       // Now upload files one by one
       for (var label in attachedFilesMap.keys) {
+        if (!attachedFilesMap.containsKey(label) ||
+            attachedFilesMap[label] == null) {
+          continue; // Skip if no files for this label
+        }
+
         for (int i = 0; i < attachedFilesMap[label]!.length; i++) {
           final fileData = attachedFilesMap[label]![i];
-          // If this file has a path but no downloadUrl, upload it
-          if (fileData['path'] != null &&
-              (fileData['downloadUrl'] == null ||
-                  !fileData['path'].toString().startsWith('http'))) {
+
+          // Validate file data
+          if (fileData == null ||
+              !fileData.containsKey('path') ||
+              fileData['path'] == null) {
+            print('Invalid file data: $fileData');
+            continue;
+          }
+
+          // If this file already has a download URL, just add it to the updated map
+          if (fileData['downloadUrl'] != null &&
+              fileData['downloadUrl'].toString().isNotEmpty) {
+            updatedAttachedFilesMap[label]!
+                .add(Map<String, dynamic>.from(fileData));
+            continue;
+          }
+
+          // Handle new file upload
+          if (fileData['path'] != null) {
             try {
-              final file = File(fileData['path']);
+              final filePath = fileData['path'];
+              print('Preparing to upload file: $filePath');
+
+              final file = File(filePath);
               if (!await file.exists()) {
                 print('File does not exist: ${fileData['path']}');
+                continue;
+              }
+
+              final fileSize = await file.length();
+              print('File size: ${fileSize} bytes');
+
+              if (fileSize == 0) {
+                print('File is empty: ${fileData['path']}');
                 continue;
               }
 
@@ -120,35 +186,83 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
               });
 
               // Generate a unique file path in storage with timestamp to avoid conflicts
-              final fileName =
-                  '${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}';
+              final fileName = path.basename(file.path);
+              final uniqueFileName =
+                  '${DateTime.now().millisecondsSinceEpoch}_$fileName';
+              print('Generated storage path for file: $uniqueFileName');
+
               final storageRef = FirebaseStorage.instance.ref().child(
-                  'users/${user.uid}/applications/${widget.application['id']}/$label/$fileName');
+                  'users/${user.uid}/applications/${widget.application['id']}/$label/$uniqueFileName');
 
-              // Upload file with retry logic
-              UploadTask? uploadTask;
+              // Upload file with retry logic and timeout
               try {
-                uploadTask = storageRef.putFile(file);
-                final snapshot = await uploadTask;
-                final downloadUrl = await snapshot.ref.getDownloadURL();
+                print('Starting upload for file: ${file.path}');
 
-                // Update the file data with the download URL
-                setState(() {
-                  attachedFilesMap[label]![i] = {
-                    'name': fileData['name'],
-                    'path': fileData['path'], // Keep local path for cache
-                    'downloadUrl': downloadUrl, // Store download URL
-                  };
+                // Set metadata for the file
+                final metadata = SettableMetadata(
+                    contentType: _getContentType(fileName),
+                    customMetadata: {'picked-file-path': file.path});
+
+                // Start the upload task with metadata
+                final uploadTask = storageRef.putFile(file, metadata);
+
+                // Create a completer to handle timeout
+                final completer = Completer<TaskSnapshot>();
+
+                // Listen for upload completion or error
+                uploadTask.then(completer.complete).catchError((error) {
+                  print('Upload task error: $error');
+                  completer.completeError(error);
                 });
+
+                // Monitor upload progress
+                uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+                  final progress =
+                      (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                  print('Upload progress for $uniqueFileName: $progress%');
+                });
+
+                // Wait for upload with timeout
+                final snapshot = await completer.future
+                    .timeout(Duration(minutes: 5), onTimeout: () {
+                  print('Upload timed out after 5 minutes');
+                  uploadTask.cancel();
+                  throw TimeoutException('Upload timed out after 5 minutes');
+                });
+
+                final downloadUrl = await snapshot.ref.getDownloadURL();
+                print('Upload successful. Download URL: $downloadUrl');
+
+                // Add the file to the updated map with the download URL
+                updatedAttachedFilesMap[label]!.add({
+                  'name': fileData['name'],
+                  'path': fileData['path'], // Keep local path for cache
+                  'downloadUrl': downloadUrl, // Store download URL
+                });
+
                 print(
                     'Successfully uploaded file: ${fileData['name']} with URL: $downloadUrl');
               } catch (uploadError) {
                 print('Error uploading file: $uploadError');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Error uploading ${fileData['name']}: ${uploadError.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
                 // Continue to next file instead of failing the entire save
                 continue;
               }
             } catch (fileError) {
               print('Error processing file: $fileError');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Error processing file: ${fileData['name'] ?? 'unknown file'}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
               // Continue to next file
               continue;
             }
@@ -159,9 +273,31 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       setState(() {
         isUploadingFiles = false;
         uploadProgressMessage = 'Saving form data...';
+
+        // Update the attachedFilesMap with the updated data
+        attachedFilesMap = updatedAttachedFilesMap;
       });
 
-      // Now save all form data including updated file information
+      // Convert the fileData maps to a format that can be stored in Firestore
+      final convertedAttachments = {};
+      attachedFilesMap.forEach((key, value) {
+        convertedAttachments[key] = value
+            .map((fileData) => {
+                  'name': fileData['name'],
+                  'path': fileData['path'],
+                  'downloadUrl': fileData['downloadUrl'],
+                })
+            .toList();
+      });
+
+      // Save the current state as the new original state
+      originalAttachedFilesMap = <String, List<Map<String, dynamic>>>{};
+      for (var label in attachedFilesMap.keys) {
+        originalAttachedFilesMap[label] = List<Map<String, dynamic>>.from(
+            attachedFilesMap[label]!
+                .map((item) => Map<String, dynamic>.from(item)));
+      }
+
       final formData = {
         'short_answers': textControllers
             .map((key, controller) => MapEntry(key, controller.text)),
@@ -171,7 +307,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         'checkboxes': checkboxValues,
         'dates': selectedDates
             .map((key, value) => MapEntry(key, value?.toIso8601String())),
-        'attachments': attachedFilesMap,
+        'attachments': convertedAttachments,
       };
 
       await FirebaseFirestore.instance
@@ -200,6 +336,26 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         isSaving = false;
         isUploadingFiles = false;
       });
+    }
+  }
+
+  // Helper method to determine content type
+  String _getContentType(String fileName) {
+    final ext = path.extension(fileName).toLowerCase();
+    switch (ext) {
+      case '.pdf':
+        return 'application/pdf';
+      case '.doc':
+        return 'application/msword';
+      case '.docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      default:
+        return 'application/octet-stream';
     }
   }
 
@@ -233,11 +389,42 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
           if (formData['attachments'] != null) {
             final storedAttachments =
                 formData['attachments'] as Map<String, dynamic>;
+
+            // Clear and initialize attachment maps
+            attachedFilesMap = {};
+            originalAttachedFilesMap = {};
+
+            // Get default form labels for attachments
+            final forms = widget.application['details']['forms'] ?? [];
+            for (var form in forms) {
+              if (form['type'] == 'attachment') {
+                attachedFilesMap[form['label']] = [];
+                originalAttachedFilesMap[form['label']] = [];
+              }
+            }
+
+            // Now populate with data from Firestore
             for (var key in storedAttachments.keys) {
-              attachedFilesMap[key] = [];
+              if (!attachedFilesMap.containsKey(key)) {
+                attachedFilesMap[key] = [];
+                originalAttachedFilesMap[key] = [];
+              }
+
               final files = storedAttachments[key] as List<dynamic>;
               for (var file in files) {
-                attachedFilesMap[key]!.add(Map<String, dynamic>.from(file));
+                final fileMap = Map<String, dynamic>.from(file);
+                attachedFilesMap[key]!.add(fileMap);
+                originalAttachedFilesMap[key]!
+                    .add(Map<String, dynamic>.from(fileMap));
+              }
+            }
+          } else {
+            // Initialize empty lists for attachment fields
+            final forms = widget.application['details']['forms'] ?? [];
+            for (var form in forms) {
+              if (form['type'] == 'attachment') {
+                attachedFilesMap[form['label']] = [];
+                originalAttachedFilesMap[form['label']] = [];
               }
             }
           }
@@ -317,6 +504,130 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
     }
   }
 
+  // Method to remove a file
+  void removeFile(String label, Map<String, dynamic> fileData) {
+    setState(() {
+      // Add the file to the list of files to be deleted if it has a download URL
+      if (fileData.containsKey('downloadUrl') &&
+          fileData['downloadUrl'] != null &&
+          fileData['downloadUrl'].toString().isNotEmpty) {
+        filesToDelete.add(fileData['downloadUrl']);
+      }
+
+      // Remove from UI list
+      attachedFilesMap[label]!.remove(fileData);
+    });
+  }
+
+  // New method to delete application form data and associated files
+  Future<void> deleteApplication() async {
+    // Show confirmation dialog
+    final bool confirmDelete = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Cancel Application'),
+              content: Text(
+                  'Are you sure you want to cancel this application? All data and uploaded files will be permanently deleted.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('No, Keep It'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    'Yes, Cancel Application',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmDelete) return;
+
+    setState(() {
+      isSaving = true;
+      uploadProgressMessage = 'Deleting application...';
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You must be signed in to delete an application'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Reference to the application document
+      final applicationRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('users-application')
+          .doc(widget.application['id']);
+
+      // Get the current form data to find all attached files
+      final applicationDoc = await applicationRef.get();
+      final formData = applicationDoc.data()?['form_data'];
+
+      // Delete all files from Firebase Storage if they exist
+      if (formData != null && formData['attachments'] != null) {
+        final attachments = formData['attachments'] as Map<String, dynamic>;
+
+        for (var fieldKey in attachments.keys) {
+          final fieldFiles = attachments[fieldKey] as List<dynamic>;
+          for (var file in fieldFiles) {
+            if (file['downloadUrl'] != null &&
+                file['downloadUrl'].toString().isNotEmpty) {
+              try {
+                // Delete file from Firebase Storage
+                final ref =
+                    FirebaseStorage.instance.refFromURL(file['downloadUrl']);
+                await ref.delete();
+                print('Deleted file: ${file['name']} from Firebase Storage');
+              } catch (e) {
+                print('Error deleting file from storage: $e');
+                // Continue with other deletions even if this one fails
+              }
+            }
+          }
+        }
+      }
+
+      // Delete the application document from Firestore
+      await applicationRef.delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Application cancelled successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate back to previous screen
+      Navigator.of(context).pop();
+    } catch (error) {
+      print('Error deleting application: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error cancelling application: ${error.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        isSaving = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final forms = widget.application['details']['forms'] ?? [];
@@ -372,6 +683,14 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   ),
                 ),
               ),
+              // Add delete button
+              if (!isSaving)
+                IconButton(
+                  onPressed: deleteApplication,
+                  icon: Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: 'Cancel Application',
+                ),
+              // Save button or progress indicator
               isSaving
                   ? Container(
                       width: 48,
@@ -782,11 +1101,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                             ),
                                             IconButton(
                                               onPressed: () {
-                                                setState(() {
-                                                  attachedFilesMap[
-                                                          form['label']]!
-                                                      .remove(fileData);
-                                                });
+                                                removeFile(
+                                                    form['label'], fileData);
                                               },
                                               icon: Icon(Icons.close,
                                                   color: Colors.red, size: 20),
@@ -866,5 +1182,16 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         ),
       ),
     );
+  }
+
+  // Add the missing darkenColor function
+  Color darkenColor(Color color, [double amount = 0.1]) {
+    assert(amount >= 0 && amount <= 1);
+
+    final hsl = HSLColor.fromColor(color);
+    final darkColor =
+        hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0));
+
+    return darkColor.toColor();
   }
 }
