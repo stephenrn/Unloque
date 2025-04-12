@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../data/application_data.dart';
 import 'application_progress_card.dart';
-import '../pages/home_page.dart'; // Add import for HomePage
+import '../pages/home_page.dart';
 
 class ApplicationProgressSection extends StatefulWidget {
-  const ApplicationProgressSection({super.key});
+  final Function? scrollToCategories; // Add this parameter to handle scrolling
+
+  const ApplicationProgressSection({super.key, this.scrollToCategories});
 
   @override
   ApplicationProgressSectionState createState() =>
@@ -86,7 +88,33 @@ class ApplicationProgressSectionState
                   SizedBox(height: 16),
                   Text(
                     'No applications found',
-                    style: TextStyle(color: Colors.grey[300]),
+                    style: TextStyle(color: Colors.grey[300], fontSize: 16),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Apply now in programs in the category section',
+                    style: TextStyle(color: Colors.grey[300], fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  IconButton(
+                    onPressed: () {
+                      if (widget.scrollToCategories != null) {
+                        widget.scrollToCategories!();
+                      }
+                    },
+                    icon: Icon(
+                      Icons.arrow_downward_rounded,
+                      color: Colors.grey[300],
+                      size: 28,
+                    ),
+                    padding: EdgeInsets.all(8),
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(
+                        Colors.grey[800],
+                      ),
+                      shape: MaterialStateProperty.all(CircleBorder()),
+                    ),
                   ),
                 ],
               ),

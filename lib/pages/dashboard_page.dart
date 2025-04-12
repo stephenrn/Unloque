@@ -16,6 +16,8 @@ class DashboardPage extends StatefulWidget {
 class DashboardPageState extends State<DashboardPage> {
   final GlobalKey<ApplicationProgressSectionState> _progressSectionKey =
       GlobalKey();
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _categoriesSectionKey = GlobalKey();
 
   void refreshProgressSection() {
     _progressSectionKey.currentState?.refreshApplications();
@@ -32,6 +34,16 @@ class DashboardPageState extends State<DashboardPage> {
     if (result == true) {
       refreshProgressSection();
     }
+  }
+
+  // Update the scroll method to scroll to the bottom instead of calculating positions
+  void scrollToCategories() {
+    // Simply scroll to the bottom of the page
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: Duration(milliseconds: 800),
+      curve: Curves.easeOutQuart,
+    );
   }
 
   @override
@@ -159,6 +171,7 @@ class DashboardPageState extends State<DashboardPage> {
               refreshProgressSection();
             },
             child: SingleChildScrollView(
+              controller: _scrollController, // Add the controller here
               child: Column(
                 children: [
                   Container(
@@ -209,7 +222,11 @@ class DashboardPageState extends State<DashboardPage> {
                         bottomRight: Radius.circular(15),
                       ),
                     ),
-                    child: ApplicationProgressSection(key: _progressSectionKey),
+                    child: ApplicationProgressSection(
+                      key: _progressSectionKey,
+                      scrollToCategories:
+                          scrollToCategories, // Pass the scroll function
+                    ),
                   ),
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 5),
@@ -217,7 +234,9 @@ class DashboardPageState extends State<DashboardPage> {
                       items: sliderItems,
                     ),
                   ),
+                  // Add a key to the CategoriesSection for scrolling
                   CategoriesSection(
+                    key: _categoriesSectionKey,
                     onNavigate: navigateAndRefresh,
                   ),
                   Container(
