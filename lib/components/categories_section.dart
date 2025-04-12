@@ -7,7 +7,8 @@ class Category {
   final IconData icon;
   final Color color;
 
-  Category({
+  const Category({
+    // Make the Category constructor const
     required this.name,
     required this.description,
     required this.icon,
@@ -16,8 +17,12 @@ class Category {
 }
 
 class CategoriesSection extends StatelessWidget {
-  CategoriesSection({super.key});
+  final Function(BuildContext, Widget)? onNavigate;
 
+  // Remove const from here
+  CategoriesSection({Key? key, this.onNavigate}) : super(key: key);
+
+  // Define categories as a final field
   final List<Category> categories = [
     Category(
       name: 'Education',
@@ -60,7 +65,10 @@ class CategoriesSection extends StatelessWidget {
           shrinkWrap: true,
           itemCount: categories.length,
           itemBuilder: (context, index) {
-            return CategoryCard(category: categories[index]);
+            return CategoryCard(
+              category: categories[index],
+              onNavigate: onNavigate,
+            );
           },
         ),
       ],
@@ -70,31 +78,39 @@ class CategoriesSection extends StatelessWidget {
 
 class CategoryCard extends StatelessWidget {
   final Category category;
+  final Function(BuildContext, Widget)? onNavigate;
 
   const CategoryCard({
     super.key,
     required this.category,
+    this.onNavigate,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // reduced vertical padding
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 4), // reduced vertical padding
       child: Material(
         color: Colors.white,
         elevation: 2, // Add elevation to Material
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CategoryDetailsPage(
-                  categoryName: category.name,
-                  categoryColor: category.color,
-                ),
-              ),
+            final categoryPage = CategoryDetailsPage(
+              categoryName: category.name,
+              categoryColor: category.color,
             );
+
+            // Use the callback if provided, otherwise use normal navigation
+            if (onNavigate != null) {
+              onNavigate!(context, categoryPage);
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => categoryPage),
+              );
+            }
           },
           borderRadius: BorderRadius.circular(12),
           child: Container(
@@ -117,7 +133,8 @@ class CategoryCard extends StatelessWidget {
                   padding: const EdgeInsets.all(5), // reduced from 12 to 8
                   decoration: BoxDecoration(
                     color: category.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8), // reduced from 12 to 8
+                    borderRadius:
+                        BorderRadius.circular(8), // reduced from 12 to 8
                   ),
                   child: Icon(
                     category.icon,

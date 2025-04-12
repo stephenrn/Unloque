@@ -300,20 +300,47 @@ class ApplicationDetailsPage extends StatelessWidget {
               return;
             }
 
+            // Check if the application already exists
+            final applicationDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .collection('users-application')
+                .doc(application['id'])
+                .get();
+
+            if (applicationDoc.exists) {
+              // Show dialog if application already exists
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text('Application Already Exists'),
+                    content: Text(
+                        'You have already applied for this opportunity. You can view it in your applications list.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('OK'),
+                      ),
+                    ],
+                  );
+                },
+              );
+              return;
+            }
+
+            // If application doesn't exist, proceed with adding it
             final applicationData = {
-              'id': application['id'], // Store only the ID of the application
+              'id': application['id'],
               'status': 'Ongoing',
             };
 
-            // Use the application ID as the document name
             await FirebaseFirestore.instance
                 .collection('users')
-                .doc(user.uid) // Use the signed-in user's ID
-                .collection(
-                    'users-application') // Store in 'users-application' collection
-                .doc(application[
-                    'id']) // Use the application ID as the document name
-                .set(applicationData); // Set the application data
+                .doc(user.uid)
+                .collection('users-application')
+                .doc(application['id'])
+                .set(applicationData);
 
             Navigator.push(
               context,

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:unloque/pages/application_form_page.dart';
+import 'package:unloque/pages/application_pending_page.dart';
 import 'package:unloque/data/available_applications_data.dart';
+import 'package:unloque/pages/dashboard_page.dart'; // Add this import to access DashboardPageState
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ApplicationProgressCard extends StatelessWidget {
   final String category;
@@ -38,22 +42,73 @@ class ApplicationProgressCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
-          onTap: () {
+          onTap: () async {
             final applicationDetails =
                 AvailableApplicationsData.getAllApplications().firstWhere(
               (app) => app['id'] == id,
               orElse: () => {}, // Handle missing application details
             );
 
-            Navigator.push(
+            // Get the current user
+            final user = FirebaseAuth.instance.currentUser;
+            if (user == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'You must be signed in to access this application')),
+              );
+              return;
+            }
+
+            // Check the current status in Firestore
+            final applicationDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .collection('users-application')
+                .doc(id)
+                .get();
+
+            // Get the current status from Firestore - use the latest status
+            String currentStatus = status;
+            if (applicationDoc.exists) {
+              currentStatus = applicationDoc.data()?['status'] ?? status;
+            }
+
+            Widget destinationPage;
+            if (currentStatus == 'Pending') {
+              destinationPage = ApplicationPendingPage(application: {
+                ...applicationDetails,
+                'status': currentStatus,
+              });
+            } else {
+              destinationPage = ApplicationFormPage(application: {
+                ...applicationDetails,
+                'status': currentStatus,
+              });
+            }
+
+            // Get the result from navigation and refresh if needed
+            final result = await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => ApplicationFormPage(application: {
-                  ...applicationDetails,
-                  'status': status,
-                }),
-              ),
+              MaterialPageRoute(builder: (context) => destinationPage),
             );
+
+            // If we got a refresh signal, refresh the dashboard directly
+            if (result == true) {
+              // Find the nearest DashboardPage state and refresh it
+              final dashboardState =
+                  context.findAncestorStateOfType<DashboardPageState>();
+              if (dashboardState != null) {
+                dashboardState.refreshProgressSection();
+              }
+            } else {
+              // Always refresh when returning from application pages
+              final dashboardState =
+                  context.findAncestorStateOfType<DashboardPageState>();
+              if (dashboardState != null) {
+                dashboardState.refreshProgressSection();
+              }
+            }
           },
           child: Stack(
             children: [

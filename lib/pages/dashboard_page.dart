@@ -21,6 +21,19 @@ class DashboardPageState extends State<DashboardPage> {
     _progressSectionKey.currentState?.refreshApplications();
   }
 
+  // Navigate to a page and refresh when returning with a refresh flag
+  Future<void> navigateAndRefresh(BuildContext context, Widget page) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => page),
+    );
+
+    // Refresh if the result is true
+    if (result == true) {
+      refreshProgressSection();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -140,69 +153,77 @@ class DashboardPageState extends State<DashboardPage> {
           Colors.grey[100] ?? Colors.white, // Provide fallback color
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                Container(
-                  color:
-                      Colors.grey[850] ?? Colors.grey, // Provide fallback color
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200] ??
-                          Colors.grey, // Provide fallback color
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: TextField(
-                      style: TextStyle(
-                          color: Colors.grey[800] ??
-                              Colors.black), // Provide fallback color
-                      decoration: InputDecoration(
-                        hintText: 'Search for programs...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[500] ??
-                              Colors.grey, // Provide fallback color
-                          fontSize: 15,
-                          fontStyle: FontStyle.italic,
+          RefreshIndicator(
+            onRefresh: () async {
+              // Call the method to refresh applications
+              refreshProgressSection();
+            },
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Container(
+                    color: Colors.grey[850] ??
+                        Colors.grey, // Provide fallback color
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200] ??
+                            Colors.grey, // Provide fallback color
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: TextField(
+                        style: TextStyle(
+                            color: Colors.grey[800] ??
+                                Colors.black), // Provide fallback color
+                        decoration: InputDecoration(
+                          hintText: 'Search for programs...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey[500] ??
+                                Colors.grey, // Provide fallback color
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          prefixIcon: Icon(Icons.search_outlined,
+                              color: Colors.grey[800] ?? Colors.black,
+                              size: 22), // Provide fallback color
+                          suffixIcon: Icon(Icons.tune_outlined,
+                              color: Colors.grey[800] ?? Colors.black,
+                              size: 22), // Provide fallback color
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 10),
                         ),
-                        prefixIcon: Icon(Icons.search_outlined,
-                            color: Colors.grey[800] ?? Colors.black,
-                            size: 22), // Provide fallback color
-                        suffixIcon: Icon(Icons.tune_outlined,
-                            color: Colors.grey[800] ?? Colors.black,
-                            size: 22), // Provide fallback color
-                        border: InputBorder.none,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                       ),
                     ),
                   ),
-                ),
-                Container(
-                  padding: EdgeInsets.only(bottom: 40),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850] ??
-                        Colors.grey, // Provide fallback color
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(15),
-                      bottomRight: Radius.circular(15),
+                  Container(
+                    padding: EdgeInsets.only(bottom: 40),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[850] ??
+                          Colors.grey, // Provide fallback color
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(15),
+                        bottomRight: Radius.circular(15),
+                      ),
+                    ),
+                    child: ApplicationProgressSection(key: _progressSectionKey),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 5),
+                    child: AutoImageSlider(
+                      items: sliderItems,
                     ),
                   ),
-                  child: ApplicationProgressSection(key: _progressSectionKey),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 5),
-                  child: AutoImageSlider(
-                    items: sliderItems,
+                  CategoriesSection(
+                    onNavigate: navigateAndRefresh,
                   ),
-                ),
-                CategoriesSection(),
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                ),
-              ],
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

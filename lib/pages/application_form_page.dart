@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
+import 'package:unloque/pages/application_pending_page.dart';
 
 class ApplicationFormPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -611,8 +612,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         ),
       );
 
-      // Navigate back to previous screen
-      Navigator.of(context).pop();
+      // Navigate back to previous screen with true to trigger refresh
+      Navigator.of(context).pop(true);
     } catch (error) {
       print('Error deleting application: $error');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -622,6 +623,92 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         ),
       );
     } finally {
+      setState(() {
+        isSaving = false;
+      });
+    }
+  }
+
+  // Add a new method to submit application
+  Future<void> submitApplication() async {
+    // Show confirmation dialog
+    final bool confirmSubmit = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Submit Application'),
+              content: Text(
+                'Are you sure you want to submit this application? Once submitted, it will be sent to the organization for review.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    'Submit',
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmSubmit) return;
+
+    // Save form data first
+    setState(() {
+      isSaving = true;
+      uploadProgressMessage = 'Submitting application...';
+    });
+
+    try {
+      // Save form data by calling the existing saveFormData method
+      await saveFormData();
+
+      // Update application status to Pending
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not signed in');
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('users-application')
+          .doc(widget.application['id'])
+          .update({'status': 'Pending'});
+
+      // Navigate to pending page with replacement and also set result for any parent pages
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ApplicationPendingPage(
+            application: {
+              ...widget.application,
+              'status': 'Pending',
+            },
+          ),
+          settings: RouteSettings(name: 'pending_${widget.application['id']}'),
+        ),
+      );
+
+      // Also pop with true result to trigger refresh if this is popped directly
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      }
+    } catch (error) {
+      print('Error submitting application: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error submitting application: ${error.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
       setState(() {
         isSaving = false;
       });
@@ -1161,9 +1248,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
         child: ElevatedButton(
-          onPressed: () {
-            // Handle form submission
-          },
+          onPressed: isSaving ? null : submitApplication,
           style: ElevatedButton.styleFrom(
             backgroundColor: darkenColor(widget.application['categoryColor']!),
             shape: RoundedRectangleBorder(

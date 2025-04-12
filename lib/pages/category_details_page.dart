@@ -38,7 +38,8 @@ class CategoryDetailsPage extends StatelessWidget {
                 ),
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(
+                      context, true), // Return true to trigger refresh
                   icon: Transform.rotate(
                     angle: 4.71239,
                     child: Icon(
@@ -110,8 +111,8 @@ class AvailableApplicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ApplicationDetailsPage(
@@ -122,6 +123,11 @@ class AvailableApplicationCard extends StatelessWidget {
             ),
           ),
         );
+
+        // If returning with refresh flag, propagate it back to the category page
+        if (result == true) {
+          Navigator.pop(context, true);
+        }
       },
       child: Container(
         margin: EdgeInsets.symmetric(

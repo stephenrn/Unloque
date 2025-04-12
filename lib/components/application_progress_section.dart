@@ -12,14 +12,33 @@ class ApplicationProgressSection extends StatefulWidget {
 
 class ApplicationProgressSectionState
     extends State<ApplicationProgressSection> {
+  // Track if we need to refresh
+  bool _needsRefresh = true;
+  List? _cachedApplications;
+
   Future<void> refreshApplications() async {
-    setState(() {});
+    // Force a refresh by clearing cache and marking as needing refresh
+    setState(() {
+      _cachedApplications = null;
+      _needsRefresh = true;
+    });
+  }
+
+  Future<List> _loadApplications() async {
+    if (_cachedApplications != null && !_needsRefresh) {
+      return _cachedApplications!;
+    }
+
+    final applications = await ApplicationData.getUserApplications();
+    _cachedApplications = applications;
+    _needsRefresh = false;
+    return applications;
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: ApplicationData.getUserApplications(), // Updated method call
+      future: _loadApplications(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
