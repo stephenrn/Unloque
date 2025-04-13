@@ -832,14 +832,38 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                               padding: const EdgeInsets.all(16),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
-                                    backgroundColor: Colors.grey[200],
-                                    child: Icon(
-                                      widget.application['organizationLogo'] ??
-                                          Icons
-                                              .help_outline, // Provide a default value
-                                      color: Colors.grey[800],
+                                  // Replace CircleAvatar with a container showing the logo URL
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
+                                    child: widget.application['logoUrl'] !=
+                                                null &&
+                                            widget.application['logoUrl']
+                                                .toString()
+                                                .isNotEmpty
+                                        ? ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            child: Image.network(
+                                              widget.application['logoUrl'],
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Icon(
+                                                  Icons.business,
+                                                  color: Colors.grey[800],
+                                                );
+                                              },
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.business,
+                                            color: Colors.grey[800],
+                                          ),
                                   ),
                                   SizedBox(width: 16),
                                   Column(

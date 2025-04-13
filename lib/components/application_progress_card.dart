@@ -15,6 +15,7 @@ class ApplicationProgressCard extends StatelessWidget {
   final IconData organizationLogo;
   final String organizationName;
   final String id;
+  final Map<String, dynamic> fullApplication;
 
   const ApplicationProgressCard({
     super.key,
@@ -26,14 +27,15 @@ class ApplicationProgressCard extends StatelessWidget {
     required this.organizationLogo,
     required this.organizationName,
     required this.id,
+    required this.fullApplication,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 180,
-      height: 180,
-      margin: EdgeInsets.symmetric(horizontal: 4),
+      width: 170,
+      height: 170, // Reduce height slightly further
+      margin: EdgeInsets.only(right: 8), // Remove bottom margin completely
       decoration: BoxDecoration(
         color: categoryColor ?? Colors.grey, // Handle null categoryColor
         borderRadius: BorderRadius.circular(15),
@@ -43,11 +45,8 @@ class ApplicationProgressCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
           onTap: () async {
-            final applicationDetails =
-                AvailableApplicationsData.getAllApplications().firstWhere(
-              (app) => app['id'] == id,
-              orElse: () => {}, // Handle missing application details
-            );
+            // Use the full application data directly instead of fetching again
+            final applicationDetails = fullApplication;
 
             // Get the current user
             final user = FirebaseAuth.instance.currentUser;
@@ -122,19 +121,38 @@ class ApplicationProgressCard extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            // Replace circular icon container with rounded image container
                             Container(
                               width: 24,
                               height: 24,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                shape: BoxShape.circle,
+                                borderRadius:
+                                    BorderRadius.circular(6), // Rounded corners
                               ),
-                              child: Icon(
-                                organizationLogo ??
-                                    Icons
-                                        .help_outline, // Provide a default value if null
-                                size: 16,
-                                color: Colors.black87,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: fullApplication['logoUrl'] != null &&
+                                        fullApplication['logoUrl']
+                                            .toString()
+                                            .isNotEmpty
+                                    ? Image.network(
+                                        fullApplication['logoUrl'],
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Icon(
+                                            Icons.business,
+                                            size: 16,
+                                            color: Colors.black87,
+                                          );
+                                        },
+                                      )
+                                    : Icon(
+                                        Icons.business,
+                                        size: 16,
+                                        color: Colors.black87,
+                                      ),
                               ),
                             ),
                             Container(

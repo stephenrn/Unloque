@@ -99,7 +99,7 @@ class ApplicationList extends StatefulWidget {
 }
 
 class _ApplicationListState extends State<ApplicationList> {
-  Future<List>? _applicationsFuture;
+  Future<List<Map<String, dynamic>>>? _applicationsFuture;
 
   @override
   void initState() {
@@ -120,18 +120,19 @@ class _ApplicationListState extends State<ApplicationList> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
+    return FutureBuilder<List<Map<String, dynamic>>>(
       future: _applicationsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
-          return Center(child: Text('Error loading applications'));
-        } else if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+          return Center(
+              child: Text('Error loading applications: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(child: Text('No applications found'));
         }
 
-        final applications = snapshot.data as List;
+        final applications = snapshot.data!;
 
         return ListView.builder(
           padding: EdgeInsets.symmetric(vertical: 8),
@@ -163,12 +164,6 @@ class ApplicationCard extends StatelessWidget {
 
     return InkWell(
       onTap: () async {
-        final applicationDetails =
-            AvailableApplicationsData.getAllApplications().firstWhere(
-          (app) => app['id'] == application['id'],
-          orElse: () => {}, // Handle missing application details
-        );
-
         // Get the current user
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
@@ -180,32 +175,13 @@ class ApplicationCard extends StatelessWidget {
           return;
         }
 
-        // Check the current status in Firestore
-        final applicationDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('users-application')
-            .doc(application['id'])
-            .get();
-
-        // Get the current status from Firestore - use the latest status
-        String currentStatus = application['status'];
-        if (applicationDoc.exists) {
-          currentStatus =
-              applicationDoc.data()?['status'] ?? application['status'];
-        }
+        final currentStatus = application['status'] ?? 'Unknown';
 
         Widget destinationPage;
         if (currentStatus == 'Pending') {
-          destinationPage = ApplicationPendingPage(application: {
-            ...applicationDetails,
-            'status': currentStatus,
-          });
+          destinationPage = ApplicationPendingPage(application: application);
         } else {
-          destinationPage = ApplicationFormPage(application: {
-            ...applicationDetails,
-            'status': currentStatus,
-          });
+          destinationPage = ApplicationFormPage(application: application);
         }
 
         // Get the result from navigation and refresh if needed
@@ -241,9 +217,35 @@ class ApplicationCard extends StatelessWidget {
                   // Logo and organization name
                   Row(
                     children: [
-                      Icon(
-                        application['organizationLogo'],
-                        size: 20,
+                      // Replace Icon with Image container
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: application['logoUrl'] != null &&
+                                  application['logoUrl'].toString().isNotEmpty
+                              ? Image.network(
+                                  application['logoUrl'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.business,
+                                      size: 18,
+                                      color: Colors.grey[800],
+                                    );
+                                  },
+                                )
+                              : Icon(
+                                  Icons.business,
+                                  size: 18,
+                                  color: Colors.grey[800],
+                                ),
+                        ),
                       ),
                       SizedBox(width: 12),
                       Text(

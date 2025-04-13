@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import '../data/application_data.dart';
-import 'application_progress_card.dart';
-import '../pages/home_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../components/application_progress_card.dart';
+import '../data/application_data.dart'; // Import the updated data source
 
 class ApplicationProgressSection extends StatefulWidget {
-  final Function? scrollToCategories; // Add this parameter to handle scrolling
+  final VoidCallback scrollToCategories;
 
-  const ApplicationProgressSection({super.key, this.scrollToCategories});
+  const ApplicationProgressSection({
+    Key? key,
+    required this.scrollToCategories,
+  }) : super(key: key);
 
   @override
   ApplicationProgressSectionState createState() =>
@@ -15,181 +19,212 @@ class ApplicationProgressSection extends StatefulWidget {
 
 class ApplicationProgressSectionState
     extends State<ApplicationProgressSection> {
-  // Track if we need to refresh
-  bool _needsRefresh = true;
-  List? _cachedApplications;
+  List<Map<String, dynamic>> _applications = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
 
-  Future<void> refreshApplications() async {
-    // Force a refresh by clearing cache and marking as needing refresh
-    setState(() {
-      _cachedApplications = null;
-      _needsRefresh = true;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadApplications();
   }
 
-  Future<List> _loadApplications() async {
-    if (_cachedApplications != null && !_needsRefresh) {
-      return _cachedApplications!;
-    }
+  // Method to refresh the applications list
+  Future<void> refreshApplications() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    _loadApplications();
+  }
 
-    final applications = await ApplicationData.getUserApplications();
-    _cachedApplications = applications;
-    _needsRefresh = false;
-    return applications;
+  // Load applications from Firebase
+  Future<void> _loadApplications() async {
+    try {
+      // Check if user is logged in
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+          _applications = [];
+        });
+        return;
+      }
+
+      // Get all user applications from Firebase
+      final applications = await ApplicationData.getUserApplications();
+
+      // Update state with loaded applications
+      setState(() {
+        _isLoading = false;
+        _applications = applications;
+      });
+    } catch (e) {
+      print('Error loading applications: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load applications';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: _loadApplications(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            height: 220, // Consistent height for loading state
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Colors.grey[300]),
-                  SizedBox(height: 16),
-                  Text(
-                    'Loading your applications...',
-                    style: TextStyle(color: Colors.grey[300]),
-                  ),
-                ],
-              ),
-            ),
-          );
-        } else if (snapshot.hasError) {
-          return Container(
-            height: 220, // Consistent height for error state
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline, size: 40, color: Colors.grey[300]),
-                  SizedBox(height: 16),
-                  Text(
-                    'Error loading applications',
-                    style: TextStyle(color: Colors.grey[300]),
-                  ),
-                ],
-              ),
-            ),
-          );
-        } else if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
-          return Container(
-            height: 220, // Consistent height for empty state
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.folder_open, size: 40, color: Colors.grey[300]),
-                  SizedBox(height: 16),
-                  Text(
-                    'No applications found',
-                    style: TextStyle(color: Colors.grey[300], fontSize: 16),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Apply now in programs in the category section',
-                    style: TextStyle(color: Colors.grey[300], fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 16),
-                  IconButton(
-                    onPressed: () {
-                      if (widget.scrollToCategories != null) {
-                        widget.scrollToCategories!();
-                      }
-                    },
-                    icon: Icon(
-                      Icons.arrow_downward_rounded,
-                      color: Colors.grey[300],
-                      size: 28,
-                    ),
-                    padding: EdgeInsets.all(8),
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
-                        Colors.grey[800],
-                      ),
-                      shape: MaterialStateProperty.all(CircleBorder()),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+    // Calculate application counts by status
+    final ongoingApplications =
+        _applications.where((app) => app['status'] == 'Ongoing').toList();
+    final pendingApplications =
+        _applications.where((app) => app['status'] == 'Pending').toList();
+    final completedApplications =
+        _applications.where((app) => app['status'] == 'Completed').toList();
 
-        final applications = snapshot.data as List;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, // Ensure left alignment
+        children: [
+          // Title and view button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'In Progress',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: widget.scrollToCategories,
+                icon: const Icon(
+                  Icons.search,
+                  color: Colors.white,
+                  size: 17,
+                ),
+                label: const Text(
+                  'Find Programs',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
 
-        return Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Applications section
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            )
+          else if (_errorMessage.isNotEmpty)
+            Center(
+              child: Text(
+                _errorMessage,
+                style: const TextStyle(color: Colors.white),
+              ),
+            )
+          else if (_applications.isEmpty)
+            // Center the empty state content horizontally
+            Container(
+              width: double.infinity, // Take full width
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.center, // Center children horizontally
                 children: [
+                  const SizedBox(height: 20),
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 48,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    'You Have ${applications.length} In Progress Applications',
+                    'No applications in progress',
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.grey[100],
+                      fontSize: 14,
+                      color: Colors.grey[300],
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to History tab (index 2) in the bottom navigation bar
-                      HomePage.navigateToTab(context, 2);
-                    },
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.grey[200],
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                      minimumSize: Size(0, 25),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Text(
-                      'Show All',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
+                  Text(
+                    'Tap Find Programs to get started',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[400],
                     ),
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
-            ),
-            SizedBox(
-              height: 180,
-              child: ListView.builder(
+            )
+          else
+            // Increase the height significantly to accommodate the cards
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                itemCount: applications.length,
-                itemBuilder: (context, index) {
-                  final app = applications[index];
-                  return ApplicationProgressCard(
-                    category:
-                        app['category'] ?? 'Unknown', // Handle null category
-                    programName: app['programName'],
-                    deadline: app['deadline'],
-                    status: app['status'],
-                    categoryColor: app['categoryColor'],
-                    organizationLogo: app['organizationLogo'],
-                    organizationName: app['organizationName'],
-                    id: app['id'],
-                  );
-                },
+                child: Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start, // Ensure left alignment
+                  mainAxisAlignment:
+                      MainAxisAlignment.start, // Start from the left
+                  children: [
+                    ...ongoingApplications.map(
+                      (app) => ApplicationProgressCard(
+                        id: app['id'] ?? '',
+                        category: app['category'] ?? 'Unknown',
+                        programName: app['programName'] ?? 'Unknown Program',
+                        deadline: app['deadline'] ?? 'No Deadline',
+                        status: app['status'] ?? 'Unknown',
+                        categoryColor: app['categoryColor'] ?? Colors.grey,
+                        organizationLogo:
+                            app['organizationLogo'] ?? Icons.help_outline,
+                        organizationName:
+                            app['organizationName'] ?? 'Unknown Organization',
+                        fullApplication:
+                            app, // Pass the complete application data
+                      ),
+                    ),
+                    ...pendingApplications.map(
+                      (app) => ApplicationProgressCard(
+                        id: app['id'] ?? '',
+                        category: app['category'] ?? 'Unknown',
+                        programName: app['programName'] ?? 'Unknown Program',
+                        deadline: app['deadline'] ?? 'No Deadline',
+                        status: app['status'] ?? 'Unknown',
+                        categoryColor: app['categoryColor'] ?? Colors.grey,
+                        organizationLogo:
+                            app['organizationLogo'] ?? Icons.help_outline,
+                        organizationName:
+                            app['organizationName'] ?? 'Unknown Organization',
+                        fullApplication:
+                            app, // Pass the complete application data
+                      ),
+                    ),
+                    ...completedApplications.map(
+                      (app) => ApplicationProgressCard(
+                        id: app['id'] ?? '',
+                        category: app['category'] ?? 'Unknown',
+                        programName: app['programName'] ?? 'Unknown Program',
+                        deadline: app['deadline'] ?? 'No Deadline',
+                        status: app['status'] ?? 'Unknown',
+                        categoryColor: app['categoryColor'] ?? Colors.grey,
+                        organizationLogo:
+                            app['organizationLogo'] ?? Icons.help_outline,
+                        organizationName:
+                            app['organizationName'] ?? 'Unknown Organization',
+                        fullApplication:
+                            app, // Pass the complete application data
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }

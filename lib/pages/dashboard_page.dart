@@ -5,7 +5,8 @@ import 'package:unloque/components/application_progress_section.dart';
 import 'package:unloque/components/categories_section.dart';
 import 'package:unloque/pages/admin/developer_options_page.dart';
 import '../components/auto_image_slider.dart';
-import '../models/slider_item.dart'; // Add this import
+import '../models/slider_item.dart';
+import '../data/available_applications_data.dart'; // Add this import
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -19,6 +20,13 @@ class DashboardPageState extends State<DashboardPage> {
       GlobalKey();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _categoriesSectionKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Clear cache when dashboard loads to ensure fresh data
+    AvailableApplicationsData.clearCache();
+  }
 
   void refreshProgressSection() {
     _progressSectionKey.currentState?.refreshApplications();
@@ -184,6 +192,9 @@ class DashboardPageState extends State<DashboardPage> {
             onRefresh: () async {
               // Call the method to refresh applications
               refreshProgressSection();
+
+              // Also clear the applications cache
+              AvailableApplicationsData.clearCache();
             },
             child: SingleChildScrollView(
               controller: _scrollController, // Add the controller here
@@ -226,12 +237,12 @@ class DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                   Container(
-                    padding: EdgeInsets.only(bottom: 40),
-                    // Use fixed height instead of minimum height
-                    height: 280, // Fixed height to prevent any adjustment
+                    padding:
+                        EdgeInsets.only(bottom: 16), // Reduce bottom padding
+                    height: 260, // Increase height to fully contain cards
+                    clipBehavior: Clip.none,
                     decoration: BoxDecoration(
-                      color: Colors.grey[850] ??
-                          Colors.grey, // Provide fallback color
+                      color: Colors.grey[850],
                       borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(15),
                         bottomRight: Radius.circular(15),
@@ -239,8 +250,7 @@ class DashboardPageState extends State<DashboardPage> {
                     ),
                     child: ApplicationProgressSection(
                       key: _progressSectionKey,
-                      scrollToCategories:
-                          scrollToCategories, // Pass the scroll function
+                      scrollToCategories: scrollToCategories,
                     ),
                   ),
                   Padding(

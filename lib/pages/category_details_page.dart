@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../data/available_applications_data.dart';
 import 'application_details_page.dart';
-import 'application_form_page.dart';
 
-class CategoryDetailsPage extends StatelessWidget {
+class CategoryDetailsPage extends StatefulWidget {
   final String categoryName;
   final Color categoryColor;
 
@@ -14,19 +13,54 @@ class CategoryDetailsPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final applications =
-        AvailableApplicationsData.getApplicationsByCategory(categoryName);
+  State<CategoryDetailsPage> createState() => _CategoryDetailsPageState();
+}
 
+class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _applications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApplications();
+  }
+
+  Future<void> _loadApplications() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Force clearing cache to ensure fresh data
+      AvailableApplicationsData.clearCache();
+
+      final applications =
+          await AvailableApplicationsData.getApplicationsByCategory(
+              widget.categoryName);
+
+      setState(() {
+        _applications = applications;
+      });
+    } catch (e) {
+      print('Error loading applications: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[850],
       appBar: AppBar(
         backgroundColor: Colors.grey[850],
-        toolbarHeight: 140, // Reduced from 140
-        automaticallyImplyLeading: false, // Disable default back button
+        toolbarHeight: 140,
+        automaticallyImplyLeading: false,
         flexibleSpace: Padding(
-          padding: EdgeInsets.fromLTRB(
-              16, 40, 16, 0), // Adjust top padding for status bar
+          padding: EdgeInsets.fromLTRB(16, 40, 16, 0),
           child: Row(
             children: [
               Container(
@@ -38,8 +72,7 @@ class CategoryDetailsPage extends StatelessWidget {
                 ),
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  onPressed: () => Navigator.pop(
-                      context, true), // Return true to trigger refresh
+                  onPressed: () => Navigator.pop(context, true),
                   icon: Transform.rotate(
                     angle: 4.71239,
                     child: Icon(
@@ -53,7 +86,7 @@ class CategoryDetailsPage extends StatelessWidget {
               Expanded(
                 child: Center(
                   child: Text(
-                    categoryName,
+                    widget.categoryName,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
@@ -62,7 +95,7 @@ class CategoryDetailsPage extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 28), // Balance the back button width
+              SizedBox(width: 28),
             ],
           ),
         ),
@@ -74,27 +107,26 @@ class CategoryDetailsPage extends StatelessWidget {
             top: Radius.circular(16),
           ),
         ),
-        child: applications.isEmpty
-            ? Center(
-                child: Text(
-                  'No available applications',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
+        child: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : _applications.isEmpty
+                ? Center(
+                    child: Text(
+                      'No available applications',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding:
+                        EdgeInsets.only(top: 50, bottom: 0, left: 0, right: 0),
+                    itemCount: _applications.length,
+                    itemBuilder: (context, index) => AvailableApplicationCard(
+                      application: _applications[index],
+                    ),
                   ),
-                ),
-              )
-            : ListView.builder(
-                padding: EdgeInsets.only(
-                    top: 50,
-                    bottom: 0,
-                    left: 0,
-                    right: 0), // Changed from symmetric to only
-                itemCount: applications.length,
-                itemBuilder: (context, index) => AvailableApplicationCard(
-                  application: applications[index],
-                ),
-              ),
       ),
     );
   }
@@ -112,26 +144,31 @@ class AvailableApplicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        // Navigate to details and await result
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ApplicationDetailsPage(
-              application: {
-                ...application,
-                'details': application['details'], // Ensure details are passed
-              },
+              application: application,
             ),
           ),
         );
 
-        // If returning with refresh flag, propagate it back to the category page
+        // If a refresh is requested (result is true), propagate refresh upward
         if (result == true) {
-          Navigator.pop(context, true);
+          // Find the nearest CategoryDetailsPage state and refresh it
+          final categoryDetailsState =
+              context.findAncestorStateOfType<_CategoryDetailsPageState>();
+          if (categoryDetailsState != null) {
+            categoryDetailsState._loadApplications();
+          }
+
+          // Also propagate to parent if needed
+          Navigator.of(context).pop(true);
         }
       },
       child: Container(
-        margin: EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12), // Increased vertical margin
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -147,9 +184,35 @@ class AvailableApplicationCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        application['organizationLogo'],
-                        size: 20,
+                      // Replace Icon with Image container
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: application['logoUrl'] != null &&
+                                  application['logoUrl'].toString().isNotEmpty
+                              ? Image.network(
+                                  application['logoUrl'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.business,
+                                      size: 18,
+                                      color: Colors.grey[800],
+                                    );
+                                  },
+                                )
+                              : Icon(
+                                  Icons.business,
+                                  size: 18,
+                                  color: Colors.grey[800],
+                                ),
+                        ),
                       ),
                       SizedBox(width: 12),
                       Text(
@@ -170,8 +233,7 @@ class AvailableApplicationCard extends StatelessWidget {
                       color: Colors.grey[800],
                     ),
                   ),
-                  SizedBox(height: 30), // Increased spacing from 8 to 16
-                  // Removed description text
+                  SizedBox(height: 30), // More space after program name
                   RichText(
                     text: TextSpan(
                       children: [
@@ -219,7 +281,7 @@ class AvailableApplicationCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
-                      'View Details', // Changed from "Apply Now" to "View Details"
+                      'View Details',
                       style: TextStyle(
                         color: Colors.grey[800],
                         fontWeight: FontWeight.w500,
