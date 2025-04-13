@@ -42,6 +42,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
   List<Map<String, dynamic>> _detailSections = [];
   List<Map<String, dynamic>> _formFields = [];
 
+  // Change to a GlobalKey without type specification
+  final _detailsTabKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -304,8 +307,45 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
       _loadingMessage = 'Saving program data...';
     });
 
+    // Store current data before any modifications
+    final List<Map<String, dynamic>> originalDetailSections =
+        List<Map<String, dynamic>>.from(_detailSections);
+    final List<Map<String, dynamic>> originalFormFields =
+        List<Map<String, dynamic>>.from(_formFields);
+
     try {
-      // Create updated program data
+      // First, handle any pending file uploads in the details tab
+      final detailsTabWidget =
+          _detailsTabKey.currentWidget as DetailsEditorTab?;
+
+      if (detailsTabWidget != null) {
+        setState(() {
+          _loadingMessage = 'Uploading files...';
+        });
+
+        try {
+          // Call the method on the widget directly, not on the state
+          final updatedDetailSections =
+              await detailsTabWidget.saveDetailSections();
+
+          // Update our state with the sections that now include file download URLs
+          // Only update the detail sections if we successfully got data back
+          if (updatedDetailSections.isNotEmpty) {
+            _detailSections =
+                List<Map<String, dynamic>>.from(updatedDetailSections);
+          }
+        } catch (e) {
+          print('Error uploading files: $e');
+          // Continue with save process even if file upload fails
+          // The files will remain "pending" and can be uploaded on next save
+        }
+      }
+
+      // Now create the program data with the updated sections
+      setState(() {
+        _loadingMessage = 'Saving program data to database...';
+      });
+
       final programData = {
         'name': _programName,
         'category': _selectedCategory,
@@ -328,6 +368,10 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
         const SnackBar(content: Text('Program saved successfully!')),
       );
     } catch (e) {
+      // Restore original data if save fails
+      _detailSections = originalDetailSections;
+      _formFields = originalFormFields;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving program: $e')),
       );
@@ -437,8 +481,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
             selectDate: _selectDate,
           ),
 
-          // DETAILS TAB
+          // DETAILS TAB - Important: Don't change the key here
           DetailsEditorTab(
+            key: _detailsTabKey,
             organizationId: widget.organizationId,
             programId: widget.program['id'],
             detailSections: _detailSections,

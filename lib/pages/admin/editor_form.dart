@@ -68,15 +68,88 @@ class _FormEditorTabState extends State<FormEditorTab> {
     _nextFormId = highestId + 1;
   }
 
-  void _addFormField() {
+  // Show dialog to select field type before adding
+  void _showAddFieldTypeDialog() {
+    String selectedType = 'short_answer';
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: 400,
+          constraints: BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Select Field Type',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  items: _fieldTypes.map((type) {
+                    String displayText = _getFieldTypeDisplay(type);
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(displayText),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    selectedType = value!;
+                  },
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  isExpanded: true,
+                ),
+                SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('Cancel'),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        _addFormField(selectedType);
+                        Navigator.of(context).pop();
+                      },
+                      child: Text('Add Field'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Modified to accept field type parameter
+  void _addFormField(String fieldType) {
     List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
-    updatedFields.add({
+    Map<String, dynamic> newField = {
       'id': _nextFormId++,
-      'type': 'short_answer',
-      'label': '',
+      'type': fieldType,
+      'label': 'New Field',
       'required': true,
-      // Removed placeholder property
-    });
+    };
+
+    // Add type-specific defaults
+    if (fieldType == 'multiple_choice' || fieldType == 'checkbox') {
+      newField['options'] = ['Option 1', 'Option 2', 'Option 3'];
+    }
+
+    updatedFields.add(newField);
     widget.updateFormFields(updatedFields);
   }
 
@@ -306,6 +379,30 @@ class _FormEditorTabState extends State<FormEditorTab> {
     });
   }
 
+  // Add methods to move fields up and down
+  void _moveFormFieldUp(int index) {
+    if (index <= 0) return; // Can't move up if it's the first item
+
+    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
+    final temp = updatedFields[index];
+    updatedFields[index] = updatedFields[index - 1];
+    updatedFields[index - 1] = temp;
+
+    widget.updateFormFields(updatedFields);
+  }
+
+  void _moveFormFieldDown(int index) {
+    if (index >= widget.formFields.length - 1)
+      return; // Can't move down if it's the last item
+
+    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
+    final temp = updatedFields[index];
+    updatedFields[index] = updatedFields[index + 1];
+    updatedFields[index + 1] = temp;
+
+    widget.updateFormFields(updatedFields);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -355,7 +452,8 @@ class _FormEditorTabState extends State<FormEditorTab> {
               SizedBox(height: 16),
               Center(
                 child: ElevatedButton.icon(
-                  onPressed: _addFormField,
+                  onPressed:
+                      _showAddFieldTypeDialog, // Changed from _addFormField to _showAddFieldTypeDialog
                   icon: Icon(Icons.add),
                   label: Text('Add Form Field'),
                   style: ElevatedButton.styleFrom(
@@ -388,6 +486,10 @@ class _FormEditorTabState extends State<FormEditorTab> {
     final label = field['label'] as String;
     final isRequired = field['required'] ?? true;
 
+    // Determine if this is the first or last item to disable buttons
+    final isFirstItem = index == 0;
+    final isLastItem = index == widget.formFields.length - 1;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -414,38 +516,40 @@ class _FormEditorTabState extends State<FormEditorTab> {
                 // Top row with type indicator and action buttons
                 Row(
                   children: [
-                    // Field type indicator
+                    // Field type indicator - make slightly smaller
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: _getFieldTypeColor(type),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                       child: Text(
                         _getFieldTypeDisplay(type),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10, // Reduced font size
                           color: _getFieldTypeTextColor(type),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
 
-                    // Required indicator
+                    // Required indicator - make more compact
                     if (isRequired)
                       Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
+                        padding:
+                            const EdgeInsets.only(left: 4.0), // Reduced padding
                         child: Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1), // Smaller padding
                           decoration: BoxDecoration(
                             color: Colors.red[100],
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius:
+                                BorderRadius.circular(3), // Smaller radius
                           ),
                           child: Text(
                             'Required',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 9, // Even smaller font
                               color: Colors.red[800],
                               fontWeight: FontWeight.bold,
                             ),
@@ -455,22 +559,64 @@ class _FormEditorTabState extends State<FormEditorTab> {
 
                     Spacer(),
 
-                    // Edit and delete buttons
-                    IconButton(
-                      onPressed: () => _showEditFieldDialog(index),
-                      icon: Icon(Icons.edit, size: 20, color: Colors.grey[600]),
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                      tooltip: 'Edit Field',
-                    ),
-                    SizedBox(width: 12),
-                    IconButton(
-                      onPressed: () => _removeFormField(index),
-                      icon:
-                          Icon(Icons.delete, size: 20, color: Colors.grey[600]),
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                      tooltip: 'Remove Field',
+                    // Create a row of action icons with zero spacing
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Reordering buttons - even more compact
+                        IconButton(
+                          onPressed: isFirstItem
+                              ? null
+                              : () => _moveFormFieldUp(index),
+                          icon: Icon(Icons.arrow_upward,
+                              size: 16, // Smaller icon
+                              color: isFirstItem
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(
+                              minWidth: 24,
+                              minHeight: 24), // Smaller constraints
+                          tooltip: 'Move Up',
+                        ),
+                        IconButton(
+                          onPressed: isLastItem
+                              ? null
+                              : () => _moveFormFieldDown(index),
+                          icon: Icon(Icons.arrow_downward,
+                              size: 16, // Smaller icon
+                              color: isLastItem
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(
+                              minWidth: 24,
+                              minHeight: 24), // Smaller constraints
+                          tooltip: 'Move Down',
+                        ),
+                        IconButton(
+                          onPressed: () => _showEditFieldDialog(index),
+                          icon: Icon(Icons.edit,
+                              size: 16,
+                              color: Colors.grey[600]), // Smaller icon
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(
+                              minWidth: 24,
+                              minHeight: 24), // Smaller constraints
+                          tooltip: 'Edit Field',
+                        ),
+                        IconButton(
+                          onPressed: () => _removeFormField(index),
+                          icon: Icon(Icons.delete,
+                              size: 16,
+                              color: Colors.grey[600]), // Smaller icon
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(
+                              minWidth: 24,
+                              minHeight: 24), // Smaller constraints
+                          tooltip: 'Remove Field',
+                        ),
+                      ],
                     ),
                   ],
                 ),

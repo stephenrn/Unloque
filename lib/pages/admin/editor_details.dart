@@ -15,7 +15,8 @@ class DetailsEditorTab extends StatefulWidget {
   final Function(List<Map<String, dynamic>>) updateDetailSections;
   final bool isLoading;
 
-  const DetailsEditorTab({
+  // Remove the const keyword from the constructor
+  DetailsEditorTab({
     Key? key,
     required this.organizationId,
     required this.programId,
@@ -24,8 +25,125 @@ class DetailsEditorTab extends StatefulWidget {
     required this.isLoading,
   }) : super(key: key);
 
+  // Remove stateKey field, as it causes issues with state management
+
   @override
   State<DetailsEditorTab> createState() => _DetailsEditorTabState();
+
+  // Method that can be called by parent to save details and upload files
+  Future<List<Map<String, dynamic>>> saveDetailSections() async {
+    // Since we don't have direct access to the state through a key anymore,
+    // we need to create a new instance of state functions
+
+    // Create an instance of _DetailsEditorTabStateFunctionality with the current properties
+    final stateHelper = _DetailsEditorTabStateFunctionality(
+      organizationId: organizationId,
+      programId: programId,
+      detailSections: detailSections,
+    );
+
+    // Process the uploads using the helper instance
+    await stateHelper.uploadPendingFiles();
+
+    // Return the updated sections (with file URLs)
+    return detailSections;
+  }
+}
+
+// Helper class to encapsulate state functionality for file uploads
+class _DetailsEditorTabStateFunctionality {
+  final String organizationId;
+  final String programId;
+  final List<Map<String, dynamic>> detailSections;
+
+  _DetailsEditorTabStateFunctionality({
+    required this.organizationId,
+    required this.programId,
+    required this.detailSections,
+  });
+
+  Future<void> uploadPendingFiles() async {
+    // First, find any files that need to be uploaded
+    final filesToUpload = <Map<String, dynamic>>[];
+
+    for (var section in detailSections) {
+      if (section['type'] == 'attachment' && section['files'] != null) {
+        final files = section['files'] as List;
+        for (var fileData in files) {
+          if (fileData is Map<String, dynamic> &&
+              fileData['isPending'] == true &&
+              fileData['path'] != null) {
+            // Add section ID to the file data for storage path
+            final fileWithSectionId = Map<String, dynamic>.from(fileData);
+            fileWithSectionId['sectionId'] = section['id'].toString();
+            filesToUpload.add(fileWithSectionId);
+          }
+        }
+      }
+    }
+
+    // If no files need uploading, return early
+    if (filesToUpload.isEmpty) {
+      return;
+    }
+
+    // Upload each file
+    for (var fileData in filesToUpload) {
+      try {
+        final filePath = fileData['path'];
+        final fileName = fileData['name'];
+        final sectionId = fileData['sectionId'];
+
+        // Create file instance
+        final file = File(filePath);
+        if (!await file.exists()) {
+          print('File does not exist: $filePath');
+          continue;
+        }
+
+        // Generate unique name
+        final uniqueFileName =
+            '${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+        // Create storage reference
+        final storageRef = FirebaseStorage.instance.ref().child(
+            'organizations/$organizationId/programs/$programId/details/$sectionId/$uniqueFileName');
+
+        // Start upload
+        final uploadTask = storageRef.putFile(file);
+
+        // Wait for upload to complete
+        final snapshot = await uploadTask;
+
+        // Get download URL
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+
+        // Update the file data in our detail sections
+        for (var section in detailSections) {
+          if (section['id'].toString() == sectionId &&
+              section['files'] != null) {
+            final files = section['files'] as List;
+            for (int i = 0; i < files.length; i++) {
+              final currentFile = files[i] as Map<String, dynamic>;
+              if (currentFile['name'] == fileName &&
+                  currentFile['path'] == filePath &&
+                  currentFile['isPending'] == true) {
+                // Update the file with download URL and remove isPending flag
+                files[i] = {
+                  'name': fileName,
+                  'downloadUrl': downloadUrl,
+                  'uploadedAt': DateTime.now().toIso8601String(),
+                };
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        print('Error uploading file: $e');
+      }
+    }
+  }
 }
 
 class _DetailsEditorTabState extends State<DetailsEditorTab> {
@@ -38,6 +156,18 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
 
   // Add a map to store controllers for paragraphs and list items to avoid recreation
   final Map<String, TextEditingController> _contentControllers = {};
+
+  // Add tracking variables for upload progress
+  bool _isUploading = false;
+  String _uploadProgressMessage = '';
+  int _totalFilesToUpload = 0;
+  int _currentFileUploading = 0;
+
+  // Add a map to track pending file uploads that haven't been saved to Firebase yet
+  final Map<String, List<Map<String, dynamic>>> _pendingFileUploads = {};
+
+  // Constructor to accept the key
+  _DetailsEditorTabState({Key? key});
 
   @override
   void initState() {
@@ -122,7 +252,74 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
     widget.updateDetailSections(updatedSections);
   }
 
-  void _removeDetailSection(int index) {
+  void _removeDetailSection(int index) async {
+    // Save the section before removing it
+    final section = widget.detailSections[index];
+
+    // Check if this is an attachment section
+    if (section['type'] == 'attachment') {
+      final files = section['files'] as List<dynamic>? ?? [];
+
+      // Count how many files are actually stored in Firebase (have downloadUrl)
+      final firebaseFiles = files
+          .where((file) =>
+              file['downloadUrl'] != null &&
+              file['downloadUrl'].toString().isNotEmpty)
+          .toList();
+
+      // If there are Firebase files, show a confirmation dialog
+      if (firebaseFiles.isNotEmpty) {
+        bool confirmDelete = await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('Delete Attachment Section'),
+                content: Text(
+                    'This will permanently delete ${firebaseFiles.length} file(s) from storage. Continue?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text('Delete', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+
+        if (!confirmDelete) return; // User canceled deletion
+
+        // Show loading indicator
+        setState(() {
+          _isUploading = true;
+          _uploadProgressMessage = 'Deleting files from storage...';
+        });
+
+        try {
+          // Only delete files that have a downloadUrl (stored in Firebase)
+          for (var fileData in firebaseFiles) {
+            final downloadUrl = fileData['downloadUrl'];
+            try {
+              await _deleteFile(downloadUrl);
+              print('Deleted file from Firebase: ${fileData['name']}');
+            } catch (e) {
+              print(
+                  'Failed to delete file from Firebase: ${fileData['name']} - $e');
+            }
+          }
+        } finally {
+          // Hide loading indicator
+          setState(() {
+            _isUploading = false;
+          });
+        }
+      }
+    }
+
+    // Proceed with removing the section from state
+    // (this will remove any local files that weren't saved to Firebase)
     List<Map<String, dynamic>> updatedSections =
         List.from(widget.detailSections);
     updatedSections.removeAt(index);
@@ -203,6 +400,15 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
 
       // Start upload
       final uploadTask = storageRef.putFile(file);
+
+      // Monitor upload progress
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        final progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setState(() {
+          _uploadProgressMessage = 'Uploading: ${progress.toStringAsFixed(1)}%';
+        });
+      });
 
       // Set metadata for the file
       final metadata = SettableMetadata(contentType: _getContentType(fileName));
@@ -497,6 +703,32 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
     );
   }
 
+  // Add methods to move sections up and down
+  void _moveDetailSectionUp(int index) {
+    if (index <= 0) return; // Can't move up if it's the first item
+
+    List<Map<String, dynamic>> updatedSections =
+        List.from(widget.detailSections);
+    final temp = updatedSections[index];
+    updatedSections[index] = updatedSections[index - 1];
+    updatedSections[index - 1] = temp;
+
+    widget.updateDetailSections(updatedSections);
+  }
+
+  void _moveDetailSectionDown(int index) {
+    if (index >= widget.detailSections.length - 1)
+      return; // Can't move down if it's the last item
+
+    List<Map<String, dynamic>> updatedSections =
+        List.from(widget.detailSections);
+    final temp = updatedSections[index];
+    updatedSections[index] = updatedSections[index + 1];
+    updatedSections[index + 1] = temp;
+
+    widget.updateDetailSections(updatedSections);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -561,12 +793,32 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
           ),
         ),
 
-        // Loading indicator
-        if (widget.isLoading)
+        // Loading indicator - now showing either widget.isLoading OR _isUploading
+        if (widget.isLoading || _isUploading)
           Container(
             color: Colors.black.withOpacity(0.5),
             child: Center(
-              child: CircularProgressIndicator(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    _isUploading ? _uploadProgressMessage : 'Loading...',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_isUploading) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      'Uploading $_currentFileUploading of $_totalFilesToUpload',
+                      style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
       ],
@@ -577,6 +829,10 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   Widget _buildDetailSectionCard(int index, Map<String, dynamic> section) {
     final type = section['type'] as String;
     final label = section['label'] as String;
+
+    // Determine if this is the first or last item to disable buttons
+    final isFirstItem = index == 0;
+    final isLastItem = index == widget.detailSections.length - 1;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -624,22 +880,57 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
 
                       Spacer(),
 
-                      // Edit and delete buttons
+                      // Reordering buttons - reduced spacing
+                      IconButton(
+                        onPressed: isFirstItem
+                            ? null
+                            : () => _moveDetailSectionUp(index),
+                        icon: Icon(Icons.arrow_upward,
+                            size: 18,
+                            color: isFirstItem
+                                ? Colors.grey[400]
+                                : Colors.grey[600]),
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            BoxConstraints(minWidth: 30, minHeight: 30),
+                        tooltip: 'Move Up',
+                      ),
+                      // No SizedBox here to reduce space
+                      IconButton(
+                        onPressed: isLastItem
+                            ? null
+                            : () => _moveDetailSectionDown(index),
+                        icon: Icon(Icons.arrow_downward,
+                            size: 18,
+                            color: isLastItem
+                                ? Colors.grey[400]
+                                : Colors.grey[600]),
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            BoxConstraints(minWidth: 30, minHeight: 30),
+                        tooltip: 'Move Down',
+                      ),
+                      // Reduced spacing between button groups
+                      SizedBox(width: 4),
+
+                      // Edit and delete buttons - reduced spacing
                       IconButton(
                         onPressed: () => _showEditDetailDialog(index),
                         icon:
-                            Icon(Icons.edit, size: 20, color: Colors.grey[600]),
+                            Icon(Icons.edit, size: 18, color: Colors.grey[600]),
                         padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
+                        constraints:
+                            BoxConstraints(minWidth: 30, minHeight: 30),
                         tooltip: 'Edit Section',
                       ),
-                      SizedBox(width: 12),
+                      // No SizedBox here to reduce space
                       IconButton(
                         onPressed: () => _removeDetailSection(index),
                         icon: Icon(Icons.delete,
-                            size: 20, color: Colors.grey[600]),
+                            size: 18, color: Colors.grey[600]),
                         padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
+                        constraints:
+                            BoxConstraints(minWidth: 30, minHeight: 30),
                         tooltip: 'Remove Section',
                       ),
                     ],
@@ -803,6 +1094,10 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   // Build attachment type content
   Widget _buildAttachmentContent(int index, Map<String, dynamic> section) {
     final files = section['files'] as List<dynamic>? ?? [];
+    final sectionId = section['id'].toString();
+
+    // Initialize pending uploads list for this section if needed
+    _pendingFileUploads.putIfAbsent(sectionId, () => []);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -816,59 +1111,48 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
         ),
         SizedBox(height: 8),
         ElevatedButton.icon(
-          onPressed: () async {
-            FilePickerResult? result =
-                await FilePicker.platform.pickFiles(allowMultiple: true);
+          onPressed: _isUploading
+              ? null
+              : () async {
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(allowMultiple: true);
 
-            if (result != null) {
-              for (var pickedFile in result.files) {
-                if (pickedFile.path == null) continue;
-
-                final file = File(pickedFile.path!);
-                final fileName = pickedFile.name;
-
-                setState(() {
-                  _uploadingFiles[fileName] = true;
-                });
-
-                try {
-                  // Upload file to Firebase Storage
-                  final downloadUrl =
-                      await _uploadFile(file, 'section_${section['id']}');
-
-                  if (downloadUrl != null) {
+                  if (result != null && result.files.isNotEmpty) {
+                    // Create a copy of the current section
                     List<Map<String, dynamic>> updatedSections =
                         List.from(widget.detailSections);
 
+                    // Initialize files array if needed
                     if (updatedSections[index]['files'] == null) {
                       updatedSections[index]['files'] = [];
                     }
 
-                    (updatedSections[index]['files'] as List).add({
-                      'name': fileName,
-                      'downloadUrl': downloadUrl,
-                      'uploadedAt': DateTime.now().toIso8601String(),
-                    });
+                    // Process selected files
+                    for (var pickedFile in result.files) {
+                      if (pickedFile.path == null) continue;
 
+                      final fileName = pickedFile.name;
+                      final filePath = pickedFile.path!;
+
+                      // Store file in pendingUploads
+                      _pendingFileUploads[sectionId]!.add({
+                        'name': fileName,
+                        'path': filePath,
+                        'sectionId': sectionId,
+                      });
+
+                      // Add a placeholder entry to the UI
+                      (updatedSections[index]['files'] as List).add({
+                        'name': fileName,
+                        'path': filePath,
+                        'isPending': true, // Mark as not uploaded yet
+                      });
+                    }
+
+                    // Update the UI
                     widget.updateDetailSections(updatedSections);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('File uploaded successfully')),
-                    );
                   }
-                } catch (e) {
-                  print('Error handling file upload: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error uploading file: $e')),
-                  );
-                } finally {
-                  setState(() {
-                    _uploadingFiles[fileName] = false;
-                  });
-                }
-              }
-            }
-          },
+                },
           icon: Icon(Icons.attach_file),
           label: Text('Upload Files'),
           style: ElevatedButton.styleFrom(
@@ -877,11 +1161,11 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
           ),
         ),
 
-        // Display list of uploaded files
+        // Display files list
         if (files.isNotEmpty) ...[
           SizedBox(height: 16),
           Text(
-            'Uploaded Files',
+            'Files',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -893,6 +1177,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             final fileIndex = entry.key;
             final fileData = Map<String, dynamic>.from(entry.value as Map);
             final fileName = fileData['name'] ?? 'Unknown file';
+            final isPending = fileData['isPending'] == true;
             final downloadUrl = fileData['downloadUrl'];
             final isUploading = _uploadingFiles[fileName] ?? false;
 
@@ -900,6 +1185,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Row(
                 children: [
+                  // File icon or loading indicator
                   isUploading
                       ? Container(
                           width: 20,
@@ -907,23 +1193,39 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                           padding: EdgeInsets.all(4),
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(Icons.insert_drive_file,
-                          size: 20, color: Colors.blue),
+                      : Icon(
+                          isPending
+                              ? Icons.hourglass_empty
+                              : Icons.insert_drive_file,
+                          size: 20,
+                          color: isPending ? Colors.orange : Colors.blue,
+                        ),
                   SizedBox(width: 8),
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        if (downloadUrl != null) {
-                          _downloadAndOpenFile(downloadUrl, fileName);
-                        }
-                      },
-                      child: Text(
-                        fileName,
-                        style: TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            fileName,
+                            style: TextStyle(
+                              color: isPending ? Colors.grey[600] : Colors.blue,
+                              decoration: isPending
+                                  ? TextDecoration.none
+                                  : TextDecoration.underline,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
+                        if (isPending)
+                          Text(
+                            '(Not uploaded yet - Save to upload)',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -931,16 +1233,30 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(),
                     onPressed: () async {
-                      // Delete file from storage and remove from list
-                      if (downloadUrl != null) {
-                        await _deleteFile(downloadUrl);
+                      // Remove from UI
+                      List<Map<String, dynamic>> updatedSections =
+                          List.from(widget.detailSections);
+                      (updatedSections[index]['files'] as List)
+                          .removeAt(fileIndex);
 
-                        List<Map<String, dynamic>> updatedSections =
-                            List.from(widget.detailSections);
-                        (updatedSections[index]['files'] as List)
-                            .removeAt(fileIndex);
-                        widget.updateDetailSections(updatedSections);
+                      // If it's a pending file, remove from pending uploads
+                      if (isPending) {
+                        // Find and remove from pending uploads
+                        final pendingFiles =
+                            _pendingFileUploads[sectionId] ?? [];
+                        for (int i = 0; i < pendingFiles.length; i++) {
+                          if (pendingFiles[i]['name'] == fileName) {
+                            pendingFiles.removeAt(i);
+                            break;
+                          }
+                        }
                       }
+                      // If already uploaded, delete from Firebase
+                      else if (downloadUrl != null) {
+                        await _deleteFile(downloadUrl);
+                      }
+
+                      widget.updateDetailSections(updatedSections);
                     },
                   ),
                 ],
@@ -950,6 +1266,119 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
         ],
       ],
     );
+  }
+
+  // Add a method to handle uploading of pending files
+  Future<void> _uploadPendingFiles() async {
+    // Count total pending files
+    int totalPending = 0;
+    _pendingFileUploads.forEach((sectionId, files) {
+      totalPending += files.length;
+    });
+
+    if (totalPending == 0) {
+      return; // Nothing to upload
+    }
+
+    setState(() {
+      _isUploading = true;
+      _totalFilesToUpload = totalPending;
+      _currentFileUploading = 0;
+      _uploadProgressMessage = 'Preparing files for upload...';
+    });
+
+    try {
+      // Process uploads section by section
+      for (var sectionId in _pendingFileUploads.keys) {
+        final sectionFiles = _pendingFileUploads[sectionId]!;
+        if (sectionFiles.isEmpty) continue;
+
+        // Find the section index
+        int? sectionIndex;
+        for (int i = 0; i < widget.detailSections.length; i++) {
+          if (widget.detailSections[i]['id'].toString() == sectionId) {
+            sectionIndex = i;
+            break;
+          }
+        }
+
+        if (sectionIndex == null) continue; // Section was deleted
+
+        // Upload each file
+        for (int i = 0; i < sectionFiles.length; i++) {
+          final fileData = sectionFiles[i];
+          final fileName = fileData['name'];
+          final filePath = fileData['path'];
+
+          setState(() {
+            _currentFileUploading++;
+            _uploadProgressMessage =
+                'Uploading $_currentFileUploading of $_totalFilesToUpload: $fileName';
+            _uploadingFiles[fileName] = true;
+          });
+
+          try {
+            // Create a file instance from the path
+            final file = File(filePath);
+
+            // Upload to Firebase Storage
+            final downloadUrl = await _uploadFile(file, 'section_$sectionId');
+
+            if (downloadUrl != null) {
+              // Update the sections with the download URL
+              List<Map<String, dynamic>> updatedSections =
+                  List.from(widget.detailSections);
+              List<dynamic> files =
+                  List.from(updatedSections[sectionIndex]['files'] ?? []);
+
+              // Find the pending file in the list and update it
+              for (int j = 0; j < files.length; j++) {
+                final currentFile = files[j] as Map<String, dynamic>;
+                if (currentFile['name'] == fileName &&
+                    currentFile['isPending'] == true) {
+                  files[j] = {
+                    'name': fileName,
+                    'downloadUrl': downloadUrl,
+                    'uploadedAt': DateTime.now().toIso8601String(),
+                    // Remove isPending and path properties
+                  };
+                  break;
+                }
+              }
+
+              updatedSections[sectionIndex]['files'] = files;
+              widget.updateDetailSections(updatedSections);
+            }
+          } catch (e) {
+            print('Error uploading file: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading $fileName: $e')),
+            );
+          } finally {
+            setState(() {
+              _uploadingFiles[fileName] = false;
+            });
+          }
+        }
+
+        // Clear processed files
+        _pendingFileUploads[sectionId] = [];
+      }
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
+  // **IMPORTANT**: Change this method to use async/await directly
+  // so it can be called from the parent component
+  Future<List<Map<String, dynamic>>> saveDetailSections() async {
+    // First upload any pending files
+    await _uploadPendingFiles();
+
+    // Return the updated sections after files are uploaded
+    return widget.detailSections;
   }
 
   // Helper methods for section types

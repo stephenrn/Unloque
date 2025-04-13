@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // Add Firebase Storage import
 import 'organization_page.dart';
 
 class DeveloperOptionsPage extends StatefulWidget {
@@ -69,6 +70,101 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  // Add a new recursive deletion function
+  Future<void> _deleteOrganizationData(String organizationId) async {
+    try {
+      // 1. First, collect all the Firebase Storage refs to delete later
+      final List<Reference> storageRefsToDelete = [];
+
+      // 2. Get all programs
+      final programsSnapshot = await FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(organizationId)
+          .collection('programs')
+          .get();
+
+      // Process each program
+      for (final programDoc in programsSnapshot.docs) {
+        final programId = programDoc.id;
+
+        try {
+          // Store storage references to delete later
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('organizations/$organizationId/programs/$programId');
+
+          try {
+            // Get all storage references but don't delete yet
+            final ListResult result = await storageRef.listAll();
+
+            // Add prefixes to the list of refs to delete
+            for (var prefix in result.prefixes) {
+              // Get all items in the subdirectory
+              final subItems = await prefix.listAll();
+              for (var item in subItems.items) {
+                storageRefsToDelete.add(item);
+              }
+            }
+
+            // Add direct files to the list of refs to delete
+            storageRefsToDelete.addAll(result.items);
+          } catch (e) {
+            print('Error listing storage files for program $programId: $e');
+          }
+
+          // Delete the program document from Firestore
+          await programDoc.reference.delete();
+        } catch (e) {
+          print('Error processing program $programId: $e');
+        }
+      }
+
+      // 3. Delete the organization document itself
+      await FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(organizationId)
+          .delete();
+
+      // 4. After Firestore operations are complete, delete all the storage references
+      // This way, even if the widget context is deactivated, we're still using
+      // references we captured earlier
+      for (var storageRef in storageRefsToDelete) {
+        try {
+          await storageRef.delete();
+          print('Deleted storage file: ${storageRef.fullPath}');
+        } catch (e) {
+          print('Error deleting storage file ${storageRef.fullPath}: $e');
+        }
+      }
+
+      // 5. Finally try to delete any organization-level storage files
+      try {
+        final orgStorageRef = FirebaseStorage.instance
+            .ref()
+            .child('organizations/$organizationId');
+
+        try {
+          // Delete the entire organization folder
+          final result = await orgStorageRef.listAll();
+          for (var item in result.items) {
+            try {
+              await item.delete();
+            } catch (e) {
+              print('Error deleting organization file ${item.fullPath}: $e');
+            }
+          }
+        } catch (e) {
+          print('Error listing organization-level storage files: $e');
+        }
+      } catch (e) {
+        print('Error accessing organization storage: $e');
+      }
+    } catch (e) {
+      print('Error in deletion process: $e');
+      throw e; // Rethrow to be caught by the calling function
     }
   }
 
@@ -285,28 +381,68 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () {
-                            // Add confirmation dialog before deletion
+                            // Replace the existing dialog with enhanced version that safely handles deletion
                             showDialog(
                               context: context,
-                              builder: (context) => AlertDialog(
+                              builder: (dialogContext) => AlertDialog(
                                 title: const Text('Delete Organization'),
-                                content: const Text(
-                                    'Are you sure you want to delete this organization?'),
+                                content: Text(
+                                    'This will permanently delete "${data['name'] ?? 'this organization'}" and ALL associated data:\n\n'
+                                    '• All programs\n'
+                                    '• All uploaded files\n'
+                                    '• All configuration data\n\n'
+                                    'This action cannot be undone. Are you sure?'),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context),
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext),
                                     child: const Text('Cancel'),
                                   ),
                                   TextButton(
-                                    onPressed: () {
-                                      // Delete the organization
-                                      FirebaseFirestore.instance
-                                          .collection('organizations')
-                                          .doc(doc.id)
-                                          .delete();
-                                      Navigator.pop(context);
+                                    onPressed: () async {
+                                      try {
+                                        // Capture organizationId before closing dialog
+                                        final String orgId = doc.id;
+
+                                        // Close dialog first to avoid context issues
+                                        Navigator.pop(dialogContext);
+
+                                        // Show loading indicator
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Deleting organization and all data...'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+
+                                        // Call the deletion method with the captured ID
+                                        await _deleteOrganizationData(orgId);
+
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Organization deleted successfully with all associated data'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                'Error deleting organization: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
                                     },
-                                    child: const Text('Delete'),
+                                    child: const Text(
+                                      'Delete Everything',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
                                   ),
                                 ],
                               ),
