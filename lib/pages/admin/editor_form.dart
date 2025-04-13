@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'preview_forms_program_page.dart'; // Add this import
 
 class FormEditorTab extends StatefulWidget {
   final List<Map<String, dynamic>> formFields;
   final Function(List<Map<String, dynamic>>) updateFormFields;
   final bool isLoading;
+  final String organizationId; // Add this property
+  final String programId; // Add this property
 
   const FormEditorTab({
     Key? key,
     required this.formFields,
     required this.updateFormFields,
     required this.isLoading,
+    required this.organizationId, // Add this parameter
+    required this.programId, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -412,6 +417,36 @@ class _FormEditorTabState extends State<FormEditorTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Preview button
+              Container(
+                width: double.infinity,
+                margin: EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Navigate to preview page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PreviewFormsProgramPage(
+                          organizationId: widget
+                              .organizationId, // Updated to use widget property
+                          programId: widget
+                              .programId, // Updated to use widget property
+                          formFields: widget.formFields,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.visibility),
+                  label: Text('Preview Saved Form'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+
               // Form instructions
               Container(
                 padding: EdgeInsets.all(16),

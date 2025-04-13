@@ -47,13 +47,7 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
     });
 
     try {
-      // If detailSections are provided, use them
-      if (widget.detailSections != null && widget.detailSections!.isNotEmpty) {
-        _detailSections =
-            List<Map<String, dynamic>>.from(widget.detailSections!);
-      }
-
-      // Load program data
+      // Load program data from Firebase first
       final programDoc = await FirebaseFirestore.instance
           .collection('organizations')
           .doc(widget.organizationId)
@@ -64,13 +58,24 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
       if (programDoc.exists) {
         _programData = programDoc.data() ?? {};
 
-        // Load detail sections from Firestore if not provided
-        if (widget.detailSections == null || widget.detailSections!.isEmpty) {
-          if (_programData['detailSections'] != null) {
-            _detailSections = List<Map<String, dynamic>>.from(
-              _programData['detailSections'] as List<dynamic>,
-            );
-          }
+        // Always prioritize detail sections from Firebase
+        if (_programData['detailSections'] != null) {
+          _detailSections = List<Map<String, dynamic>>.from(
+            _programData['detailSections'] as List<dynamic>,
+          );
+        }
+        // Use widget.detailSections only if Firebase data is empty
+        else if (widget.detailSections != null &&
+            widget.detailSections!.isNotEmpty) {
+          _detailSections =
+              List<Map<String, dynamic>>.from(widget.detailSections!);
+        }
+      } else {
+        // If program doesn't exist in Firebase, use provided detailSections as fallback
+        if (widget.detailSections != null &&
+            widget.detailSections!.isNotEmpty) {
+          _detailSections =
+              List<Map<String, dynamic>>.from(widget.detailSections!);
         }
       }
 
@@ -95,7 +100,7 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
     }
   }
 
-  // Function to download and open files
+  // Enhanced function to download and open files from Firebase Storage
   Future<void> _downloadAndOpenFile(String downloadUrl, String fileName) async {
     if (_downloadingFiles[fileName] == true) {
       return; // Already downloading
@@ -106,21 +111,58 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
     });
 
     try {
+      // Get temporary directory to store downloaded file
       final appDir = await getApplicationDocumentsDirectory();
       final localPath = '${appDir.path}/$fileName';
       final file = File(localPath);
 
-      // Download file if it doesn't exist locally
-      if (!await file.exists()) {
-        final response = await http.get(Uri.parse(downloadUrl));
-        await file.writeAsBytes(response.bodyBytes);
+      // Check if file exists locally and isn't empty before downloading again
+      bool needsDownload = true;
+      if (await file.exists()) {
+        final fileSize = await file.length();
+        if (fileSize > 0) {
+          needsDownload = false;
+          print('Using cached file: $localPath');
+        }
+      }
+
+      // Download file if needed
+      if (needsDownload) {
+        // Show download indicator with SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Downloading $fileName...')),
+        );
+
+        try {
+          final response = await http.get(Uri.parse(downloadUrl));
+          if (response.statusCode == 200) {
+            await file.writeAsBytes(response.bodyBytes);
+            print('File downloaded successfully to: $localPath');
+          } else {
+            throw Exception('Failed to download file: ${response.statusCode}');
+          }
+        } catch (e) {
+          print('Error downloading file: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error downloading file: ${e.toString()}')),
+          );
+          rethrow;
+        }
+      } else {
+        // Indicate using cached version
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Opening cached copy of $fileName')),
+        );
       }
 
       // Open the file
-      await OpenFilex.open(localPath);
+      final result = await OpenFilex.open(localPath);
+      if (result.type != ResultType.done) {
+        throw Exception("Could not open file: ${result.message}");
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening file: $e')),
+        SnackBar(content: Text('Error handling file: $e')),
       );
     } finally {
       setState(() {
@@ -432,16 +474,26 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
         final items = section['items'] as List<dynamic>? ?? [];
         for (var item in items) {
           sections.add(
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.circle, size: 8, color: Colors.blue),
-              minLeadingWidth: 12,
-              title: Text(
-                item.toString(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+            Padding(
+              padding: const EdgeInsets.only(
+                  bottom: 2), // Reduced padding between items
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5, left: 4, right: 8),
+                    child: Icon(Icons.circle, size: 6, color: Colors.blue),
+                  ),
+                  Expanded(
+                    child: Text(
+                      item.toString(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -467,40 +519,71 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
               final isDownloading = _downloadingFiles[fileName] ?? false;
 
               sections.add(
-                Row(
-                  children: [
-                    isDownloading
-                        ? Container(
-                            width: 24,
-                            height: 24,
-                            padding: EdgeInsets.all(4),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(Icons.insert_drive_file,
-                            size: 20, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: downloadUrl != null
-                            ? () => _downloadAndOpenFile(downloadUrl, fileName)
-                            : null,
-                        child: Text(
-                          fileName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color:
-                                downloadUrl != null ? Colors.blue : Colors.grey,
-                            decoration: downloadUrl != null
-                                ? TextDecoration.underline
-                                : null,
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      if (isDownloading)
+                        Container(
+                          width: 24,
+                          height: 24,
+                          padding: EdgeInsets.all(4),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(
+                          downloadUrl != null
+                              ? Icons.insert_drive_file
+                              : Icons.file_present_outlined,
+                          size: 20,
+                          color:
+                              downloadUrl != null ? Colors.blue : Colors.grey,
+                        ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: InkWell(
+                          onTap: downloadUrl != null
+                              ? () =>
+                                  _downloadAndOpenFile(downloadUrl, fileName)
+                              : () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'This file has no download URL. Save the details first.'),
+                                    ),
+                                  );
+                                },
+                          child: Text(
+                            fileName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: downloadUrl != null
+                                  ? Colors.blue
+                                  : Colors.grey,
+                              decoration: downloadUrl != null
+                                  ? TextDecoration.underline
+                                  : null,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      if (downloadUrl != null)
+                        Tooltip(
+                          message: 'Download and Preview',
+                          child: IconButton(
+                            icon: Icon(Icons.visibility, size: 18),
+                            onPressed: () =>
+                                _downloadAndOpenFile(downloadUrl, fileName),
+                            constraints:
+                                BoxConstraints(minWidth: 32, minHeight: 32),
+                            padding: EdgeInsets.zero,
+                            color: Colors.blue,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               );
-              sections.add(SizedBox(height: 8));
             }
           }
         }

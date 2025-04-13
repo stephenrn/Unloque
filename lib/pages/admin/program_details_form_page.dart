@@ -496,6 +496,8 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
             formFields: _formFields,
             updateFormFields: _updateFormFields,
             isLoading: _isLoading,
+            organizationId: widget.organizationId, // Add this parameter
+            programId: widget.program['id'], // Add this parameter
           ),
         ],
       ),

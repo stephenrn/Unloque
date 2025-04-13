@@ -758,9 +758,9 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                     );
                   },
                   icon: Icon(Icons.visibility),
-                  label: Text('Preview Details'),
+                  label: Text('Preview Saved Details'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.grey[800],
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 12),
                   ),
