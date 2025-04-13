@@ -10,7 +10,7 @@ class HomePage extends StatefulWidget {
   // Add a static navigation method that can be called from anywhere
   static void navigateToTab(BuildContext context, int index) {
     final homeState = context.findRootAncestorStateOfType<_HomePageState>();
-    if (homeState != null) {
+    if (homeState != null && homeState.mounted) {
       homeState._navigateBottomBar(index);
     }
   }

@@ -15,8 +15,8 @@ class AuthGate extends StatelessWidget {
         if (snapshot.hasData) {
           return HomePage();
         }
-        
-        // Otherwise, show the welcome page
+
+        // Otherwise, show the welcome page with Google sign-in
         return WelcomePage();
       },
     );

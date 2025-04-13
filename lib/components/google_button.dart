@@ -17,6 +17,7 @@ class _GoogleButtonState extends State<GoogleButton> {
 
   Future<void> handleGoogleSignIn() async {
     print("Google Sign In button pressed");
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -25,15 +26,15 @@ class _GoogleButtonState extends State<GoogleButton> {
       print("Calling AuthService.signInWithGoogle()");
       final userCredential = await _authService.signInWithGoogle();
       print("Sign in result: ${userCredential?.user?.email ?? 'null'}");
-      
-      if (userCredential != null && context.mounted) {
+
+      if (userCredential != null && mounted) {
         // Check if user exists in Firestore
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
             .get();
 
-        if (!userDoc.exists && context.mounted) {
+        if (!userDoc.exists && mounted) {
           // Show username dialog for new users
           final username = await showDialog<String>(
             context: context,
@@ -41,7 +42,7 @@ class _GoogleButtonState extends State<GoogleButton> {
             builder: (context) => UsernameDialog(),
           );
 
-          if (username != null && context.mounted) {
+          if (username != null && mounted) {
             // Create user profile with custom username
             await _authService.createUserProfile(
               userCredential.user!.uid,
@@ -49,12 +50,14 @@ class _GoogleButtonState extends State<GoogleButton> {
               username,
             );
 
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => HomePage()),
+              );
+            }
           }
-        } else {
+        } else if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => HomePage()),
@@ -62,7 +65,7 @@ class _GoogleButtonState extends State<GoogleButton> {
         }
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to sign in with Google: ${e.toString()}'),
@@ -99,7 +102,8 @@ class _GoogleButtonState extends State<GoogleButton> {
                     width: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[800]!),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.grey[800]!),
                     ),
                   )
                 : Row(
