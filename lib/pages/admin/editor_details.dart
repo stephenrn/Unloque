@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'preview_details_program_page.dart'; // Add this import
 
 class DetailsEditorTab extends StatefulWidget {
   final String organizationId;
@@ -738,6 +739,34 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Preview button
+              Container(
+                width: double.infinity,
+                margin: EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Navigate to preview page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PreviewProgramDetailsPage(
+                          organizationId: widget.organizationId,
+                          programId: widget.programId,
+                          detailSections: widget.detailSections,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.visibility),
+                  label: Text('Preview Details'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+
               // Instructions
               Container(
                 padding: EdgeInsets.all(16),
