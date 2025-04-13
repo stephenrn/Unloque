@@ -92,21 +92,17 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
 
         for (String downloadUrl in filesToDelete) {
           try {
-            // Get reference from the download URL and delete
             final ref = FirebaseStorage.instance.refFromURL(downloadUrl);
             await ref.delete();
             print('Successfully deleted file with URL: $downloadUrl');
           } catch (e) {
             print('Error deleting file from storage: $e');
-            // Continue with other deletions
           }
         }
-
-        // Clear delete set after processing
         filesToDelete.clear();
       }
 
-      // Count total files that need uploading (only new files without download URLs)
+      // Count total files that need uploading
       totalFilesToUpload = 0;
       for (var label in attachedFilesMap.keys) {
         for (var fileData in attachedFilesMap[label]!) {
@@ -134,7 +130,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         updatedAttachedFilesMap[label] = [];
       }
 
-      // Now upload files one by one
+      // Upload files one by one
       for (var label in attachedFilesMap.keys) {
         if (!attachedFilesMap.containsKey(label) ||
             attachedFilesMap[label] == null) {
@@ -164,19 +160,14 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
           if (fileData['path'] != null) {
             try {
               final filePath = fileData['path'];
-              print('Preparing to upload file: $filePath');
-
               final file = File(filePath);
+
               if (!await file.exists()) {
-                print('File does not exist: ${fileData['path']}');
                 continue;
               }
 
               final fileSize = await file.length();
-              print('File size: ${fileSize} bytes');
-
               if (fileSize == 0) {
-                print('File is empty: ${fileData['path']}');
                 continue;
               }
 
@@ -186,44 +177,27 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                     'Uploading files ($currentFileUploadIndex/$totalFilesToUpload)';
               });
 
-              // Generate a unique file path in storage with timestamp to avoid conflicts
               final fileName = path.basename(file.path);
               final uniqueFileName =
                   '${DateTime.now().millisecondsSinceEpoch}_$fileName';
-              print('Generated storage path for file: $uniqueFileName');
 
               final storageRef = FirebaseStorage.instance.ref().child(
                   'users/${user.uid}/applications/${widget.application['id']}/$label/$uniqueFileName');
 
               // Upload file with retry logic and timeout
               try {
-                print('Starting upload for file: ${file.path}');
-
-                // Set metadata for the file
                 final metadata = SettableMetadata(
                     contentType: _getContentType(fileName),
                     customMetadata: {'picked-file-path': file.path});
 
-                // Start the upload task with metadata
                 final uploadTask = storageRef.putFile(file, metadata);
-
-                // Create a completer to handle timeout
                 final completer = Completer<TaskSnapshot>();
 
-                // Listen for upload completion or error
                 uploadTask.then(completer.complete).catchError((error) {
                   print('Upload task error: $error');
                   completer.completeError(error);
                 });
 
-                // Monitor upload progress
-                uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-                  final progress =
-                      (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                  print('Upload progress for $uniqueFileName: $progress%');
-                });
-
-                // Wait for upload with timeout
                 final snapshot = await completer.future
                     .timeout(Duration(minutes: 5), onTimeout: () {
                   print('Upload timed out after 5 minutes');
@@ -232,7 +206,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                 });
 
                 final downloadUrl = await snapshot.ref.getDownloadURL();
-                print('Upload successful. Download URL: $downloadUrl');
 
                 // Add the file to the updated map with the download URL
                 updatedAttachedFilesMap[label]!.add({
@@ -240,9 +213,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   'path': fileData['path'], // Keep local path for cache
                   'downloadUrl': downloadUrl, // Store download URL
                 });
-
-                print(
-                    'Successfully uploaded file: ${fileData['name']} with URL: $downloadUrl');
               } catch (uploadError) {
                 print('Error uploading file: $uploadError');
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -252,7 +222,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                     backgroundColor: Colors.red,
                   ),
                 );
-                // Continue to next file instead of failing the entire save
                 continue;
               }
             } catch (fileError) {
@@ -264,7 +233,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   backgroundColor: Colors.red,
                 ),
               );
-              // Continue to next file
               continue;
             }
           }
@@ -279,19 +247,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         attachedFilesMap = updatedAttachedFilesMap;
       });
 
-      // Convert the fileData maps to a format that can be stored in Firestore
-      final convertedAttachments = {};
-      attachedFilesMap.forEach((key, value) {
-        convertedAttachments[key] = value
-            .map((fileData) => {
-                  'name': fileData['name'],
-                  'path': fileData['path'],
-                  'downloadUrl': fileData['downloadUrl'],
-                })
-            .toList();
-      });
-
-      // Save the current state as the new original state
+      // Update originalAttachedFilesMap
       originalAttachedFilesMap = <String, List<Map<String, dynamic>>>{};
       for (var label in attachedFilesMap.keys) {
         originalAttachedFilesMap[label] = List<Map<String, dynamic>>.from(
@@ -299,24 +255,69 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                 .map((item) => Map<String, dynamic>.from(item)));
       }
 
-      final formData = {
-        'short_answers': textControllers
-            .map((key, controller) => MapEntry(key, controller.text)),
-        'paragraphs': textControllers
-            .map((key, controller) => MapEntry(key, controller.text)),
-        'multiple_choice': selectedOption,
-        'checkboxes': checkboxValues,
-        'dates': selectedDates
-            .map((key, value) => MapEntry(key, value?.toIso8601String())),
-        'attachments': convertedAttachments,
-      };
+      // Get the original form fields
+      final forms = widget.application['details']['forms'] ?? [];
 
+      // Create the new formFields structure with answers
+      final formFields = [];
+
+      for (var form in forms) {
+        var formField = Map<String, dynamic>.from(form);
+
+        // Add answers based on form type
+        switch (form['type']) {
+          case 'short_answer':
+          case 'paragraph':
+            formField['answer'] = textControllers[form['label']]?.text ?? '';
+            break;
+
+          case 'multiple_choice':
+            formField['selectedOption'] = selectedOption;
+            break;
+
+          case 'checkbox':
+            // For checkbox, create a list of selected options
+            if (form['options'] != null) {
+              final List<String> selectedOptions = [];
+              for (var option in form['options']) {
+                if (checkboxValues[option] == true) {
+                  selectedOptions.add(option);
+                }
+              }
+              formField['selectedOptions'] = selectedOptions;
+            }
+            break;
+
+          case 'date':
+            formField['selectedDate'] =
+                selectedDates[form['label']]?.toIso8601String();
+            break;
+
+          case 'attachment':
+            // For attachments, add the file information
+            if (attachedFilesMap.containsKey(form['label'])) {
+              formField['files'] = attachedFilesMap[form['label']]!
+                  .map((file) => {
+                        'name': file['name'],
+                        'downloadUrl': file['downloadUrl']
+                      })
+                  .toList();
+            } else {
+              formField['files'] = [];
+            }
+            break;
+        }
+
+        formFields.add(formField);
+      }
+
+      // Save the formFields to Firebase
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('users-application')
           .doc(widget.application['id'])
-          .update({'form_data': formData});
+          .update({'formFields': formFields});
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -340,6 +341,91 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
     }
   }
 
+  Future<void> loadFormData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('users-application')
+          .doc(widget.application['id'])
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final formFields = doc.data()!['formFields'] ?? [];
+
+        // Process each form field and populate the UI
+        for (var field in formFields) {
+          final String fieldType = field['type'] ?? '';
+          final String fieldLabel = field['label'] ?? '';
+
+          switch (fieldType) {
+            case 'short_answer':
+            case 'paragraph':
+              if (textControllers.containsKey(fieldLabel)) {
+                textControllers[fieldLabel]!.text = field['answer'] ?? '';
+              }
+              break;
+
+            case 'multiple_choice':
+              setState(() {
+                selectedOption = field['selectedOption'];
+              });
+              break;
+
+            case 'checkbox':
+              if (field['options'] != null &&
+                  field['selectedOptions'] != null) {
+                for (var option in field['options']) {
+                  checkboxValues[option] =
+                      field['selectedOptions'].contains(option);
+                }
+              }
+              break;
+
+            case 'date':
+              if (field['selectedDate'] != null) {
+                setState(() {
+                  selectedDates[fieldLabel] =
+                      DateTime.parse(field['selectedDate']);
+                });
+              }
+              break;
+
+            case 'attachment':
+              if (field['files'] != null) {
+                final List<dynamic> files = field['files'];
+                attachedFilesMap[fieldLabel] = [];
+                originalAttachedFilesMap[fieldLabel] = [];
+
+                for (var file in files) {
+                  final fileMap = {
+                    'name': file['name'],
+                    'downloadUrl': file['downloadUrl'],
+                    'path': null // Local path will be populated when downloaded
+                  };
+                  attachedFilesMap[fieldLabel]!.add(fileMap);
+                  originalAttachedFilesMap[fieldLabel]!
+                      .add(Map<String, dynamic>.from(fileMap));
+                }
+              }
+              break;
+          }
+        }
+      }
+    } catch (error) {
+      print('Error loading form data: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading saved data'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // Helper method to determine content type
   String _getContentType(String fileName) {
     final ext = path.extension(fileName).toLowerCase();
@@ -357,92 +443,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         return 'image/png';
       default:
         return 'application/octet-stream';
-    }
-  }
-
-  Future<void> loadFormData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(widget.application['id'])
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final formData = doc.data()!['form_data'] ?? {};
-
-        setState(() {
-          selectedOption = formData['multiple_choice'];
-          checkboxValues = Map<String, bool>.from(formData['checkboxes'] ?? {});
-
-          selectedDates = Map<String, DateTime?>.from(
-            (formData['dates'] ?? {}).map((key, value) => MapEntry(
-                  key,
-                  value != null ? DateTime.parse(value) : null,
-                )),
-          );
-
-          // Load attachments with their download URLs
-          if (formData['attachments'] != null) {
-            final storedAttachments =
-                formData['attachments'] as Map<String, dynamic>;
-
-            // Clear and initialize attachment maps
-            attachedFilesMap = {};
-            originalAttachedFilesMap = {};
-
-            // Get default form labels for attachments
-            final forms = widget.application['details']['forms'] ?? [];
-            for (var form in forms) {
-              if (form['type'] == 'attachment') {
-                attachedFilesMap[form['label']] = [];
-                originalAttachedFilesMap[form['label']] = [];
-              }
-            }
-
-            // Now populate with data from Firestore
-            for (var key in storedAttachments.keys) {
-              if (!attachedFilesMap.containsKey(key)) {
-                attachedFilesMap[key] = [];
-                originalAttachedFilesMap[key] = [];
-              }
-
-              final files = storedAttachments[key] as List<dynamic>;
-              for (var file in files) {
-                final fileMap = Map<String, dynamic>.from(file);
-                attachedFilesMap[key]!.add(fileMap);
-                originalAttachedFilesMap[key]!
-                    .add(Map<String, dynamic>.from(fileMap));
-              }
-            }
-          } else {
-            // Initialize empty lists for attachment fields
-            final forms = widget.application['details']['forms'] ?? [];
-            for (var form in forms) {
-              if (form['type'] == 'attachment') {
-                attachedFilesMap[form['label']] = [];
-                originalAttachedFilesMap[form['label']] = [];
-              }
-            }
-          }
-
-          textControllers.forEach((key, controller) {
-            controller.text = formData['short_answers']?[key] ?? '';
-          });
-        });
-      }
-    } catch (error) {
-      print('Error loading form data: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading saved data'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 

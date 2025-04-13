@@ -127,8 +127,14 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
             return Center(child: Text('Application data not found'));
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final formData = data['form_data'] ?? {};
+          // Get the data, ensuring proper type casting
+          Map<String, dynamic> data = {};
+          try {
+            data = snapshot.data!.data() as Map<String, dynamic>;
+          } catch (e) {
+            print('Error casting document data: $e');
+            return Center(child: Text('Error parsing application data'));
+          }
 
           return SingleChildScrollView(
             child: Column(
@@ -213,13 +219,38 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                             padding: const EdgeInsets.all(16),
                             child: Row(
                               children: [
-                                CircleAvatar(
-                                  backgroundColor: Colors.grey[200],
-                                  child: Icon(
-                                    widget.application['organizationLogo'] ??
-                                        Icons.help_outline,
-                                    color: Colors.grey[800],
+                                // Replace CircleAvatar with Container showing the logo URL
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
+                                  child: widget.application['logoUrl'] !=
+                                              null &&
+                                          widget.application['logoUrl']
+                                              .toString()
+                                              .isNotEmpty
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Image.network(
+                                            widget.application['logoUrl'],
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Icon(
+                                                Icons.business,
+                                                color: Colors.grey[800],
+                                              );
+                                            },
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.business,
+                                          color: Colors.grey[800],
+                                        ),
                                 ),
                                 SizedBox(width: 16),
                                 Expanded(
@@ -338,7 +369,7 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: _buildSubmittedFormContent(formData, context),
+                      child: _buildSubmittedFormContent(data, context),
                     ),
                   ),
                 ),
@@ -366,58 +397,85 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
   }
 
   Widget _buildSubmittedFormContent(
-      Map<String, dynamic> formData, BuildContext context) {
+      Map<String, dynamic> data, BuildContext context) {
     List<Widget> formItems = [];
 
-    // Short answers and paragraphs
-    final shortAnswers = formData['short_answers'] ?? {};
-    if (shortAnswers.isNotEmpty) {
-      shortAnswers.forEach((key, value) {
-        formItems.add(_buildFormItem(key, value.toString()));
-      });
+    // Get formFields from the new data structure with proper type casting
+    final formFields = data['formFields'];
+    if (formFields == null) {
+      return Center(child: Text('No form data submitted'));
     }
 
-    // Multiple choice
-    if (formData['multiple_choice'] != null) {
-      formItems
-          .add(_buildFormItem('Selected Option', formData['multiple_choice']));
-    }
+    List<Map<String, dynamic>> typedFormFields = [];
 
-    // Checkboxes
-    final checkboxes = formData['checkboxes'] ?? {};
-    if (checkboxes.isNotEmpty) {
-      final selectedItems = checkboxes.entries
-          .where((e) => e.value == true)
-          .map((e) => e.key)
-          .toList();
-
-      if (selectedItems.isNotEmpty) {
-        formItems.add(_buildFormItem(
-          'Selected Items',
-          selectedItems.join(', '),
-        ));
+    // Convert the dynamic list to properly typed list
+    if (formFields is List) {
+      for (var field in formFields) {
+        if (field is Map) {
+          // Convert each field to a properly typed Map<String, dynamic>
+          typedFormFields.add(Map<String, dynamic>.from(field));
+        }
       }
     }
 
-    // Dates
-    final dates = formData['dates'] ?? {};
-    if (dates.isNotEmpty) {
-      dates.forEach((key, value) {
-        if (value != null) {
-          final date = DateTime.parse(value).toString().split(' ')[0];
-          formItems.add(_buildFormItem(key, date));
-        }
-      });
+    if (typedFormFields.isEmpty) {
+      return Center(child: Text('No form data submitted'));
     }
 
-    // Attachments - Updated to make them clickable
-    final attachments = formData['attachments'] ?? {};
-    if (attachments.isNotEmpty) {
-      attachments.forEach((key, value) {
-        if ((value as List).isNotEmpty) {
-          formItems.add(_buildAttachmentItem(key, value));
-        }
-      });
+    // Process each form field with proper typing
+    for (var field in typedFormFields) {
+      final String fieldType = field['type'] ?? '';
+      final String fieldLabel = field['label'] ?? '';
+
+      switch (fieldType) {
+        case 'short_answer':
+        case 'paragraph':
+          final String answer = field['answer'] ?? '';
+          formItems.add(_buildFormItem(fieldLabel, answer));
+          break;
+
+        case 'multiple_choice':
+          final selectedOption = field['selectedOption'];
+          if (selectedOption != null && selectedOption.toString().isNotEmpty) {
+            formItems
+                .add(_buildFormItem(fieldLabel, selectedOption.toString()));
+          }
+          break;
+
+        case 'checkbox':
+          final selectedOptions = field['selectedOptions'];
+          if (selectedOptions is List && selectedOptions.isNotEmpty) {
+            formItems
+                .add(_buildFormItem(fieldLabel, selectedOptions.join(', ')));
+          }
+          break;
+
+        case 'date':
+          final selectedDate = field['selectedDate'];
+          if (selectedDate != null) {
+            final date = DateTime.parse(selectedDate.toString())
+                .toString()
+                .split(' ')[0];
+            formItems.add(_buildFormItem(fieldLabel, date));
+          }
+          break;
+
+        case 'attachment':
+          final files = field['files'];
+          if (files is List && files.isNotEmpty) {
+            // Convert to properly typed list
+            List<Map<String, dynamic>> typedFiles = [];
+            for (var file in files) {
+              if (file is Map) {
+                typedFiles.add(Map<String, dynamic>.from(file));
+              }
+            }
+            if (typedFiles.isNotEmpty) {
+              formItems.add(_buildAttachmentItem(fieldLabel, typedFiles));
+            }
+          }
+          break;
+      }
     }
 
     if (formItems.isEmpty) {
@@ -453,6 +511,7 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
     );
   }
 
+  // Add the missing _buildFormItem method
   Widget _buildFormItem(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -489,8 +548,8 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
     );
   }
 
-  // New method to build clickable attachment items
-  Widget _buildAttachmentItem(String label, List<dynamic> files) {
+  // Build attachment item to handle the new structure
+  Widget _buildAttachmentItem(String label, List<Map<String, dynamic>> files) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -517,7 +576,7 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: files.map<Widget>((fileData) {
                 final fileName = fileData['name'] ?? 'Unnamed File';
-                final downloadUrl = fileData['downloadUrl'];
+                final downloadUrl = fileData['downloadUrl'] as String?;
                 final isProcessing = processingFiles[fileName] ?? false;
 
                 return Padding(
