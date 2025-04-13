@@ -36,10 +36,34 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   // Add a map to store controllers for each list item
   final Map<String, TextEditingController> _listItemControllers = {};
 
+  // Add a map to store controllers for paragraphs and list items to avoid recreation
+  final Map<String, TextEditingController> _contentControllers = {};
+
   @override
   void initState() {
     super.initState();
     _initNextDetailId();
+    _initControllers();
+  }
+
+  // Initialize controllers for existing content
+  void _initControllers() {
+    for (var section in widget.detailSections) {
+      if (section['type'] == 'paragraph' && section['content'] != null) {
+        final String key = 'paragraph_${section['id']}';
+        _contentControllers[key] =
+            TextEditingController(text: section['content']);
+      }
+
+      if (section['type'] == 'list' && section['items'] != null) {
+        final items = section['items'] as List<dynamic>;
+        for (int i = 0; i < items.length; i++) {
+          final String key = 'list_${section['id']}_$i';
+          _contentControllers[key] =
+              TextEditingController(text: items[i].toString());
+        }
+      }
+    }
   }
 
   @override
@@ -49,6 +73,17 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
       controller.dispose();
     }
     _listItemControllers.clear();
+
+    // Dispose all controllers
+    for (var controller in _contentControllers.values) {
+      controller.dispose();
+    }
+    _contentControllers.clear();
+
+    for (var controller in _uploadingFiles.keys) {
+      _uploadingFiles[controller] = false;
+    }
+
     super.dispose();
   }
 
@@ -119,8 +154,29 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
         List.from(widget.detailSections);
     List<String> items =
         List<String>.from(updatedSections[sectionIndex]['items'] as List);
+
+    // Remove the controller for the item being deleted
+    final key = 'list_${updatedSections[sectionIndex]['id']}_$itemIndex';
+    if (_contentControllers.containsKey(key)) {
+      _contentControllers[key]?.dispose();
+      _contentControllers.remove(key);
+    }
+
+    // Remove the item
     items.removeAt(itemIndex);
     updatedSections[sectionIndex]['items'] = items;
+
+    // Update controllers for all subsequent items (they shift down)
+    for (int i = itemIndex; i < items.length; i++) {
+      final oldKey = 'list_${updatedSections[sectionIndex]['id']}_${i + 1}';
+      final newKey = 'list_${updatedSections[sectionIndex]['id']}_$i';
+
+      if (_contentControllers.containsKey(oldKey)) {
+        _contentControllers[newKey] = _contentControllers[oldKey]!;
+        _contentControllers.remove(oldKey);
+      }
+    }
+
     widget.updateDetailSections(updatedSections);
   }
 
@@ -240,160 +296,202 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Edit Detail Section'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Section type selection (disabled as changing type would require restructuring data)
-                Text('Section Type',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  items: _detailTypes.map((type) {
-                    String displayText = type;
-                    switch (type) {
-                      case 'paragraph':
-                        displayText = 'Paragraph';
-                        break;
-                      case 'list':
-                        displayText = 'List';
-                        break;
-                      case 'attachment':
-                        displayText = 'Attachment';
-                        break;
-                    }
+        builder: (context, setDialogState) => Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Container(
+            width: 400, // Fixed width for the dialog
+            constraints: BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Edit Detail Section',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 16),
+                  SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section type selection (disabled as changing type would require restructuring data)
+                        Text('Section Type',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: selectedType,
+                          items: _detailTypes.map((type) {
+                            String displayText = type;
+                            switch (type) {
+                              case 'paragraph':
+                                displayText = 'Paragraph';
+                                break;
+                              case 'list':
+                                displayText = 'List';
+                                break;
+                              case 'attachment':
+                                displayText = 'Attachment';
+                                break;
+                            }
 
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(displayText),
-                    );
-                  }).toList(),
-                  onChanged: null, // Disabled to prevent type changes
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                SizedBox(height: 16),
+                            return DropdownMenuItem(
+                              value: type,
+                              child: Text(displayText),
+                            );
+                          }).toList(),
+                          onChanged: null, // Disabled to prevent type changes
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          isExpanded: true, // Make dropdown fit fixed width
+                        ),
+                        SizedBox(height: 16),
 
-                // Section label
-                Text('Section Label',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                TextField(
-                  controller: labelController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Enter section label',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                SizedBox(height: 16),
+                        // Section label
+                        Text('Section Label',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 8),
+                        TextField(
+                          controller: labelController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: 'Enter section label',
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                        ),
+                        SizedBox(height: 16),
 
-                // Content field for paragraph type
-                if (selectedType == 'paragraph') ...[
-                  Text('Content',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  TextField(
-                    controller: contentController,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Enter paragraph content',
+                        // Content field for paragraph type
+                        if (selectedType == 'paragraph') ...[
+                          Text('Content',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(height: 8),
+                          TextField(
+                            controller: contentController,
+                            maxLines: 5,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: 'Enter paragraph content',
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Map<String, dynamic> updatedData = {
+                            'label': labelController.text,
+                          };
+
+                          if (selectedType == 'paragraph') {
+                            updatedData['content'] = contentController.text;
+                          }
+
+                          _updateDetailSection(index, updatedData);
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('Save'),
+                      ),
+                    ],
+                  ),
                 ],
-              ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Map<String, dynamic> updatedData = {
-                  'label': labelController.text,
-                };
-
-                if (selectedType == 'paragraph') {
-                  updatedData['content'] = contentController.text;
-                }
-
-                _updateDetailSection(index, updatedData);
-                Navigator.of(context).pop();
-              },
-              child: Text('Save'),
-            ),
-          ],
         ),
       ),
     );
   }
 
+  // Apply similar fixes to the _showAddDetailDialog method
   void _showAddDetailDialog() {
     String selectedType = 'paragraph';
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Add Detail Section'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Select Section Type'),
-              SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: selectedType,
-                items: _detailTypes.map((type) {
-                  String displayText = type;
-                  switch (type) {
-                    case 'paragraph':
-                      displayText = 'Paragraph';
-                      break;
-                    case 'list':
-                      displayText = 'List';
-                      break;
-                    case 'attachment':
-                      displayText = 'Attachment';
-                      break;
-                  }
+        builder: (context, setDialogState) => Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Container(
+            width: 400, // Fixed width for the dialog
+            constraints: BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Add Detail Section',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 16),
+                  Text('Select Section Type'),
+                  SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: selectedType,
+                    items: _detailTypes.map((type) {
+                      String displayText = type;
+                      switch (type) {
+                        case 'paragraph':
+                          displayText = 'Paragraph';
+                          break;
+                        case 'list':
+                          displayText = 'List';
+                          break;
+                        case 'attachment':
+                          displayText = 'Attachment';
+                          break;
+                      }
 
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(displayText),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setDialogState(() {
-                    selectedType = value!;
-                  });
-                },
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                ),
+                      return DropdownMenuItem(
+                        value: type,
+                        child: Text(displayText),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedType = value!;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    isExpanded: true, // Make dropdown fit fixed width
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          _addDetailSection(selectedType);
+                          Navigator.pop(context);
+                        },
+                        child: Text('Add'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _addDetailSection(selectedType);
-                Navigator.pop(context);
-              },
-              child: Text('Add'),
-            ),
-          ],
         ),
       ),
     );
@@ -490,9 +588,9 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
         ),
         child: Column(
           children: [
-            // Card header
+            // Card header - modified to show label below type
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.only(
@@ -500,51 +598,62 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                   topRight: Radius.circular(8),
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Section type indicator
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getSectionTypeColor(type),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _getSectionTypeDisplay(type),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _getSectionTypeTextColor(type),
-                        fontWeight: FontWeight.bold,
+                  // Top row with type indicator and action buttons
+                  Row(
+                    children: [
+                      // Section type indicator
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getSectionTypeColor(type),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _getSectionTypeDisplay(type),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _getSectionTypeTextColor(type),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  SizedBox(width: 8),
 
+                      Spacer(),
+
+                      // Edit and delete buttons
+                      IconButton(
+                        onPressed: () => _showEditDetailDialog(index),
+                        icon:
+                            Icon(Icons.edit, size: 20, color: Colors.grey[600]),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                        tooltip: 'Edit Section',
+                      ),
+                      SizedBox(width: 12),
+                      IconButton(
+                        onPressed: () => _removeDetailSection(index),
+                        icon: Icon(Icons.delete,
+                            size: 20, color: Colors.grey[600]),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                        tooltip: 'Remove Section',
+                      ),
+                    ],
+                  ),
+
+                  // Label displayed below type
+                  SizedBox(height: 8),
                   Text(
                     label,
                     style: TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.grey[800],
                     ),
-                  ),
-
-                  Spacer(),
-
-                  // Edit and delete buttons
-                  IconButton(
-                    onPressed: () => _showEditDetailDialog(index),
-                    icon: Icon(Icons.edit, size: 20, color: Colors.grey[600]),
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    tooltip: 'Edit Section',
-                  ),
-                  SizedBox(width: 12),
-                  IconButton(
-                    onPressed: () => _removeDetailSection(index),
-                    icon: Icon(Icons.delete, size: 20, color: Colors.grey[600]),
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    tooltip: 'Remove Section',
                   ),
                 ],
               ),
@@ -577,13 +686,21 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
 
   // Build paragraph type content
   Widget _buildParagraphContent(int index, Map<String, dynamic> section) {
+    final String key = 'paragraph_${section['id']}';
+
+    // Create controller if it doesn't exist
+    if (!_contentControllers.containsKey(key)) {
+      _contentControllers[key] =
+          TextEditingController(text: section['content'] ?? '');
+    }
+
     return TextField(
       maxLines: 6,
       decoration: InputDecoration(
         hintText: 'Enter text content here...',
         border: OutlineInputBorder(),
       ),
-      controller: TextEditingController(text: section['content'] ?? ''),
+      controller: _contentControllers[key],
       onChanged: (value) {
         _updateDetailSection(index, {'content': value});
       },
@@ -616,6 +733,17 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             _listItemControllers[controllerKey]!.text = item;
           }
 
+          // Create a unique key for this controller
+          final String key = 'list_${section['id']}_$itemIndex';
+
+          // Create controller if it doesn't exist
+          if (!_contentControllers.containsKey(key)) {
+            _contentControllers[key] = TextEditingController(text: item);
+          } else if (_contentControllers[key]!.text != item) {
+            // Update controller text if different
+            _contentControllers[key]!.text = item;
+          }
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Row(
@@ -625,7 +753,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                 SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    controller: _listItemControllers[controllerKey],
+                    controller: _contentControllers[key],
                     decoration: InputDecoration(
                       hintText: 'Enter list item',
                       border: UnderlineInputBorder(),
@@ -652,7 +780,14 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
         // Add item button
         SizedBox(height: 8),
         TextButton.icon(
-          onPressed: () => _addListItem(index),
+          onPressed: () {
+            _addListItem(index);
+            // Make sure to create a controller for the new item
+            final newIndex = (section['items'] as List).length - 1;
+            final key = 'list_${section['id']}_$newIndex';
+            _contentControllers[key] =
+                TextEditingController(text: 'Enter an item');
+          },
           icon: Icon(Icons.add, size: 16),
           label: Text('Add Item'),
           style: TextButton.styleFrom(
@@ -886,6 +1021,65 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
     for (var key in keysToRemove) {
       _listItemControllers[key]?.dispose();
       _listItemControllers.remove(key);
+    }
+
+    // Update controllers if needed
+    for (var section in widget.detailSections) {
+      if (section['type'] == 'paragraph') {
+        final String key = 'paragraph_${section['id']}';
+        if (!_contentControllers.containsKey(key)) {
+          _contentControllers[key] =
+              TextEditingController(text: section['content'] ?? '');
+        }
+      }
+
+      if (section['type'] == 'list' && section['items'] != null) {
+        final items = section['items'] as List<dynamic>;
+        for (int i = 0; i < items.length; i++) {
+          final String key = 'list_${section['id']}_$i';
+          if (!_contentControllers.containsKey(key)) {
+            _contentControllers[key] =
+                TextEditingController(text: items[i].toString());
+          } else {
+            // Update controller if text has changed
+            final controller = _contentControllers[key]!;
+            if (controller.text != items[i].toString()) {
+              controller.text = items[i].toString();
+            }
+          }
+        }
+      }
+    }
+
+    // Clean up unused controllers
+    _cleanupUnusedControllers();
+  }
+
+  // Clean up controllers that are no longer needed
+  void _cleanupUnusedControllers() {
+    final Set<String> neededKeys = {};
+
+    // Collect keys for all current content
+    for (var section in widget.detailSections) {
+      if (section['type'] == 'paragraph') {
+        neededKeys.add('paragraph_${section['id']}');
+      }
+
+      if (section['type'] == 'list' && section['items'] != null) {
+        final items = section['items'] as List<dynamic>;
+        for (int i = 0; i < items.length; i++) {
+          neededKeys.add('list_${section['id']}_$i');
+        }
+      }
+    }
+
+    // Remove unnecessary controllers
+    final keysToRemove = _contentControllers.keys
+        .where((key) => !neededKeys.contains(key))
+        .toList();
+    for (final key in keysToRemove) {
+      _contentControllers[key]?.dispose();
+      _contentControllers.remove(key);
     }
   }
 }

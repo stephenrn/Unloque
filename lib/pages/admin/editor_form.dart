@@ -30,6 +30,9 @@ class _FormEditorTabState extends State<FormEditorTab> {
   // Add a map to store controllers for each option in multiple choice/checkbox fields
   final Map<String, TextEditingController> _optionControllers = {};
 
+  // Add persistent controller map instead of creating temporary controllers in dialog
+  final Map<String, TextEditingController> _dialogControllers = {};
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +46,13 @@ class _FormEditorTabState extends State<FormEditorTab> {
       controller.dispose();
     }
     _optionControllers.clear();
+
+    // Dispose all persisted dialog controllers
+    for (var controller in _dialogControllers.values) {
+      controller.dispose();
+    }
+    _dialogControllers.clear();
+
     super.dispose();
   }
 
@@ -63,9 +73,9 @@ class _FormEditorTabState extends State<FormEditorTab> {
     updatedFields.add({
       'id': _nextFormId++,
       'type': 'short_answer',
-      'label': 'New Field',
-      'placeholder': 'Enter your answer',
+      'label': '',
       'required': true,
+      // Removed placeholder property
     });
     widget.updateFormFields(updatedFields);
   }
@@ -85,167 +95,194 @@ class _FormEditorTabState extends State<FormEditorTab> {
     widget.updateFormFields(updatedFields);
   }
 
+  // Helper method to get or create a controller with a unique key
+  TextEditingController _getOrCreateController(String key, String initialText) {
+    if (!_dialogControllers.containsKey(key)) {
+      _dialogControllers[key] = TextEditingController(text: initialText);
+    } else if (_dialogControllers[key]!.text != initialText) {
+      // Update text if needed but don't create a new controller
+      _dialogControllers[key]!.text = initialText;
+    }
+    return _dialogControllers[key]!;
+  }
+
+  // Modified dialog method that uses persistent controllers
   void _showEditFieldDialog(int index) {
     final field = widget.formFields[index];
-    final TextEditingController labelController =
-        TextEditingController(text: field['label']);
-    final TextEditingController placeholderController =
-        TextEditingController(text: field['placeholder']);
+    final fieldId = field['id'] ?? index.toString();
+
+    // Use persistent controllers instead of local ones
+    final labelController =
+        _getOrCreateController('label_$fieldId', field['label'] ?? '');
+
+    // Remove placeholderController since it's no longer needed
+
     String selectedType = field['type'];
     bool isRequired = field['required'] ?? true;
+
+    // For multiple choice and checkbox options
+    List<String> optionValues = [];
+    if ((field['type'] == 'multiple_choice' || field['type'] == 'checkbox') &&
+        field['options'] != null) {
+      optionValues =
+          (field['options'] as List).map((e) => e.toString()).toList();
+    } else if (selectedType == 'multiple_choice' ||
+        selectedType == 'checkbox') {
+      optionValues = ['', '', ''];
+    }
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Edit Form Field'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Field type selection
-                Text('Field Type',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  items: _fieldTypes.map((type) {
-                    String displayText = type;
-                    switch (type) {
-                      case 'short_answer':
-                        displayText = 'Short Answer';
-                        break;
-                      case 'paragraph':
-                        displayText = 'Paragraph';
-                        break;
-                      case 'multiple_choice':
-                        displayText = 'Multiple Choice';
-                        break;
-                      case 'checkbox':
-                        displayText = 'Checkbox';
-                        break;
-                      case 'date':
-                        displayText = 'Date';
-                        break;
-                      case 'attachment':
-                        displayText = 'Attachment';
-                        break;
-                    }
+        builder: (context, setDialogState) => Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Container(
+            width: 400, // Fixed width for the dialog
+            constraints: BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Edit Form Field',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 16),
+                  SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Field type selection
+                        Text('Field Type',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: selectedType,
+                          items: _fieldTypes.map((type) {
+                            String displayText = type;
+                            switch (type) {
+                              case 'short_answer':
+                                displayText = 'Short Answer';
+                                break;
+                              case 'paragraph':
+                                displayText = 'Paragraph';
+                                break;
+                              case 'multiple_choice':
+                                displayText = 'Multiple Choice';
+                                break;
+                              case 'checkbox':
+                                displayText = 'Checkbox';
+                                break;
+                              case 'date':
+                                displayText = 'Date';
+                                break;
+                              case 'attachment':
+                                displayText = 'Attachment';
+                                break;
+                            }
 
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(displayText),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedType = value!;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                SizedBox(height: 16),
+                            return DropdownMenuItem(
+                              value: type,
+                              child: Text(displayText),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedType = value!;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          isExpanded: true, // Make dropdown fit fixed width
+                        ),
+                        SizedBox(height: 16),
 
-                // Field label
-                Text('Field Label',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                TextField(
-                  controller: labelController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Enter field label',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                SizedBox(height: 16),
+                        // Field label
+                        Text('Field Label',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 8),
+                        TextField(
+                          controller: labelController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                        ),
+                        SizedBox(height: 16),
 
-                // Field placeholder
-                if (selectedType == 'short_answer' ||
-                    selectedType == 'paragraph') ...[
-                  Text('Placeholder Text',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  TextField(
-                    controller: placeholderController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Enter placeholder text',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        // Remove placeholder text field section completely
+
+                        // Required checkbox
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: isRequired,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  isRequired = value!;
+                                });
+                              },
+                            ),
+                            Text('Required field'),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   SizedBox(height: 16),
-                ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          // Just close dialog without disposing controllers
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Update the form field (but preserve options if they exist)
+                          Map<String, dynamic> updatedField = {
+                            ...widget.formFields[index],
+                            'type': selectedType,
+                            'label': labelController.text,
+                            'required': isRequired,
+                            // Removed placeholder property
+                          };
 
-                // Required checkbox
-                Row(
-                  children: [
-                    Checkbox(
-                      value: isRequired,
-                      onChanged: (value) {
-                        setDialogState(() {
-                          isRequired = value!;
-                        });
-                      },
-                    ),
-                    Text('Required field'),
-                  ],
-                ),
-              ],
+                          // Remove placeholder handling for short_answer and paragraph types
+
+                          // If changing to multiple_choice or checkbox and no options exist, add defaults
+                          if ((selectedType == 'multiple_choice' ||
+                                  selectedType == 'checkbox') &&
+                              (!updatedField.containsKey('options') ||
+                                  (updatedField['options'] as List?)?.isEmpty ==
+                                      true)) {
+                            updatedField['options'] = [
+                              'Option 1',
+                              'Option 2',
+                              'Option 3'
+                            ];
+                          }
+
+                          _updateFormField(index, updatedField);
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('Save'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Dispose all controllers before closing
-                labelController.dispose();
-                placeholderController.dispose();
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Update the form field (but preserve options if they exist)
-                Map<String, dynamic> updatedField = {
-                  ...widget.formFields[index],
-                  'type': selectedType,
-                  'label': labelController.text,
-                  'required': isRequired,
-                };
-
-                if (selectedType == 'short_answer' ||
-                    selectedType == 'paragraph') {
-                  updatedField['placeholder'] = placeholderController.text;
-                }
-
-                // If changing to multiple_choice or checkbox and no options exist, add defaults
-                if ((selectedType == 'multiple_choice' ||
-                        selectedType == 'checkbox') &&
-                    (!updatedField.containsKey('options') ||
-                        (updatedField['options'] as List?)?.isEmpty == true)) {
-                  updatedField['options'] = [
-                    'Option 1',
-                    'Option 2',
-                    'Option 3'
-                  ];
-                }
-
-                _updateFormField(index, updatedField);
-
-                // Dispose controllers
-                labelController.dispose();
-                placeholderController.dispose();
-
-                Navigator.of(context).pop();
-              },
-              child: Text('Save'),
-            ),
-          ],
         ),
       ),
     );
@@ -361,9 +398,9 @@ class _FormEditorTabState extends State<FormEditorTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card header
+          // Card header - modified to show label below type
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.only(
@@ -371,71 +408,82 @@ class _FormEditorTabState extends State<FormEditorTab> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Field type indicator
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getFieldTypeColor(type),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    _getFieldTypeDisplay(type),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getFieldTypeTextColor(type),
-                      fontWeight: FontWeight.bold,
+                // Top row with type indicator and action buttons
+                Row(
+                  children: [
+                    // Field type indicator
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getFieldTypeColor(type),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _getFieldTypeDisplay(type),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getFieldTypeTextColor(type),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                SizedBox(width: 8),
 
+                    // Required indicator
+                    if (isRequired)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Container(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red[100],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Required',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.red[800],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    Spacer(),
+
+                    // Edit and delete buttons
+                    IconButton(
+                      onPressed: () => _showEditFieldDialog(index),
+                      icon: Icon(Icons.edit, size: 20, color: Colors.grey[600]),
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints(),
+                      tooltip: 'Edit Field',
+                    ),
+                    SizedBox(width: 12),
+                    IconButton(
+                      onPressed: () => _removeFormField(index),
+                      icon:
+                          Icon(Icons.delete, size: 20, color: Colors.grey[600]),
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints(),
+                      tooltip: 'Remove Field',
+                    ),
+                  ],
+                ),
+
+                // Label displayed below type
+                SizedBox(height: 8),
                 Text(
                   label,
                   style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
-                ),
-
-                SizedBox(width: 8),
-
-                // Required indicator
-                if (isRequired)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red[100],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'Required',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.red[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-
-                Spacer(),
-
-                // Edit and delete buttons
-                IconButton(
-                  onPressed: () => _showEditFieldDialog(index),
-                  icon: Icon(Icons.edit, size: 20, color: Colors.grey[600]),
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  tooltip: 'Edit Field',
-                ),
-                SizedBox(width: 12),
-                IconButton(
-                  onPressed: () => _removeFormField(index),
-                  icon: Icon(Icons.delete, size: 20, color: Colors.grey[600]),
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  tooltip: 'Remove Field',
                 ),
               ],
             ),
@@ -460,7 +508,6 @@ class _FormEditorTabState extends State<FormEditorTab> {
         return TextField(
           readOnly: true,
           decoration: InputDecoration(
-            hintText: field['placeholder'] ?? 'Short answer text',
             border: OutlineInputBorder(),
           ),
         );
@@ -470,7 +517,6 @@ class _FormEditorTabState extends State<FormEditorTab> {
           readOnly: true,
           maxLines: 3,
           decoration: InputDecoration(
-            hintText: field['placeholder'] ?? 'Long answer text',
             border: OutlineInputBorder(),
           ),
         );
@@ -478,8 +524,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
       case 'multiple_choice':
       case 'checkbox':
         // Inline option editing for multiple choice and checkbox
-        List<dynamic> options =
-            field['options'] as List<dynamic>? ?? ['Option 1'];
+        List<dynamic> options = field['options'] as List<dynamic>? ?? [''];
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,7 +563,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
                       child: TextField(
                         controller: _optionControllers[controllerKey],
                         decoration: InputDecoration(
-                          hintText: 'Enter option text',
+                          hintText: '',
                           border: UnderlineInputBorder(),
                           contentPadding: EdgeInsets.only(bottom: 8),
                         ),
@@ -558,7 +603,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
         return TextField(
           readOnly: true,
           decoration: InputDecoration(
-            hintText: 'Select date',
+            hintText: '',
             border: OutlineInputBorder(),
             suffixIcon: Icon(Icons.calendar_today),
           ),
@@ -599,7 +644,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
         );
 
       default:
-        return Text('Unknown field type');
+        return Text('');
     }
   }
 
@@ -629,7 +674,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
     }
 
     List<dynamic> options = List.from(updatedFields[fieldIndex]['options']);
-    options.add('New Option');
+    options.add('');
     updatedFields[fieldIndex]['options'] = options;
 
     widget.updateFormFields(updatedFields);
@@ -686,6 +731,21 @@ class _FormEditorTabState extends State<FormEditorTab> {
     for (var key in keysToRemove) {
       _optionControllers[key]?.dispose();
       _optionControllers.remove(key);
+    }
+
+    // Clean up controllers for fields that no longer exist
+    final existingFieldIds =
+        widget.formFields.map((f) => f['id']?.toString() ?? '').toSet();
+
+    final keysToRemoveDialog = _dialogControllers.keys.where((key) {
+      // Extract the ID part from the controller key (format: type_id)
+      final idPart = key.split('_').sublist(1).join('_');
+      return !existingFieldIds.contains(idPart);
+    }).toList();
+
+    for (var key in keysToRemoveDialog) {
+      _dialogControllers[key]?.dispose();
+      _dialogControllers.remove(key);
     }
   }
 
