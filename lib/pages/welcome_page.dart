@@ -82,9 +82,36 @@ class _WelcomePageState extends State<WelcomePage>
 
   Future<void> handleGoogleSignIn() async {
     if (!mounted) return;
+
+    // Show loading in SnackBar instead of status message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Connecting to Google...'),
+          ],
+        ),
+        backgroundColor: Colors.blue[700],
+        duration:
+            Duration(seconds: 60), // Long duration that we'll dismiss manually
+        behavior:
+            SnackBarBehavior.floating, // Make it float to not affect layout
+        margin: EdgeInsets.all(10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+
     setState(() {
       _isLoading = true;
-      _statusMessage = 'Connecting to Google...';
     });
 
     try {
@@ -93,17 +120,41 @@ class _WelcomePageState extends State<WelcomePage>
 
       if (gUser == null) {
         if (!mounted) return;
+        // Clear the SnackBar
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         setState(() {
           _isLoading = false;
-          _statusMessage = '';
         });
         return;
       }
 
       if (!mounted) return;
-      setState(() {
-        _statusMessage = 'Google account selected, authenticating...';
-      });
+      // Update SnackBar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Authenticating...'),
+            ],
+          ),
+          backgroundColor: Colors.blue[700],
+          duration: Duration(seconds: 60),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(10),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
 
       // Get authentication details
       final GoogleSignInAuthentication gAuth = await gUser.authentication;
@@ -114,19 +165,65 @@ class _WelcomePageState extends State<WelcomePage>
         idToken: gAuth.idToken,
       );
 
+      // Update SnackBar
       if (!mounted) return;
-      setState(() {
-        _statusMessage = 'Signing in to Firebase...';
-      });
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Signing in...'),
+            ],
+          ),
+          backgroundColor: Colors.blue[700],
+          duration: Duration(seconds: 60),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(10),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
 
       // Sign in with Firebase
       final UserCredential userCredential =
           await _auth.signInWithCredential(credential);
 
       if (userCredential.user != null && mounted) {
-        setState(() {
-          _statusMessage = 'Checking user profile...';
-        });
+        // Update SnackBar
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('Checking profile...'),
+              ],
+            ),
+            backgroundColor: Colors.blue[700],
+            duration: Duration(seconds: 60),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(10),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
 
         // Check if user exists in Firestore
         final userDoc = await FirebaseFirestore.instance
@@ -135,9 +232,32 @@ class _WelcomePageState extends State<WelcomePage>
             .get();
 
         if (!userDoc.exists && mounted) {
-          setState(() {
-            _statusMessage = 'Setting up your profile...';
-          });
+          // Update SnackBar
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Setting up profile...'),
+                ],
+              ),
+              backgroundColor: Colors.blue[700],
+              duration: Duration(seconds: 60),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.all(10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          );
 
           // Show username dialog for new users
           final username = await showDialog<String>(
@@ -157,17 +277,12 @@ class _WelcomePageState extends State<WelcomePage>
               'photoUrl': userCredential.user!.photoURL,
               'createdAt': Timestamp.now(),
             });
-
-            if (!mounted) return;
-            setState(() {
-              _statusMessage = 'Profile created successfully!';
-            });
           }
         }
 
-        // Important: Remove the Future.delayed to avoid any race conditions
-        // and just navigate immediately
+        // Clear any SnackBars before navigation
         if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => HomePage()),
           );
@@ -175,14 +290,18 @@ class _WelcomePageState extends State<WelcomePage>
       }
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to sign in with Google: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(10),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         setState(() {
-          _statusMessage = '';
           _isLoading = false;
         });
       }
@@ -202,7 +321,7 @@ class _WelcomePageState extends State<WelcomePage>
           children: [
             SizedBox(
                 height: screenHeight *
-                    0.03), // Reduced top padding from 0.05 to 0.03
+                    0.04), // Reduced top padding from 0.05 to 0.03
 
             // Header section - reduced height further to eliminate need for negative margin
             Container(
@@ -256,9 +375,9 @@ class _WelcomePageState extends State<WelcomePage>
                   FadeTransition(
                     opacity: fadeAnimation,
                     child: Text(
-                      'Your Gateway to Government Social Programs',
+                      'Your Key to Inclusive Welfare Solutions.',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[300],
                       ),
@@ -269,7 +388,7 @@ class _WelcomePageState extends State<WelcomePage>
             ),
             SizedBox(
                 height: screenHeight *
-                    0.03), // Reduced space between header and slider
+                    0.01), // Reduced space between header and slider
             // Programs slider section - use transform instead of negative margin
             Transform.translate(
               offset: Offset(0,
@@ -371,9 +490,20 @@ class _WelcomePageState extends State<WelcomePage>
                                     ],
                                   ),
                                 ),
-                                Icon(Icons.arrow_forward_ios,
-                                    size: 18,
-                                    color: Colors.grey[400]), // Larger icon
+                                // Update arrow to face up-right
+                                Container(
+                                  height: 28,
+                                  width: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.arrow_outward_rounded,
+                                    color: Colors.grey[900],
+                                    size: 16,
+                                  ),
+                                ),
                               ],
                             ),
                           );
@@ -412,9 +542,27 @@ class _WelcomePageState extends State<WelcomePage>
               ),
             ),
 
-            // App description section
+            // Add more space between slider and container below
+            SizedBox(height: 30),
+
+            // App description section - wrap in a light grey container with rounded top corners
             Expanded(
-              child: Padding(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200], // Light grey background
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(25),
+                    topRight: Radius.circular(25),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
+                ),
                 padding: const EdgeInsets.fromLTRB(25, 20, 25, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,7 +572,8 @@ class _WelcomePageState extends State<WelcomePage>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white, // Changed to light color
+                        color: Colors
+                            .grey[850], // Changed to dark color for contrast
                       ),
                     ),
                     SizedBox(height: 10),
@@ -432,7 +581,8 @@ class _WelcomePageState extends State<WelcomePage>
                       'Unloque helps Filipinos easily apply for government programs with transparent resource allocation and data visualization.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[400], // Changed to light color
+                        color: Colors
+                            .grey[700], // Changed to darker color for contrast
                       ),
                     ),
 
@@ -451,54 +601,29 @@ class _WelcomePageState extends State<WelcomePage>
                           label: "Easy Apply",
                         ),
                         _buildFeatureBox(
-                          icon: Icons.verified_outlined,
-                          label: "Verification",
+                          icon: Icons.track_changes_outlined,
+                          label:
+                              "Progress", // Shortened to match "Easy Apply" size
                         ),
                       ],
                     ),
 
                     Spacer(),
 
-                    // Status message (if any)
-                    if (_statusMessage.isNotEmpty)
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        margin: EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(
-                              0.2), // More visible on dark background
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.blue.withOpacity(0.5)),
-                        ),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: _isLoading
-                                  ? CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.blue[300]!), // Lighter blue
-                                    )
-                                  : Icon(Icons.info_outline,
-                                      color: Colors.blue[300],
-                                      size: 16), // Lighter blue
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _statusMessage,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.blue[300], // Lighter blue
-                                ),
-                              ),
-                            ),
-                          ],
+                    // Terms and conditions text
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Text(
+                          'By signing up, you agree to our Terms & Conditions',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
+                    ),
 
                     // Sign-in Button (inverted colors)
                     Container(
@@ -565,12 +690,12 @@ class _WelcomePageState extends State<WelcomePage>
       width: 90,
       padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[800], // Darker box
+        color: Colors.white, // Changed to white background
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[700]!), // Darker border
+        border: Border.all(color: Colors.grey[300]!), // Lighter border
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2), // Darker shadow
+            color: Colors.black.withOpacity(0.1), // Lighter shadow
             blurRadius: 4,
             offset: Offset(0, 2),
           ),
@@ -581,7 +706,7 @@ class _WelcomePageState extends State<WelcomePage>
         children: [
           Icon(
             icon,
-            color: Colors.white, // White icon
+            color: Colors.blue[700], // Changed to blue icon
             size: 24,
           ),
           SizedBox(height: 6),
@@ -590,7 +715,7 @@ class _WelcomePageState extends State<WelcomePage>
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[300], // Light text
+              color: Colors.grey[800], // Darker text for contrast
             ),
             textAlign: TextAlign.center,
           ),
