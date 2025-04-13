@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// Add import for the new page
+import 'package:unloque/pages/admin/program_details_form_page.dart';
 
 class OrganizationPage extends StatefulWidget {
   final Map<String, dynamic> organization;
@@ -449,147 +451,164 @@ class _ProgramsTab extends StatelessWidget {
                     orgName = orgData?['name'] as String? ?? "Organization";
                   }
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: programColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border:
-                            Border.all(color: Colors.grey[800]!, width: 0.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top section with program name and delete button
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Replace CircleAvatar with a rounded rectangle Container
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(
-                                        8), // Slightly rounded corners
-                                  ),
-                                  child: logoUrl != null && logoUrl.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                              8), // Match container's border radius
-                                          child: Image.network(
-                                            logoUrl,
-                                            width: 40,
-                                            height: 40,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return Icon(
-                                                Icons.folder_special,
-                                                color: Colors.grey[800],
-                                              );
-                                            },
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramDetailsFormPage(
+                            program: data,
+                            organizationId: organizationId,
+                            organizationName: orgName,
+                            organizationLogoUrl: logoUrl,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: programColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border:
+                              Border.all(color: Colors.grey[800]!, width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top section with program name and delete button
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  // Replace CircleAvatar with a rounded rectangle Container
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(
+                                          8), // Slightly rounded corners
+                                    ),
+                                    child: logoUrl != null && logoUrl.isNotEmpty
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                                8), // Match container's border radius
+                                            child: Image.network(
+                                              logoUrl,
+                                              width: 40,
+                                              height: 40,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Icon(
+                                                  Icons.folder_special,
+                                                  color: Colors.grey[800],
+                                                );
+                                              },
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.folder_special,
+                                            color: Colors.grey[800],
                                           ),
-                                        )
-                                      : Icon(
-                                          Icons.folder_special,
-                                          color: Colors.grey[800],
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          data['name'] ?? 'Unnamed Program',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[800],
+                                          ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          orgName, // Just show organization name without prefix
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color:
+                                          Colors.grey[600], // Changed to grey
+                                    ),
+                                    onPressed: () {
+                                      _deleteProgram(context, doc.id,
+                                          data['name'] ?? 'Unnamed Program');
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Bottom section with deadline and category
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(15),
+                                  bottomRight: Radius.circular(15),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
                                     children: [
-                                      Text(
-                                        data['name'] ?? 'Unnamed Program',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        orgName, // Just show organization name without prefix
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
+                                      Icon(Icons.calendar_today,
+                                          color: Colors.grey[800], size: 16),
+                                      const SizedBox(width: 8),
+                                      RichText(
+                                        text: TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: 'Due: ',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text: data['deadline'] ??
+                                                  'No Deadline',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: Colors.grey[600], // Changed to grey
+                                  Text(
+                                    data['category'] ?? 'No Category',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[800],
+                                    ),
                                   ),
-                                  onPressed: () {
-                                    _deleteProgram(context, doc.id,
-                                        data['name'] ?? 'Unnamed Program');
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Bottom section with deadline and category
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(15),
-                                bottomRight: Radius.circular(15),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today,
-                                        color: Colors.grey[800], size: 16),
-                                    const SizedBox(width: 8),
-                                    RichText(
-                                      text: TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: 'Due: ',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                          TextSpan(
-                                            text: data['deadline'] ??
-                                                'No Deadline',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  data['category'] ?? 'No Category',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );
