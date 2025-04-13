@@ -73,7 +73,34 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
     }
   }
 
-  // Add a new recursive deletion function
+  // Add this helper method for recursively deleting Firebase Storage folders
+  Future<void> _recursivelyDeleteFolder(Reference storageRef) async {
+    try {
+      // First list everything in this folder
+      final ListResult result = await storageRef.listAll();
+
+      // Delete all nested files
+      for (var item in result.items) {
+        try {
+          await item.delete();
+          print('Deleted file: ${item.fullPath}');
+        } catch (e) {
+          print('Error deleting file ${item.fullPath}: $e');
+        }
+      }
+
+      // Recursively delete subfolders
+      for (var prefix in result.prefixes) {
+        await _recursivelyDeleteFolder(prefix);
+      }
+
+      // Note: Firebase Storage doesn't have a direct way to delete empty folders
+      // as folders are just prefixes and disappear when all items are deleted
+    } catch (e) {
+      print('Error in recursive deletion: $e');
+    }
+  }
+
   Future<void> _deleteOrganizationData(String organizationId) async {
     try {
       // 1. First, collect all the Firebase Storage refs to delete later
@@ -96,27 +123,12 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
               .ref()
               .child('organizations/$organizationId/programs/$programId');
 
-          try {
-            // Get all storage references but don't delete yet
-            final ListResult result = await storageRef.listAll();
-
-            // Add prefixes to the list of refs to delete
-            for (var prefix in result.prefixes) {
-              // Get all items in the subdirectory
-              final subItems = await prefix.listAll();
-              for (var item in subItems.items) {
-                storageRefsToDelete.add(item);
-              }
-            }
-
-            // Add direct files to the list of refs to delete
-            storageRefsToDelete.addAll(result.items);
-          } catch (e) {
-            print('Error listing storage files for program $programId: $e');
-          }
+          // Add to the list of references to delete
+          storageRefsToDelete.add(storageRef);
 
           // Delete the program document from Firestore
           await programDoc.reference.delete();
+          print('Deleted program document: $programId');
         } catch (e) {
           print('Error processing program $programId: $e');
         }
@@ -127,40 +139,30 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
           .collection('organizations')
           .doc(organizationId)
           .delete();
+      print('Deleted organization document: $organizationId');
 
-      // 4. After Firestore operations are complete, delete all the storage references
-      // This way, even if the widget context is deactivated, we're still using
-      // references we captured earlier
+      // 4. After Firestore operations are complete, delete all storage references
       for (var storageRef in storageRefsToDelete) {
         try {
-          await storageRef.delete();
-          print('Deleted storage file: ${storageRef.fullPath}');
+          // Use recursive deletion for each program folder
+          await _recursivelyDeleteFolder(storageRef);
         } catch (e) {
-          print('Error deleting storage file ${storageRef.fullPath}: $e');
+          print('Error deleting program storage: ${storageRef.fullPath}: $e');
         }
       }
 
-      // 5. Finally try to delete any organization-level storage files
+      // 5. Finally, delete the main organization folder recursively
       try {
         final orgStorageRef = FirebaseStorage.instance
             .ref()
             .child('organizations/$organizationId');
 
-        try {
-          // Delete the entire organization folder
-          final result = await orgStorageRef.listAll();
-          for (var item in result.items) {
-            try {
-              await item.delete();
-            } catch (e) {
-              print('Error deleting organization file ${item.fullPath}: $e');
-            }
-          }
-        } catch (e) {
-          print('Error listing organization-level storage files: $e');
-        }
+        print(
+            'Attempting to delete organization folder: ${orgStorageRef.fullPath}');
+        await _recursivelyDeleteFolder(orgStorageRef);
+        print('Successfully completed organization storage deletion process');
       } catch (e) {
-        print('Error accessing organization storage: $e');
+        print('Error deleting organization-level storage: $e');
       }
     } catch (e) {
       print('Error in deletion process: $e');
