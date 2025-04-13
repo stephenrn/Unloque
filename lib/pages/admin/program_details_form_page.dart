@@ -104,33 +104,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
               .toList();
         });
       } else {
-        // Initialize with default sections if none exist
+        // Initialize with empty sections instead of defaults
         setState(() {
-          _detailSections = [
-            {
-              'id': 0,
-              'type': 'paragraph',
-              'label': 'Description',
-              'content': widget.program['description'] ?? '',
-            },
-            {
-              'id': 1,
-              'type': 'list',
-              'label': 'Requirements',
-              'items': (widget.program['requirements'] as List<dynamic>?)
-                      ?.cast<String>() ??
-                  ['Enter a requirement'],
-            },
-            {
-              'id': 2,
-              'type': 'list',
-              'label': 'Eligibility',
-              'items':
-                  (widget.program['eligibility']?['points'] as List<dynamic>?)
-                          ?.cast<String>() ??
-                      ['Enter eligibility criteria'],
-            },
-          ];
+          _detailSections = [];
         });
       }
     } catch (e) {
@@ -170,17 +146,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
               .toList();
         });
       } else {
-        // Initialize with default form fields if none exist
+        // Initialize with empty form fields instead of defaults
         setState(() {
-          _formFields = [
-            {
-              'id': 0,
-              'type': 'short_answer',
-              'label': 'Full Name',
-              'placeholder': 'Enter your full name',
-              'required': true,
-            }
-          ];
+          _formFields = [];
         });
       }
     } catch (e) {

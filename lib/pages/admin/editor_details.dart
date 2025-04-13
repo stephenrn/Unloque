@@ -16,8 +16,7 @@ class DetailsEditorTab extends StatefulWidget {
   final Function(List<Map<String, dynamic>>) updateDetailSections;
   final bool isLoading;
 
-  // Remove the const keyword from the constructor
-  DetailsEditorTab({
+  const DetailsEditorTab({
     Key? key,
     required this.organizationId,
     required this.programId,
@@ -26,29 +25,14 @@ class DetailsEditorTab extends StatefulWidget {
     required this.isLoading,
   }) : super(key: key);
 
-  // Remove stateKey field, as it causes issues with state management
+  // Method to save detail sections if needed
+  Future<List<Map<String, dynamic>>> saveDetailSections() async {
+    // Any save logic would go here
+    return detailSections;
+  }
 
   @override
   State<DetailsEditorTab> createState() => _DetailsEditorTabState();
-
-  // Method that can be called by parent to save details and upload files
-  Future<List<Map<String, dynamic>>> saveDetailSections() async {
-    // Since we don't have direct access to the state through a key anymore,
-    // we need to create a new instance of state functions
-
-    // Create an instance of _DetailsEditorTabStateFunctionality with the current properties
-    final stateHelper = _DetailsEditorTabStateFunctionality(
-      organizationId: organizationId,
-      programId: programId,
-      detailSections: detailSections,
-    );
-
-    // Process the uploads using the helper instance
-    await stateHelper.uploadPendingFiles();
-
-    // Return the updated sections (with file URLs)
-    return detailSections;
-  }
 }
 
 // Helper class to encapsulate state functionality for file uploads
