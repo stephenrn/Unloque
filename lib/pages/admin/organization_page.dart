@@ -298,6 +298,8 @@ class _ProgramsTab extends StatelessWidget {
                         'deadline': deadlineController.text,
                         'color': selectedColor.value,
                         'organizationId': organizationId,
+                        'programStatus':
+                            'Closed', // Set default status to Closed
                         'createdAt': FieldValue.serverTimestamp(),
                       };
 
@@ -601,6 +603,40 @@ class _ProgramsTab extends StatelessWidget {
                                             ),
                                           ),
                                         ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Status indicator now inline with due date
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: (data['programStatus'] ??
+                                                    "Closed") ==
+                                                "Open"
+                                            ? Colors.green[100]
+                                            : Colors.red[100],
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: (data['programStatus'] ??
+                                                      "Closed") ==
+                                                  "Open"
+                                              ? Colors.green
+                                              : Colors.red,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        data['programStatus'] ?? "Closed",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: (data['programStatus'] ??
+                                                      "Closed") ==
+                                                  "Open"
+                                              ? Colors.green[800]
+                                              : Colors.red[800],
+                                        ),
                                       ),
                                     ),
                                   ],

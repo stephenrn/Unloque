@@ -38,6 +38,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
   late Color _selectedColor;
   DateTime? _selectedDeadline;
 
+  // Add program status state
+  String _programStatus = "Closed";
+
   // Detail sections and form fields
   List<Map<String, dynamic>> _detailSections = [];
   List<Map<String, dynamic>> _formFields = [];
@@ -61,6 +64,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
     } else {
       _selectedColor = Colors.blue[100]!;
     }
+
+    // Set program status from program data or default to "Closed"
+    _programStatus = widget.program['programStatus'] ?? "Closed";
 
     // Load form fields and detail sections data
     _loadFormFields();
@@ -226,6 +232,13 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
     });
   }
 
+  // Add method to update program status
+  void _updateProgramStatus(String status) {
+    setState(() {
+      _programStatus = status;
+    });
+  }
+
   // Show date picker for deadline
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -353,6 +366,7 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
         'color': _selectedColor.value,
         'detailSections': _detailSections,
         'formFields': _formFields,
+        'programStatus': _programStatus, // Add program status
         'lastUpdated': FieldValue.serverTimestamp(),
       };
 
@@ -473,12 +487,14 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
             selectedColor: _selectedColor,
             organizationName: widget.organizationName,
             organizationLogoUrl: widget.organizationLogoUrl,
+            programStatus: _programStatus, // Pass program status
             updateName: _updateProgramName,
             updateCategory: _updateCategory,
             updateDeadline: _updateDeadline,
             updateColor: _updateColor,
             showColorPickerDialog: _showColorPickerDialog,
             selectDate: _selectDate,
+            updateProgramStatus: _updateProgramStatus, // Pass update function
           ),
 
           // DETAILS TAB - Important: Don't change the key here
