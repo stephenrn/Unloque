@@ -32,6 +32,17 @@ class DashboardPageState extends State<DashboardPage> {
     _progressSectionKey.currentState?.refreshApplications();
   }
 
+  // Method to refresh the entire dashboard
+  void refreshDashboard() {
+    setState(() {
+      // Clear data cache to force fresh data
+      AvailableApplicationsData.clearCache();
+      // Refresh the progress section
+      refreshProgressSection();
+      print('Dashboard refreshed from DeveloperOptionsPage');
+    });
+  }
+
   // Navigate to a page and refresh when returning with a refresh flag
   Future<void> navigateAndRefresh(BuildContext context, Widget page) async {
     final result = await Navigator.push(
@@ -159,17 +170,23 @@ class DashboardPageState extends State<DashboardPage> {
                         ],
                       ),
                       Spacer(),
-                      // Developer/Admin button
+                      // Developer/Admin button - Updated to properly await and handle the result
                       IconButton(
                         icon: Icon(Icons.admin_panel_settings,
                             color: Colors.white, size: 26),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          // Navigate to DeveloperOptionsPage and await result
+                          final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => DeveloperOptionsPage(),
                             ),
                           );
+
+                          // If result is true, refresh the dashboard
+                          if (result == true) {
+                            refreshDashboard();
+                          }
                         },
                         tooltip: 'Developer Options',
                       ),

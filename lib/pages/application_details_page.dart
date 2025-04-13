@@ -390,6 +390,10 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
+                  width: 600, // Fixed width
+                  constraints: BoxConstraints(
+                    maxWidth: 600, // Ensure it doesn't exceed this width
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),

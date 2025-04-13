@@ -181,6 +181,14 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
           style: TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            // Ensure we're returning true when going back
+            print('Returning to Dashboard with refresh signal');
+            Navigator.pop(context, true);
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

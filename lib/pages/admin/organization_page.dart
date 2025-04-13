@@ -328,13 +328,14 @@ class _ProgramsTab extends StatelessWidget {
   }
 
   // Add this method to handle program deletion
-  void _deleteProgram(
-      BuildContext context, String programId, String programName) {
+  Future<void> _deleteProgram(
+      BuildContext context, String programId, String programName) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Program'),
-        content: Text('Are you sure you want to delete "$programName"?'),
+        content: Text(
+            'Are you sure you want to delete "$programName"? This will also remove it from all users\' applications.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -350,6 +351,23 @@ class _ProgramsTab extends StatelessWidget {
                     .collection('programs')
                     .doc(programId)
                     .delete();
+
+                // Cascade delete from users-application
+                final usersSnapshot =
+                    await FirebaseFirestore.instance.collection('users').get();
+                for (final userDoc in usersSnapshot.docs) {
+                  final userApplicationsRef = FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userDoc.id)
+                      .collection('users-application');
+
+                  final userApplicationsSnapshot = await userApplicationsRef
+                      .where('id', isEqualTo: programId)
+                      .get();
+                  for (final applicationDoc in userApplicationsSnapshot.docs) {
+                    await applicationDoc.reference.delete();
+                  }
+                }
 
                 Navigator.pop(context); // Close dialog
 
