@@ -170,15 +170,8 @@ class AvailableApplicationCard extends StatelessWidget {
                       color: Colors.grey[800],
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Text(
-                    application['description'],
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  SizedBox(height: 8),
+                  SizedBox(height: 30), // Increased spacing from 8 to 16
+                  // Removed description text
                   RichText(
                     text: TextSpan(
                       children: [
