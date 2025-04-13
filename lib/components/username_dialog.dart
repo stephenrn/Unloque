@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'my_textfield.dart';
 
 class UsernameDialog extends StatefulWidget {
   @override

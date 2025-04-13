@@ -43,12 +43,43 @@ class _GoogleButtonState extends State<GoogleButton> {
           );
 
           if (username != null && mounted) {
-            // Create user profile with custom username
-            await _authService.createUserProfile(
-              userCredential.user!.uid,
-              userCredential.user!.email!,
-              username,
-            );
+            // Create user profile with custom username and userId
+            final userId = userCredential.user!.uid;
+            print("Creating user profile with ID: $userId"); // Debug log
+
+            // Create user data map with explicit ID field
+            final userData = {
+              'uid': userId, // Use 'uid' as field name for clarity
+              'email': userCredential.user!.email!,
+              'username': username,
+              'photoUrl': userCredential.user!.photoURL,
+              'createdAt': Timestamp.now(),
+            };
+
+            print("User data to be saved: $userData"); // Debug log
+
+            try {
+              // Use set with merge option to ensure all fields are written
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userId)
+                  .set(userData, SetOptions(merge: true));
+
+              print("User profile created successfully"); // Debug log
+            } catch (e) {
+              print("Error creating user profile: ${e.toString()}");
+
+              // Show error message to user
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        Text('Error creating user profile: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
 
             if (mounted) {
               Navigator.pushReplacement(
