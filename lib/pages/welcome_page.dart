@@ -83,7 +83,7 @@ class _WelcomePageState extends State<WelcomePage>
   Future<void> handleGoogleSignIn() async {
     if (!mounted) return;
 
-    // Show loading in SnackBar instead of status message
+    // Show loading in SnackBar with darker background
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -100,11 +100,10 @@ class _WelcomePageState extends State<WelcomePage>
             Text('Connecting to Google...'),
           ],
         ),
-        backgroundColor: Colors.blue[700],
-        duration:
-            Duration(seconds: 60), // Long duration that we'll dismiss manually
-        behavior:
-            SnackBarBehavior.floating, // Make it float to not affect layout
+        backgroundColor:
+            Colors.grey[800]!.withOpacity(0.9), // Darker background
+        duration: Duration(seconds: 60),
+        behavior: SnackBarBehavior.floating,
         margin: EdgeInsets.all(10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -134,20 +133,31 @@ class _WelcomePageState extends State<WelcomePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Authenticating...'),
+                ],
               ),
-              SizedBox(width: 12),
-              Text('Authenticating...'),
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+                child: Icon(Icons.close, color: Colors.white),
+              ),
             ],
           ),
-          backgroundColor: Colors.blue[700],
+          backgroundColor: Colors.grey[800]!.withOpacity(0.9),
           duration: Duration(seconds: 60),
           behavior: SnackBarBehavior.floating,
           margin: EdgeInsets.all(10),
@@ -171,20 +181,31 @@ class _WelcomePageState extends State<WelcomePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Signing in...'),
+                ],
               ),
-              SizedBox(width: 12),
-              Text('Signing in...'),
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+                child: Icon(Icons.close, color: Colors.white),
+              ),
             ],
           ),
-          backgroundColor: Colors.blue[700],
+          backgroundColor: Colors.grey[800]!.withOpacity(0.9),
           duration: Duration(seconds: 60),
           behavior: SnackBarBehavior.floating,
           margin: EdgeInsets.all(10),
@@ -203,21 +224,26 @@ class _WelcomePageState extends State<WelcomePage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Checking profile...'),
+                  ],
                 ),
-                SizedBox(width: 12),
-                Text('Checking profile...'),
               ],
             ),
-            backgroundColor: Colors.blue[700],
-            duration: Duration(seconds: 60),
+            backgroundColor: Colors.grey[800]!.withOpacity(0.9),
+            duration: Duration(seconds: 1),
             behavior: SnackBarBehavior.floating,
             margin: EdgeInsets.all(10),
             shape:
@@ -231,26 +257,41 @@ class _WelcomePageState extends State<WelcomePage>
             .doc(userCredential.user!.uid)
             .get();
 
+        // Always hide current snackbar before showing a new one or navigating
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         if (!userDoc.exists && mounted) {
-          // Update SnackBar
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          // Show snackbar for profile setup
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Setting up profile...'),
+                    ],
                   ),
-                  SizedBox(width: 12),
-                  Text('Setting up profile...'),
+                  GestureDetector(
+                    onTap: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    },
+                    child: Icon(Icons.close, color: Colors.white),
+                  ),
                 ],
               ),
-              backgroundColor: Colors.blue[700],
+              backgroundColor: Colors.grey[800]!.withOpacity(0.9),
               duration: Duration(seconds: 60),
               behavior: SnackBarBehavior.floating,
               margin: EdgeInsets.all(10),
@@ -267,6 +308,9 @@ class _WelcomePageState extends State<WelcomePage>
           );
 
           if (username != null && mounted) {
+            // Hide any remaining snackbars
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
             // Create user profile with custom username
             await FirebaseFirestore.instance
                 .collection('users')
@@ -282,7 +326,8 @@ class _WelcomePageState extends State<WelcomePage>
 
         // Clear any SnackBars before navigation
         if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context)
+              .hideCurrentSnackBar(); // Dismiss SnackBar
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => HomePage()),
           );
@@ -293,8 +338,24 @@ class _WelcomePageState extends State<WelcomePage>
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to sign in with Google: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Failed to sign in with Google: ${e.toString()}',
+                    style: TextStyle(color: Colors.red[300]),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                  child: Icon(Icons.close, color: Colors.white),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.grey[800]!.withOpacity(0.9),
             behavior: SnackBarBehavior.floating,
             margin: EdgeInsets.all(10),
             shape:
