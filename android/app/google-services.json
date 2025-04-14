@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "77901567813",
+    "project_id": "unloque",
+    "storage_bucket": "unloque.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:77901567813:android:34563810ca6350a416502c",
+        "android_client_info": {
+          "package_name": "com.example.unloque"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "77901567813-j1ia0ga87nl7luo2ao66cidobdahctqt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "c117f9f2493d97d77bc8b726de314480f5c8d435"
+          }
+        },
+        {
+          "client_id": "77901567813-m5qnnbqfsf6l7riqufqsqvle7cbvr6rk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "2e13ff323bd74e9fe15852c704ef962974524b90"
+          }
+        },
+        {
+          "client_id": "77901567813-3o9earqcfviql3m2frj9qnv322nsthsr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhkrQjpZ02GOo_ep1Xk4x7aB9CZ4wKOUc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "77901567813-3o9earqcfviql3m2frj9qnv322nsthsr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "77901567813-lgd6ohejqs7f091h1iei9ptti9re7kp8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.unloque"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

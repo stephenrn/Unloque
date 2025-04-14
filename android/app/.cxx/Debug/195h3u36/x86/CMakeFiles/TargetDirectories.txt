@@ -1,0 +1,2 @@
+C:/Users/Admin/Documents/raine/cloneunloque/unloque/android/app/.cxx/Debug/195h3u36/x86/CMakeFiles/edit_cache.dir
+C:/Users/Admin/Documents/raine/cloneunloque/unloque/android/app/.cxx/Debug/195h3u36/x86/CMakeFiles/rebuild_cache.dir
