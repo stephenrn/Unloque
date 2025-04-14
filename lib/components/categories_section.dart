@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../pages/category_details_page.dart';
+import 'package:unloque/pages/category_details_page.dart';
+import 'package:unloque/data/available_applications_data.dart'; // Updated import
 
 class Category {
   final String name;
@@ -15,12 +16,24 @@ class Category {
   });
 }
 
-class CategoriesSection extends StatelessWidget {
-  CategoriesSection({super.key});
+class CategoriesSection extends StatefulWidget {
+  final Function(BuildContext, Widget)? onNavigate;
+
+  const CategoriesSection({
+    Key? key,
+    this.onNavigate,
+  }) : super(key: key);
+
+  @override
+  State<CategoriesSection> createState() => _CategoriesSectionState();
+}
+
+class _CategoriesSectionState extends State<CategoriesSection> {
+  bool _isLoading = false;
 
   final List<Category> categories = [
     Category(
-      name: 'Education',
+      name: 'Educational',
       description: 'Access Education Support',
       icon: Icons.school_outlined,
       color: Colors.blue[300]!,
@@ -60,7 +73,49 @@ class CategoriesSection extends StatelessWidget {
           shrinkWrap: true,
           itemCount: categories.length,
           itemBuilder: (context, index) {
-            return CategoryCard(category: categories[index]);
+            return CategoryCard(
+              category: categories[index],
+              isLoading: _isLoading,
+              onTap: () async {
+                // Set loading state
+                setState(() {
+                  _isLoading = true;
+                });
+
+                // Clear cache to load fresh data
+                AvailableApplicationsData.clearCache();
+
+                // Navigate using the callback if provided, otherwise use direct navigation
+                if (widget.onNavigate != null) {
+                  widget.onNavigate!(
+                      context,
+                      CategoryDetailsPage(
+                        categoryName: categories[index].name,
+                        categoryColor: categories[index].color,
+                      ));
+                } else {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CategoryDetailsPage(
+                        categoryName: categories[index].name,
+                        categoryColor: categories[index].color,
+                      ),
+                    ),
+                  );
+
+                  // If we got a refresh signal, refresh parent
+                  if (result == true) {
+                    // Handle refresh if needed
+                  }
+                }
+
+                // Reset loading state
+                setState(() {
+                  _isLoading = false;
+                });
+              },
+            );
           },
         ),
       ],
@@ -70,35 +125,29 @@ class CategoriesSection extends StatelessWidget {
 
 class CategoryCard extends StatelessWidget {
   final Category category;
+  final bool isLoading;
+  final VoidCallback onTap;
 
   const CategoryCard({
     super.key,
     required this.category,
+    required this.isLoading,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // reduced vertical padding
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
         color: Colors.white,
-        elevation: 2, // Add elevation to Material
+        elevation: 2,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CategoryDetailsPage(
-                  categoryName: category.name,
-                  categoryColor: category.color,
-                ),
-              ),
-            );
-          },
+          onTap: isLoading ? null : onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.all(12), // reduced from 16 to 12
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey[300]!),
               borderRadius: BorderRadius.circular(12),
@@ -114,18 +163,27 @@ class CategoryCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(5), // reduced from 12 to 8
+                  padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
                     color: category.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8), // reduced from 12 to 8
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    category.icon,
-                    color: category.color,
-                    size: 30, // reduced from 24 to 20
-                  ),
+                  child: isLoading
+                      ? SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: CircularProgressIndicator(
+                            color: category.color,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Icon(
+                          category.icon,
+                          color: category.color,
+                          size: 30,
+                        ),
                 ),
-                const SizedBox(width: 12), // reduced from 16 to 12
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
