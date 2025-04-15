@@ -322,6 +322,13 @@ class _WelcomePageState extends State<WelcomePage>
               'photoUrl': userCredential.user!.photoURL,
               'createdAt': Timestamp.now(),
             });
+
+            // Add navigation to HomePage after profile creation
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => HomePage()),
+              );
+            }
           }
         } else if (mounted) {
           // User exists but we'll update the uid field to ensure it's stored
