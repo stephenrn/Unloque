@@ -704,6 +704,10 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
             application: {
               ...widget.application,
               'status': 'Pending',
+              'programId':
+                  widget.application['programId'] ?? widget.application['id'],
+              'organizationId': widget.application['organizationId'] ??
+                  widget.application['orgId'],
             },
           ),
           settings: RouteSettings(name: 'pending_${widget.application['id']}'),
