@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Add import for the new page
 import 'package:unloque/pages/admin/program_details_form_page.dart';
 // Add import for ApplicationManagerPage at the top
-import 'package:unloque/pages/application_manager_page.dart';
+import 'package:unloque/pages/admin/application_manager_page.dart';
 
 class OrganizationPage extends StatefulWidget {
   final Map<String, dynamic> organization;

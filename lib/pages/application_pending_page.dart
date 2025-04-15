@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:unloque/pages/application_details_page.dart';
-import 'package:unloque/pages/organization_response_builder.dart'; // Add this import
+import 'package:unloque/pages/admin/organization_response_builder.dart'; // Add this import
 
 class ApplicationPendingPage extends StatefulWidget {
   final Map<String, dynamic> application;
