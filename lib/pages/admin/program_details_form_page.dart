@@ -45,8 +45,9 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
   List<Map<String, dynamic>> _detailSections = [];
   List<Map<String, dynamic>> _formFields = [];
 
-  // Change to a GlobalKey without type specification
-  final _detailsTabKey = GlobalKey();
+  // Change to a GlobalKey with the correct type
+  final GlobalKey<DetailsEditorTabState> _detailsTabKey =
+      GlobalKey<DetailsEditorTabState>();
 
   @override
   void initState() {
@@ -296,20 +297,18 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
 
     try {
       // First, handle any pending file uploads in the details tab
-      final detailsTabWidget =
-          _detailsTabKey.currentWidget as DetailsEditorTab?;
+      final detailsTabState = _detailsTabKey.currentState;
 
-      if (detailsTabWidget != null) {
+      if (detailsTabState != null) {
         setState(() {
           _loadingMessage = 'Uploading files...';
         });
 
         try {
-          // Call the method on the widget directly, not on the state
+          // Call the method on the state directly
           final updatedDetailSections =
-              await detailsTabWidget.saveDetailSections();
+              await detailsTabState.saveDetailSections();
 
-          // Update our state with the sections that now include file download URLs
           // Only update the detail sections if we successfully got data back
           if (updatedDetailSections.isNotEmpty) {
             _detailSections =
@@ -317,8 +316,11 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
           }
         } catch (e) {
           print('Error uploading files: $e');
+          // Show error message to user
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error uploading files: $e')),
+          );
           // Continue with save process even if file upload fails
-          // The files will remain "pending" and can be uploaded on next save
         }
       }
 

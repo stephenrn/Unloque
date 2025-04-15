@@ -16,122 +16,21 @@ class DetailsEditorTab extends StatefulWidget {
   final Function(List<Map<String, dynamic>>) updateDetailSections;
   final bool isLoading;
 
-  const DetailsEditorTab({
-    Key? key,
+  DetailsEditorTab({
+    super.key, // Use super.key instead of Key? key
     required this.organizationId,
     required this.programId,
     required this.detailSections,
     required this.updateDetailSections,
     required this.isLoading,
-  }) : super(key: key);
-
-  // Method to save detail sections if needed
-  Future<List<Map<String, dynamic>>> saveDetailSections() async {
-    // Any save logic would go here
-    return detailSections;
-  }
-
-  @override
-  State<DetailsEditorTab> createState() => _DetailsEditorTabState();
-}
-
-// Helper class to encapsulate state functionality for file uploads
-class _DetailsEditorTabStateFunctionality {
-  final String organizationId;
-  final String programId;
-  final List<Map<String, dynamic>> detailSections;
-
-  _DetailsEditorTabStateFunctionality({
-    required this.organizationId,
-    required this.programId,
-    required this.detailSections,
   });
 
-  Future<void> uploadPendingFiles() async {
-    // First, find any files that need to be uploaded
-    final filesToUpload = <Map<String, dynamic>>[];
-
-    for (var section in detailSections) {
-      if (section['type'] == 'attachment' && section['files'] != null) {
-        final files = section['files'] as List;
-        for (var fileData in files) {
-          if (fileData is Map<String, dynamic> &&
-              fileData['isPending'] == true &&
-              fileData['path'] != null) {
-            // Add section ID to the file data for storage path
-            final fileWithSectionId = Map<String, dynamic>.from(fileData);
-            fileWithSectionId['sectionId'] = section['id'].toString();
-            filesToUpload.add(fileWithSectionId);
-          }
-        }
-      }
-    }
-
-    // If no files need uploading, return early
-    if (filesToUpload.isEmpty) {
-      return;
-    }
-
-    // Upload each file
-    for (var fileData in filesToUpload) {
-      try {
-        final filePath = fileData['path'];
-        final fileName = fileData['name'];
-        final sectionId = fileData['sectionId'];
-
-        // Create file instance
-        final file = File(filePath);
-        if (!await file.exists()) {
-          print('File does not exist: $filePath');
-          continue;
-        }
-
-        // Generate unique name
-        final uniqueFileName =
-            '${DateTime.now().millisecondsSinceEpoch}_$fileName';
-
-        // Create storage reference
-        final storageRef = FirebaseStorage.instance.ref().child(
-            'organizations/$organizationId/programs/$programId/details/$sectionId/$uniqueFileName');
-
-        // Start upload
-        final uploadTask = storageRef.putFile(file);
-
-        // Wait for upload to complete
-        final snapshot = await uploadTask;
-
-        // Get download URL
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-
-        // Update the file data in our detail sections
-        for (var section in detailSections) {
-          if (section['id'].toString() == sectionId &&
-              section['files'] != null) {
-            final files = section['files'] as List;
-            for (int i = 0; i < files.length; i++) {
-              final currentFile = files[i] as Map<String, dynamic>;
-              if (currentFile['name'] == fileName &&
-                  currentFile['path'] == filePath &&
-                  currentFile['isPending'] == true) {
-                // Update the file with download URL and remove isPending flag
-                files[i] = {
-                  'name': fileName,
-                  'downloadUrl': downloadUrl,
-                  'uploadedAt': DateTime.now().toIso8601String(),
-                };
-                break;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        print('Error uploading file: $e');
-      }
-    }
-  }
+  @override
+  State<DetailsEditorTab> createState() => DetailsEditorTabState();
 }
 
-class _DetailsEditorTabState extends State<DetailsEditorTab> {
+// Rename the state class to be public
+class DetailsEditorTabState extends State<DetailsEditorTab> {
   Map<String, bool> _uploadingFiles = {};
   int _nextDetailId = 0;
   final List<String> _detailTypes = ['paragraph', 'list', 'attachment'];
@@ -151,9 +50,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   // Add a map to track pending file uploads that haven't been saved to Firebase yet
   final Map<String, List<Map<String, dynamic>>> _pendingFileUploads = {};
 
-  // Constructor to accept the key
-  _DetailsEditorTabState({Key? key});
-
   @override
   void initState() {
     super.initState();
@@ -169,7 +65,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
         _contentControllers[key] =
             TextEditingController(text: section['content']);
       }
-
       if (section['type'] == 'list' && section['items'] != null) {
         final items = section['items'] as List<dynamic>;
         for (int i = 0; i < items.length; i++) {
@@ -217,7 +112,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   void _addDetailSection(String type) {
     List<Map<String, dynamic>> updatedSections =
         List.from(widget.detailSections);
-
     Map<String, dynamic> newSection = {
       'id': _nextDetailId++,
       'type': type,
@@ -272,7 +166,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                 ],
               ),
             ) ??
-            false;
+            false; // User canceled deletion
 
         if (!confirmDelete) return; // User canceled deletion
 
@@ -526,7 +420,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                                 displayText = 'Attachment';
                                 break;
                             }
-
                             return DropdownMenuItem(
                               value: type,
                               child: Text(displayText),
@@ -541,7 +434,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                           isExpanded: true, // Make dropdown fit fixed width
                         ),
                         SizedBox(height: 16),
-
                         // Section label
                         Text('Section Label',
                             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -556,7 +448,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                           ),
                         ),
                         SizedBox(height: 16),
-
                         // Content field for paragraph type
                         if (selectedType == 'paragraph') ...[
                           Text('Content',
@@ -587,11 +478,9 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                           Map<String, dynamic> updatedData = {
                             'label': labelController.text,
                           };
-
                           if (selectedType == 'paragraph') {
                             updatedData['content'] = contentController.text;
                           }
-
                           _updateDetailSection(index, updatedData);
                           Navigator.of(context).pop();
                         },
@@ -646,7 +535,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                           displayText = 'Attachment';
                           break;
                       }
-
                       return DropdownMenuItem(
                         value: type,
                         child: Text(displayText),
@@ -750,7 +638,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                   ),
                 ),
               ),
-
               // Instructions
               Container(
                 padding: EdgeInsets.all(16),
@@ -779,14 +666,12 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                 ),
               ),
               SizedBox(height: 16),
-
               // Detail Sections List
               ...widget.detailSections.asMap().entries.map((entry) {
                 final index = entry.key;
                 final section = entry.value;
                 return _buildDetailSectionCard(index, section);
               }),
-
               // Add section button
               SizedBox(height: 16),
               Center(
@@ -805,7 +690,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             ],
           ),
         ),
-
         // Loading indicator - now showing either widget.isLoading OR _isUploading
         if (widget.isLoading || _isUploading)
           Container(
@@ -890,9 +774,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                           ),
                         ),
                       ),
-
                       Spacer(),
-
                       // Reordering buttons - reduced spacing
                       IconButton(
                         onPressed: isFirstItem
@@ -925,7 +807,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                       ),
                       // Reduced spacing between button groups
                       SizedBox(width: 4),
-
                       // Edit and delete buttons - reduced spacing
                       IconButton(
                         onPressed: () => _showEditDetailDialog(index),
@@ -948,7 +829,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                       ),
                     ],
                   ),
-
                   // Label displayed below type
                   SizedBox(height: 8),
                   Text(
@@ -962,7 +842,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
                 ],
               ),
             ),
-
             // Section content based on type
             Padding(
               padding: const EdgeInsets.all(16),
@@ -1037,7 +916,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             _listItemControllers[controllerKey]!.text = item;
           }
 
-          // Create a unique key for this controller
+          // Create a unique key for this list item
           final String key = 'list_${section['id']}_$itemIndex';
 
           // Create controller if it doesn't exist
@@ -1080,7 +959,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             ),
           );
         }).toList(),
-
         // Add item button
         SizedBox(height: 8),
         TextButton.icon(
@@ -1173,7 +1051,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             foregroundColor: Colors.grey[800],
           ),
         ),
-
         // Display files list
         if (files.isNotEmpty) ...[
           SizedBox(height: 16),
@@ -1282,7 +1159,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   }
 
   // Add a method to handle uploading of pending files
-  Future<void> _uploadPendingFiles() async {
+  Future<void> uploadPendingFiles() async {
     // Count total pending files
     int totalPending = 0;
     _pendingFileUploads.forEach((sectionId, files) {
@@ -1314,7 +1191,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
             break;
           }
         }
-
         if (sectionIndex == null) continue; // Section was deleted
 
         // Upload each file
@@ -1388,7 +1264,7 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
   // so it can be called from the parent component
   Future<List<Map<String, dynamic>>> saveDetailSections() async {
     // First upload any pending files
-    await _uploadPendingFiles();
+    await uploadPendingFiles();
 
     // Return the updated sections after files are uploaded
     return widget.detailSections;
@@ -1474,7 +1350,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
               TextEditingController(text: section['content'] ?? '');
         }
       }
-
       if (section['type'] == 'list' && section['items'] != null) {
         final items = section['items'] as List<dynamic>;
         for (int i = 0; i < items.length; i++) {
@@ -1506,7 +1381,6 @@ class _DetailsEditorTabState extends State<DetailsEditorTab> {
       if (section['type'] == 'paragraph') {
         neededKeys.add('paragraph_${section['id']}');
       }
-
       if (section['type'] == 'list' && section['items'] != null) {
         final items = section['items'] as List<dynamic>;
         for (int i = 0; i < items.length; i++) {

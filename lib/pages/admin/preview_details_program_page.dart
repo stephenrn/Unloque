@@ -58,25 +58,17 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
       if (programDoc.exists) {
         _programData = programDoc.data() ?? {};
 
-        // Always prioritize detail sections from Firebase
+        // Always use detail sections from Firebase only
         if (_programData['detailSections'] != null) {
           _detailSections = List<Map<String, dynamic>>.from(
             _programData['detailSections'] as List<dynamic>,
           );
-        }
-        // Use widget.detailSections only if Firebase data is empty
-        else if (widget.detailSections != null &&
-            widget.detailSections!.isNotEmpty) {
-          _detailSections =
-              List<Map<String, dynamic>>.from(widget.detailSections!);
+        } else {
+          _detailSections = [];
         }
       } else {
-        // If program doesn't exist in Firebase, use provided detailSections as fallback
-        if (widget.detailSections != null &&
-            widget.detailSections!.isNotEmpty) {
-          _detailSections =
-              List<Map<String, dynamic>>.from(widget.detailSections!);
-        }
+        // If program doesn't exist in Firebase, show empty details
+        _detailSections = [];
       }
 
       // Load organization data
