@@ -1,0 +1,13 @@
+{
+  "name": "unloque",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unloque Flutter Web App",
+  "scripts": {
+    "build": "echo 'Please use flutter build web for this Flutter app'",
+    "start": "echo 'This is a Flutter web app'"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
