@@ -5,7 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:unloque/pages/application_details_page.dart'; // Add this import
+import 'package:unloque/pages/application_details_page.dart';
+import 'package:unloque/pages/organization_response_builder.dart'; // Add this import
 
 class ApplicationPendingPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -60,6 +61,11 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
         processingFiles[fileName] = false;
       });
     }
+  }
+
+  bool get isOrgAdminView {
+    // Heuristic: if application has 'userId' field, it's opened from ApplicationManagerPage
+    return widget.application.containsKey('userId');
   }
 
   @override
@@ -379,6 +385,34 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
           );
         },
       ),
+      // Add footer button for org admin
+      bottomNavigationBar: isOrgAdminView
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.reply),
+                label: Text('Create Response'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrganizationResponseBuilderPage(
+                        application: widget.application,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            )
+          : null,
     );
   }
 
