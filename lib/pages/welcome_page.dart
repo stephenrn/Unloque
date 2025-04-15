@@ -316,18 +316,25 @@ class _WelcomePageState extends State<WelcomePage>
                 .collection('users')
                 .doc(userCredential.user!.uid)
                 .set({
+              'uid': userCredential.user!.uid, // Explicitly store the user ID
               'email': userCredential.user!.email!,
               'username': username,
               'photoUrl': userCredential.user!.photoURL,
               'createdAt': Timestamp.now(),
             });
           }
-        }
+        } else if (mounted) {
+          // User exists but we'll update the uid field to ensure it's stored
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({
+            'uid': userCredential.user!.uid, // Ensure user ID is stored
+            'lastLogin': Timestamp.now(), // Track login time
+          });
 
-        // Clear any SnackBars before navigation
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .hideCurrentSnackBar(); // Dismiss SnackBar
+          // Clear any SnackBars before navigation
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => HomePage()),
           );
