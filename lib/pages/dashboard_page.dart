@@ -70,28 +70,6 @@ class DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
 
-    List<SliderItem> sliderItems = [
-      SliderItem(
-        categoryLabel: 'Education',
-        source: 'Department of Education',
-        date: 'Feb 10, 2024',
-        headline: 'EduPH Opportunity 2.0 Program Launches Nationwide',
-        backgroundImage:
-            'https://www.borgenmagazine.com/wp-content/uploads/2024/08/8644294742_96b35cd70a_k.jpg',
-        route: '/sampleartceducation',
-      ),
-      SliderItem(
-        categoryLabel: 'Scholarship',
-        source: 'DOST-SEI',
-        date: 'Feb 15, 2024',
-        headline:
-            'Applications Open for 2025 DOST-SEI Undergraduate Scholarships',
-        backgroundImage:
-            'https://sa.kapamilya.com/absnews/abscbnnews/media/2022/news/09/12/20220824-florita-cagayan-valley-medical-jc-3516.jpg',
-        route: '/sampleartchealthcare',
-      ),
-    ];
-
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(100),
@@ -272,9 +250,8 @@ class DashboardPageState extends State<DashboardPage> {
                   ),
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 5),
-                    child: AutoImageSlider(
-                      items: sliderItems,
-                    ),
+                    child:
+                        AutoImageSlider(), // No items passed, handled internally
                   ),
                   // Add a key to the CategoriesSection for scrolling
                   CategoriesSection(

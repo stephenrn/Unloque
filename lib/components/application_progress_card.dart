@@ -5,6 +5,7 @@ import 'package:unloque/data/available_applications_data.dart';
 import 'package:unloque/pages/dashboard_page.dart'; // Add this import to access DashboardPageState
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/pages/application_complete_page.dart';
 
 class ApplicationProgressCard extends StatelessWidget {
   final String category;
@@ -76,6 +77,11 @@ class ApplicationProgressCard extends StatelessWidget {
             Widget destinationPage;
             if (currentStatus == 'Pending') {
               destinationPage = ApplicationPendingPage(application: {
+                ...applicationDetails,
+                'status': currentStatus,
+              });
+            } else if (currentStatus == 'Completed') {
+              destinationPage = ApplicationCompletePage(application: {
                 ...applicationDetails,
                 'status': currentStatus,
               });

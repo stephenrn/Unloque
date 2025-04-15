@@ -35,6 +35,10 @@ class _OrganizationResponseBuilderPageState
   String _deadline = '';
   String _category = '';
 
+  // Add controller maps to the state class
+  Map<int, TextEditingController>? _paragraphControllers;
+  Map<String, TextEditingController>? _listItemControllers;
+
   @override
   void initState() {
     super.initState();
@@ -399,16 +403,32 @@ class _OrganizationResponseBuilderPageState
   Widget _buildSectionContent(int index, Map<String, dynamic> section) {
     switch (section['type']) {
       case 'paragraph':
+        // Use a controller to avoid the "typing backwards" bug.
+        // Store controllers in a map by section index to persist state.
+        _paragraphControllers ??= {};
+        if (!_paragraphControllers!.containsKey(index)) {
+          _paragraphControllers![index] =
+              TextEditingController(text: section['content'] ?? '');
+        } else {
+          final controller = _paragraphControllers![index]!;
+          if (controller.text != (section['content'] ?? '')) {
+            controller.text = section['content'] ?? '';
+            controller.selection = TextSelection.fromPosition(
+                TextPosition(offset: controller.text.length));
+          }
+        }
         return TextField(
           maxLines: 6,
           decoration: InputDecoration(
             hintText: 'Enter text content here...',
             border: OutlineInputBorder(),
           ),
-          controller: TextEditingController(text: section['content'] ?? ''),
+          controller: _paragraphControllers![index],
           onChanged: (value) => _updateSection(index, {'content': value}),
         );
       case 'list':
+        // For each item, use a controller per item to avoid typing issues.
+        _listItemControllers ??= {};
         final items = List<String>.from(section['items'] ?? []);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,13 +436,23 @@ class _OrganizationResponseBuilderPageState
             ...items.asMap().entries.map((entry) {
               final itemIndex = entry.key;
               final item = entry.value;
+              final ctrlKey = '$index-$itemIndex';
+              if (!_listItemControllers!.containsKey(ctrlKey)) {
+                _listItemControllers![ctrlKey] =
+                    TextEditingController(text: item);
+              } else if (_listItemControllers![ctrlKey]!.text != item) {
+                _listItemControllers![ctrlKey]!.text = item;
+                _listItemControllers![ctrlKey]!.selection =
+                    TextSelection.fromPosition(TextPosition(
+                        offset: _listItemControllers![ctrlKey]!.text.length));
+              }
               return Row(
                 children: [
                   Icon(Icons.circle, size: 12, color: Colors.blue),
                   SizedBox(width: 8),
                   Expanded(
                     child: TextField(
-                      controller: TextEditingController(text: item),
+                      controller: _listItemControllers![ctrlKey],
                       decoration: InputDecoration(
                         hintText: 'Enter list item',
                         border: UnderlineInputBorder(),
@@ -1370,5 +1400,13 @@ class _OrganizationResponseBuilderPageState
       }
     } catch (_) {}
     return '-';
+  }
+
+  @override
+  void dispose() {
+    // Dispose controllers to avoid memory leaks
+    _paragraphControllers?.forEach((_, c) => c.dispose());
+    _listItemControllers?.forEach((_, c) => c.dispose());
+    super.dispose();
   }
 }
