@@ -3,20 +3,18 @@
 runConfig:
   minInstances: 0
   # maxInstances: 100
-  # concurrency: 80
-  # cpu: 1
-  # memoryMiB: 512
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+  port: 8080
 
 # Environment variables and secrets.
-# env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
-  # - variable: MESSAGE
-  #   value: Hello world!
-  #   availability:
-  #     - BUILD
-  #     - RUNTIME
-
+env:
+  - variable: PORT
+    value: "8080"
+    availability:
+      - RUNTIME
+  # Other environment variables...
   # Grant access to secrets in Cloud Secret Manager.
   # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
   # - variable: MY_SECRET

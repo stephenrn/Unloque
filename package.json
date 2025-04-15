@@ -3,11 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "description": "Unloque Flutter Web App",
+  "main": "server.js",
   "scripts": {
-    "build": "echo 'Please use flutter build web for this Flutter app'",
-    "start": "echo 'This is a Flutter web app'"
+    "start": "node server.js",
+    "build": "echo 'Building with Flutter'"
   },
   "engines": {
     "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "compression": "^1.7.4"
   }
 }
