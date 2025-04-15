@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 class PreviewResponseProgramPage extends StatelessWidget {
   final List<Map<String, dynamic>> responseSections;
-  const PreviewResponseProgramPage({Key? key, required this.responseSections})
-      : super(key: key);
+  final Map<String, dynamic> application; // Add this parameter
+
+  const PreviewResponseProgramPage({
+    Key? key,
+    required this.responseSections,
+    required this.application, // Add this parameter
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
