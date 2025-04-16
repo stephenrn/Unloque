@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/pages/admin/program_beneficiaries_editor.dart';
 // Add import for the new page
 import 'package:unloque/pages/admin/program_details_form_page.dart';
 // Add import for ApplicationManagerPage at the top
@@ -1279,25 +1280,141 @@ class _MapDataTab extends StatelessWidget {
 
   const _MapDataTab({required this.organizationId});
 
+  // Add this method to show program selection dialog
+  void _showProgramSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Program'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('organizations')
+                .doc(organizationId)
+                .collection('programs')
+                .orderBy('name')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(
+                  child: Text(
+                      'No programs available. Please create a program first.'),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final program =
+                      snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                  final colorValue = program['color'] as int?;
+                  final programColor = colorValue != null
+                      ? Color(colorValue)
+                      : Colors.blue[100]!;
+
+                  return ListTile(
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: programColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey),
+                      ),
+                    ),
+                    title: Text(program['name'] ?? 'Unnamed Program'),
+                    subtitle: Text(program['category'] ?? 'No Category'),
+                    onTap: () {
+                      Navigator.pop(context); // Close dialog
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBeneficiariesEditor(
+                            programId: program['id'],
+                            programName: program['name'] ?? 'Unnamed Program',
+                            organizationId: organizationId,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add method to delete map data
+  void _deleteMapData(BuildContext context, String docId, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Map Data'),
+        content: Text('Are you sure you want to delete "$title"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('mapdata')
+                    .doc(docId)
+                    .delete();
+
+                Navigator.pop(context); // Close dialog
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Map data deleted successfully')),
+                );
+              } catch (e) {
+                Navigator.pop(context); // Close dialog on error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting map data: $e')),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement add map data functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content:
-                    Text('Add map data functionality not implemented yet')),
-          );
-        },
+        onPressed: () => _showProgramSelectionDialog(context),
         backgroundColor: Colors.blue,
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('mapData')
+            .collection('mapdata')
             .where('organizationId', isEqualTo: organizationId)
             .snapshots(),
         builder: (context, snapshot) {
@@ -1347,6 +1464,64 @@ class _MapDataTab extends StatelessWidget {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
 
+              // Different card for beneficiaries type
+              if (data['type'] == 'beneficiaries') {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: ListTile(
+                    leading: const Icon(Icons.people, color: Colors.green),
+                    title: Text(data['title'] ?? 'Program Beneficiaries'),
+                    subtitle: Text(
+                      'Total: ${data['Total Beneficiaries']?.toString() ?? 'Not specified'}',
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ProgramBeneficiariesEditor(
+                                  programId: data['programId'],
+                                  programName: data['programName'] ?? 'Program',
+                                  organizationId: organizationId,
+                                ),
+                              ),
+                            );
+                          },
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            _deleteMapData(context, doc.id,
+                                data['title'] ?? 'Program Beneficiaries');
+                          },
+                          tooltip: 'Delete',
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      // Navigate to edit the beneficiaries
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBeneficiariesEditor(
+                            programId: data['programId'],
+                            programName: data['programName'] ?? 'Program',
+                            organizationId: organizationId,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+
+              // Original card for other map data types
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 child: ListTile(
@@ -1359,7 +1534,8 @@ class _MapDataTab extends StatelessWidget {
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () {
-                      // TODO: Implement delete map data functionality
+                      _deleteMapData(context, doc.id,
+                          data['locationName'] ?? 'Unnamed Location');
                     },
                   ),
                   onTap: () {
