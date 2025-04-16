@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Add Firebase Storage import
+import 'package:unloque/pages/admin/population_editor_page.dart';
 import 'organization_page.dart';
 
 class DeveloperOptionsPage extends StatefulWidget {
@@ -230,6 +231,55 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
                 ),
               ),
             ),
+
+            // Add new Quezon Population Editor button
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PopulationEditorPage(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.people_alt_rounded,
+                          size: 32, color: Colors.green[700]),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edit Quezon Population',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Update population data for municipalities',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, color: Colors.grey[600]),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             const SizedBox(height: 24),
 
             // Organization creation form
