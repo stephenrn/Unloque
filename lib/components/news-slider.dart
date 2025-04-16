@@ -36,6 +36,8 @@ class _AutoImageSliderState extends State<AutoImageSlider> {
 
     for (final orgDoc in orgs.docs) {
       final orgName = orgDoc.data()['name'] ?? 'Organization';
+      final orgLogoUrl =
+          orgDoc.data()['logoUrl'] ?? ''; // Fetch the organization logo URL
       final newsSnap = await orgDoc.reference
           .collection('news')
           .orderBy('date', descending: true)
@@ -49,6 +51,7 @@ class _AutoImageSliderState extends State<AutoImageSlider> {
           imageUrl: news['imageUrl'] ?? '',
           newsUrl: news['newsUrl'] ?? '',
           organizationName: orgName,
+          logoUrl: orgLogoUrl, // Pass the organization logo URL
         ));
       }
     }
@@ -135,6 +138,7 @@ class _NewsSliderItem {
   final String imageUrl;
   final String newsUrl;
   final String organizationName;
+  final String logoUrl; // Add this field for organization logo
 
   _NewsSliderItem({
     required this.headline,
@@ -143,6 +147,7 @@ class _NewsSliderItem {
     required this.imageUrl,
     required this.newsUrl,
     required this.organizationName,
+    this.logoUrl = '', // Default to empty string
   });
 }
 
@@ -150,6 +155,20 @@ class _NewsCard extends StatelessWidget {
   final _NewsSliderItem item;
 
   const _NewsCard({super.key, required this.item});
+
+  // Add this color function for categories
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'healthcare':
+        return Colors.red[400]!;
+      case 'education':
+        return Colors.blue[400]!;
+      case 'social':
+        return Colors.green[400]!;
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -210,12 +229,11 @@ class _NewsCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Category Badge
+                    // Category Badge - updated to use custom color function
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color:
-                            CategoryColors.colors[item.category] ?? Colors.grey,
+                        color: _getCategoryColor(item.category),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -231,7 +249,30 @@ class _NewsCard extends StatelessWidget {
                     // Source and Date
                     Row(
                       children: [
-                        Icon(Icons.business, color: Colors.white70, size: 14),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: item.logoUrl.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(9),
+                                  child: Image.network(
+                                    item.logoUrl,
+                                    width: 18,
+                                    height: 18,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(Icons.business,
+                                          size: 12, color: Colors.grey[600]);
+                                    },
+                                  ),
+                                )
+                              : Icon(Icons.business,
+                                  size: 12, color: Colors.grey[600]),
+                        ),
                         SizedBox(width: 4),
                         Text(
                           item.organizationName,
@@ -278,6 +319,20 @@ class NewsViewerDialog extends StatelessWidget {
 
   const NewsViewerDialog({Key? key, required this.item}) : super(key: key);
 
+  Color _getCategoryColor(String category) {
+    // Custom category colors
+    switch (category.toLowerCase()) {
+      case 'healthcare':
+        return Colors.red[400]!;
+      case 'education':
+        return Colors.blue[400]!;
+      case 'social':
+        return Colors.green[400]!;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -315,11 +370,11 @@ class NewsViewerDialog extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Category badge
+                // Category badge with custom color
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: CategoryColors.colors[item.category] ?? Colors.grey,
+                    color: _getCategoryColor(item.category),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -344,7 +399,30 @@ class NewsViewerDialog extends StatelessWidget {
                 // Organization and date
                 Row(
                   children: [
-                    Icon(Icons.business, size: 16, color: Colors.grey[700]),
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: item.logoUrl.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(9),
+                              child: Image.network(
+                                item.logoUrl,
+                                width: 18,
+                                height: 18,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(Icons.business,
+                                      size: 12, color: Colors.grey[600]);
+                                },
+                              ),
+                            )
+                          : Icon(Icons.business,
+                              size: 12, color: Colors.grey[600]),
+                    ),
                     SizedBox(width: 4),
                     Text(
                       item.organizationName,
@@ -361,66 +439,29 @@ class NewsViewerDialog extends StatelessWidget {
                   ],
                 ),
                 Divider(height: 24),
-                // Replace the URL notice section with viewing options
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "How would you like to view this content?",
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ElevatedButton.icon(
-                            icon: Icon(Icons.open_in_browser, size: 16),
-                            label: Text("Open in app"),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => SafeWebViewer(
-                                    url: item.newsUrl,
-                                    title: 'News',
-                                  ),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
+                // Grey button without org icon
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.open_in_browser),
+                    label: Text("View Full Article"),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SafeWebViewer(
+                            url: item.newsUrl,
+                            title: 'News',
                           ),
-                          ElevatedButton.icon(
-                            icon: Icon(Icons.launch, size: 16),
-                            label: Text("External browser"),
-                            onPressed: () async {
-                              try {
-                                final uri = Uri.parse(item.newsUrl);
-                                await launchUrl(uri,
-                                    mode: LaunchMode.externalApplication);
-                                Navigator.pop(context);
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text('Could not open link: $e')),
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.grey[800],
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
                   ),
                 ),
                 SizedBox(height: 8),

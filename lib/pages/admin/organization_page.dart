@@ -9,6 +9,8 @@ import 'package:unloque/constants/category_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
+// Update the import for web_viewer.dart - add this at the top with other imports
+import '../../utils/web_viewer.dart';
 
 class OrganizationPage extends StatefulWidget {
   final Map<String, dynamic> organization;
@@ -876,110 +878,113 @@ class _NewsTabState extends State<_NewsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddNewsDialog(context),
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.add),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(widget.organizationId)
-            .collection('news')
-            .orderBy('date', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    // First, get the organization data to pass to news cards
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(widget.organizationId)
+          .get(),
+      builder: (context, orgSnapshot) {
+        String organizationName = "Organization";
+        String? logoUrl;
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+        if (orgSnapshot.hasData && orgSnapshot.data != null) {
+          final orgData = orgSnapshot.data!.data() as Map<String, dynamic>?;
+          organizationName = orgData?['name'] as String? ?? "Organization";
+          logoUrl = orgData?['logoUrl'] as String?;
+        }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.newspaper,
-                    size: 80,
-                    color: Colors.grey[400],
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showAddNewsDialog(context),
+            backgroundColor: Colors.blue,
+            child: const Icon(Icons.add),
+          ),
+          body: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('organizations')
+                .doc(widget.organizationId)
+                .collection('news')
+                .orderBy('date', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              // Fixed null check - Added proper null data handling
+              if (!snapshot.hasData ||
+                  snapshot.data == null ||
+                  snapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.newspaper,
+                        size: 80,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No news articles found',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap the + button to add a news article',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No news articles found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap the + button to add a news article',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+                );
+              }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
+              // Only proceed if we have data
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final doc = snapshot.data!.docs[index];
+                  final data = doc.data() as Map<String, dynamic>;
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Column(
-                  children: [
-                    _NewsSliderStyleCard(
-                      headline: data['headline'] ?? '',
-                      category: data['category'] ?? '',
-                      date: data['date'] ?? '',
-                      imageUrl: data['imageUrl'] ?? '',
-                      newsUrl: data['newsUrl'] ?? '',
-                      organizationName:
-                          '', // Optionally fetch org name if needed
-                      onTapEdit: () => _showAddNewsDialog(context,
-                          doc: doc, initialData: data),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Column(
                       children: [
-                        TextButton.icon(
-                          icon: Icon(Icons.edit, color: Colors.blue),
-                          label: Text('Edit',
-                              style: TextStyle(color: Colors.blue)),
-                          onPressed: () => _showAddNewsDialog(context,
+                        _NewsSliderStyleCard(
+                          headline: data['headline'] ?? '',
+                          category: data['category'] ?? '',
+                          date: data['date'] ?? '',
+                          imageUrl: data['imageUrl'] ?? '',
+                          newsUrl: data['newsUrl'] ?? '',
+                          organizationName:
+                              organizationName, // Pass correct org name
+                          logoUrl: logoUrl ?? '', // Pass org logo URL
+                          onTapEdit: () => _showAddNewsDialog(context,
                               doc: doc, initialData: data),
                         ),
-                        SizedBox(width: 8),
-                        TextButton.icon(
-                          icon: Icon(Icons.delete, color: Colors.red),
-                          label: Text('Delete',
-                              style: TextStyle(color: Colors.red)),
-                          onPressed: () async {
-                            await doc.reference.delete();
-                          },
-                        ),
+                        // ...existing code...
                       ],
                     ),
-                  ],
-                ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -992,6 +997,7 @@ class _NewsSliderStyleCard extends StatelessWidget {
   final String imageUrl;
   final String newsUrl;
   final String organizationName;
+  final String logoUrl;
   final VoidCallback? onTapEdit;
 
   const _NewsSliderStyleCard({
@@ -1002,15 +1008,29 @@ class _NewsSliderStyleCard extends StatelessWidget {
     required this.imageUrl,
     required this.newsUrl,
     required this.organizationName,
+    this.logoUrl = '',
     this.onTapEdit,
   }) : super(key: key);
 
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'healthcare':
+        return Colors.red[400]!;
+      case 'education':
+        return Colors.blue[400]!;
+      case 'social':
+        return Colors.green[400]!;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Replace with a complete implementation
     return GestureDetector(
       onTap: () async {
         if (newsUrl.isNotEmpty) {
-          // Show a more detailed news viewer dialog
           showDialog(
             context: context,
             builder: (context) => NewsViewerDialog(
@@ -1020,6 +1040,7 @@ class _NewsSliderStyleCard extends StatelessWidget {
               imageUrl: imageUrl,
               newsUrl: newsUrl,
               organizationName: organizationName,
+              organizationLogo: logoUrl,
             ),
           );
         } else {
@@ -1029,7 +1050,7 @@ class _NewsSliderStyleCard extends StatelessWidget {
         }
       },
       child: Container(
-        height: 180,
+        height: 180, // Fixed height to prevent layout issues
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -1050,6 +1071,9 @@ class _NewsSliderStyleCard extends StatelessWidget {
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(color: Colors.grey[300]);
+                      },
                     )
                   : Container(color: Colors.grey[300]),
               // Gradient Overlay
@@ -1075,7 +1099,7 @@ class _NewsSliderStyleCard extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: CategoryColors.colors[category] ?? Colors.grey,
+                        color: _getCategoryColor(category),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -1091,12 +1115,33 @@ class _NewsSliderStyleCard extends StatelessWidget {
                     // Source and Date
                     Row(
                       children: [
-                        Icon(Icons.business, color: Colors.white70, size: 14),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: logoUrl.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(9),
+                                  child: Image.network(
+                                    logoUrl,
+                                    width: 18,
+                                    height: 18,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(Icons.business,
+                                          size: 12, color: Colors.grey[600]);
+                                    },
+                                  ),
+                                )
+                              : Icon(Icons.business,
+                                  size: 12, color: Colors.grey[600]),
+                        ),
                         SizedBox(width: 4),
                         Text(
-                          organizationName.isNotEmpty
-                              ? organizationName
-                              : 'Organization',
+                          organizationName,
                           style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                         SizedBox(width: 12),
@@ -1244,6 +1289,7 @@ class NewsViewerDialog extends StatelessWidget {
   final String imageUrl;
   final String newsUrl;
   final String organizationName;
+  final String organizationLogo; // Add logo parameter
 
   const NewsViewerDialog({
     Key? key,
@@ -1253,10 +1299,50 @@ class NewsViewerDialog extends StatelessWidget {
     required this.imageUrl,
     required this.newsUrl,
     required this.organizationName,
+    this.organizationLogo = '', // Default to empty string
   }) : super(key: key);
+
+  // Add method to get category color
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'healthcare':
+        return Colors.red[400]!;
+      case 'education':
+        return Colors.blue[400]!;
+      case 'social':
+        return Colors.green[400]!;
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Use actual logo if available
+    Widget orgIcon = Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      child: organizationLogo.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: Image.network(
+                organizationLogo,
+                width: 18,
+                height: 18,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.business,
+                      size: 12, color: Colors.grey[600]);
+                },
+              ),
+            )
+          : Icon(Icons.business, size: 12, color: Colors.grey[600]),
+    );
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
@@ -1292,11 +1378,11 @@ class NewsViewerDialog extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Category badge
+                // Category badge with custom color
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: CategoryColors.colors[category] ?? Colors.grey,
+                    color: _getCategoryColor(category),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -1318,10 +1404,10 @@ class NewsViewerDialog extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 8),
-                // Organization and date
+                // Organization and date with organization logo
                 Row(
                   children: [
-                    Icon(Icons.business, size: 16, color: Colors.grey[700]),
+                    orgIcon, // Use the custom icon widget
                     SizedBox(width: 4),
                     Text(
                       organizationName.isNotEmpty
@@ -1340,43 +1426,43 @@ class NewsViewerDialog extends StatelessWidget {
                   ],
                 ),
                 Divider(height: 24),
-                // Original URL notice
-                Text(
-                  "Original News URL:",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 4),
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey[300]!),
+                // Grey button without org icon
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.open_in_browser),
+                    label: Text("View Full Article"),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SafeWebViewer(
+                            url: newsUrl,
+                            title: 'News',
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.grey[800],
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
                   ),
-                  child: Text(
-                    newsUrl,
-                    style: TextStyle(color: Colors.blue[700]),
-                  ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  "Note: External links cannot be opened directly in this app version.",
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic),
+                SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, right: 16),
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('CLOSE'),
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16, right: 16),
-            child: Align(
-              alignment: Alignment.bottomRight,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('CLOSE'),
-              ),
             ),
           ),
         ],
