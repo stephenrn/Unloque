@@ -156,17 +156,17 @@ class _NewsCard extends StatelessWidget {
 
   const _NewsCard({super.key, required this.item});
 
-  // Add this color function for categories
+  // Updated colors to even lighter variants
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'healthcare':
-        return Colors.red[400]!;
+        return Colors.red[300]!; // Even lighter red
       case 'education':
-        return Colors.blue[400]!;
+        return Colors.blue[300]!; // Even lighter blue
       case 'social':
-        return Colors.green[400]!;
+        return Colors.green[300]!; // Even lighter green
       default:
-        return Colors.grey;
+        return Colors.grey[300]!; // Even lighter grey
     }
   }
 
@@ -250,19 +250,21 @@ class _NewsCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 18,
-                          height: 18,
+                          width: 24, // Bigger container
+                          height: 24, // Bigger container
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(
+                                5), // Rounded box instead of circle
                           ),
                           child: item.logoUrl.isNotEmpty
                               ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(9),
+                                  borderRadius: BorderRadius.circular(
+                                      5), // Match container's border radius
                                   child: Image.network(
                                     item.logoUrl,
-                                    width: 18,
-                                    height: 18,
+                                    width: 24,
+                                    height: 24,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Icon(Icons.business,
@@ -271,7 +273,7 @@ class _NewsCard extends StatelessWidget {
                                   ),
                                 )
                               : Icon(Icons.business,
-                                  size: 12, color: Colors.grey[600]),
+                                  size: 16, color: Colors.grey[600]),
                         ),
                         SizedBox(width: 4),
                         Text(
@@ -319,22 +321,48 @@ class NewsViewerDialog extends StatelessWidget {
 
   const NewsViewerDialog({Key? key, required this.item}) : super(key: key);
 
+  // Updated colors to even lighter variants
   Color _getCategoryColor(String category) {
-    // Custom category colors
     switch (category.toLowerCase()) {
       case 'healthcare':
-        return Colors.red[400]!;
+        return Colors.red[300]!; // Even lighter red
       case 'education':
-        return Colors.blue[400]!;
+        return Colors.blue[300]!; // Even lighter blue
       case 'social':
-        return Colors.green[400]!;
+        return Colors.green[300]!; // Even lighter green
       default:
-        return Colors.grey;
+        return Colors.grey[300]!; // Even lighter grey
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Use actual logo if available with updated styling
+    Widget orgIcon = Container(
+      width: 24, // Bigger container
+      height: 24, // Bigger container
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5), // Rounded box instead of circle
+      ),
+      child: item.logoUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(5), // Match container's border radius
+              child: Image.network(
+                item.logoUrl,
+                width: 24,
+                height: 24,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.business,
+                      size: 16, color: Colors.grey[600]);
+                },
+              ),
+            )
+          : Icon(Icons.business, size: 16, color: Colors.grey[600]),
+    );
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
@@ -399,30 +427,7 @@ class NewsViewerDialog extends StatelessWidget {
                 // Organization and date
                 Row(
                   children: [
-                    Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: item.logoUrl.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(9),
-                              child: Image.network(
-                                item.logoUrl,
-                                width: 18,
-                                height: 18,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Icon(Icons.business,
-                                      size: 12, color: Colors.grey[600]);
-                                },
-                              ),
-                            )
-                          : Icon(Icons.business,
-                              size: 12, color: Colors.grey[600]),
-                    ),
+                    orgIcon,
                     SizedBox(width: 4),
                     Text(
                       item.organizationName,

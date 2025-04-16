@@ -1012,16 +1012,17 @@ class _NewsSliderStyleCard extends StatelessWidget {
     this.onTapEdit,
   }) : super(key: key);
 
+  // Updated colors to even lighter variants
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'healthcare':
-        return Colors.red[400]!;
+        return Colors.red[300]!; // Even lighter red
       case 'education':
-        return Colors.blue[400]!;
+        return Colors.blue[300]!; // Even lighter blue
       case 'social':
-        return Colors.green[400]!;
+        return Colors.green[300]!; // Even lighter green
       default:
-        return Colors.grey;
+        return Colors.grey[300]!; // Even lighter grey
     }
   }
 
@@ -1116,28 +1117,30 @@ class _NewsSliderStyleCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 18,
-                          height: 18,
+                          width: 24, // Bigger container
+                          height: 24, // Bigger container
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(
+                                5), // Rounded box instead of circle
                           ),
                           child: logoUrl.isNotEmpty
                               ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(9),
+                                  borderRadius: BorderRadius.circular(
+                                      5), // Match container's border radius
                                   child: Image.network(
                                     logoUrl,
-                                    width: 18,
-                                    height: 18,
+                                    width: 24,
+                                    height: 24,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Icon(Icons.business,
-                                          size: 12, color: Colors.grey[600]);
+                                          size: 16, color: Colors.grey[600]);
                                     },
                                   ),
                                 )
                               : Icon(Icons.business,
-                                  size: 12, color: Colors.grey[600]),
+                                  size: 16, color: Colors.grey[600]),
                         ),
                         SizedBox(width: 4),
                         Text(
@@ -1302,45 +1305,46 @@ class NewsViewerDialog extends StatelessWidget {
     this.organizationLogo = '', // Default to empty string
   }) : super(key: key);
 
-  // Add method to get category color
+  // Updated colors to even lighter variants
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'healthcare':
-        return Colors.red[400]!;
+        return Colors.red[300]!; // Even lighter red
       case 'education':
-        return Colors.blue[400]!;
+        return Colors.blue[300]!; // Even lighter blue
       case 'social':
-        return Colors.green[400]!;
+        return Colors.green[300]!; // Even lighter green
       default:
-        return Colors.grey;
+        return Colors.grey[300]!; // Even lighter grey
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Use actual logo if available
+    // Use actual logo if available with updated styling
     Widget orgIcon = Container(
-      width: 18,
-      height: 18,
+      width: 24, // Bigger container
+      height: 24, // Bigger container
       decoration: BoxDecoration(
         color: Colors.white,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(5), // Rounded box instead of circle
       ),
       child: organizationLogo.isNotEmpty
           ? ClipRRect(
-              borderRadius: BorderRadius.circular(9),
+              borderRadius:
+                  BorderRadius.circular(5), // Match container's border radius
               child: Image.network(
                 organizationLogo,
-                width: 18,
-                height: 18,
+                width: 24,
+                height: 24,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Icon(Icons.business,
-                      size: 12, color: Colors.grey[600]);
+                      size: 16, color: Colors.grey[600]);
                 },
               ),
             )
-          : Icon(Icons.business, size: 12, color: Colors.grey[600]),
+          : Icon(Icons.business, size: 16, color: Colors.grey[600]),
     );
 
     return Dialog(
