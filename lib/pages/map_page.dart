@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_maps/maps.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Add Firestore import
 
 // Import the new files
 import '../widgets/general_bottom_sheet.dart';
@@ -44,6 +45,13 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Add a state variable to track search bar open state
   bool _isSearchBarOpen = false;
+
+  // Add a map to store data values for each municipality
+  final Map<String, double> _municipalityData = {};
+
+  // Add a map to store population data from Firebase
+  final Map<String, double> _populationData = {};
+  bool _isPopulationDataLoaded = false;
 
   List<DataModel> _generateDataModel() {
     return <DataModel>[
@@ -109,6 +117,21 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     super.initState();
     _data = _generateDataModel();
+
+    // Generate more diverse data values for each municipality
+    // Use municipality name length + index to create distinct values
+    for (int i = 0; i < _data.length; i++) {
+      final municipality = _data[i];
+      // Create a more random-like distribution by using name characters and index
+      final nameValue =
+          municipality.name.codeUnits.fold(0, (sum, char) => sum + char);
+      final value = ((nameValue % 25) * 4) + (i % 5) * 5;
+      _municipalityData[municipality.name] = value.toDouble().clamp(0.0, 100.0);
+    }
+
+    // Fetch population data from Firebase
+    _fetchPopulationData();
+
     _shapeSource = MapShapeSource.asset(
       'lib/map/PHGeoJSON.json',
       shapeDataField: 'NAME_2',
@@ -120,6 +143,24 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
+      // Add a color value mapper that returns a value for each shape
+      shapeColorValueMapper: (int index) {
+        final municipalityName = _data[index].name;
+        return _municipalityData[municipalityName] ?? 0;
+      },
+      // Define color ranges with more distinctive colors
+      shapeColorMappers: [
+        MapColorMapper(
+            from: 0, to: 20, color: Colors.green[300]!, text: '0-20'),
+        MapColorMapper(
+            from: 20, to: 40, color: Colors.blue[300]!, text: '20-40'),
+        MapColorMapper(
+            from: 40, to: 60, color: Colors.orange[300]!, text: '40-60'),
+        MapColorMapper(
+            from: 60, to: 80, color: Colors.red[300]!, text: '60-80'),
+        MapColorMapper(
+            from: 80, to: 100, color: Colors.purple[300]!, text: '80-100'),
+      ],
     );
     debugPrint('MapShapeSource initialized');
     Future.delayed(const Duration(seconds: 2), () {
@@ -129,6 +170,152 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         });
       }
     });
+  }
+
+  // Add method to fetch population data from Firestore
+  Future<void> _fetchPopulationData() async {
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('mapdata')
+          .doc('quezon_population')
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data() as Map<String, dynamic>;
+
+        // Get the total population for normalization
+        double totalPopulation = (data['Total Population'] as num).toDouble();
+
+        // Find min and max population for better normalization
+        double minPopulation = double.infinity;
+        double maxPopulation = 0;
+
+        // First pass to find min/max values
+        for (String municipality in _data.map((e) => e.name)) {
+          if (data.containsKey(municipality)) {
+            double populationValue = (data[municipality] as num).toDouble();
+            if (populationValue > 0) {
+              // Ignore zero values
+              minPopulation = minPopulation > populationValue
+                  ? populationValue
+                  : minPopulation;
+              maxPopulation = maxPopulation < populationValue
+                  ? populationValue
+                  : maxPopulation;
+            }
+          }
+        }
+
+        debugPrint(
+            'Population range: $minPopulation to $maxPopulation (total: $totalPopulation)');
+
+        // Slightly adjust range to prevent all values at extremes
+        double range = maxPopulation - minPopulation;
+
+        // Convert raw population to normalized values between 0-100 with better distribution
+        for (String municipality in _data.map((e) => e.name)) {
+          if (data.containsKey(municipality) && range > 0) {
+            // Use a normalized scale against min-max range instead of total
+            double populationValue = (data[municipality] as num).toDouble();
+            double normalizedValue =
+                ((populationValue - minPopulation) / range * 100)
+                    .clamp(0.0, 100.0);
+
+            _populationData[municipality] = normalizedValue;
+            debugPrint(
+                '$municipality: raw=${populationValue}, normalized=${normalizedValue.toStringAsFixed(2)}');
+          } else {
+            // Default value if population data is missing
+            _populationData[municipality] = 10.0;
+          }
+        }
+
+        setState(() {
+          _isPopulationDataLoaded = true;
+          // Re-initialize shape source with the new data
+          _updateShapeSources();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading population data: $e');
+    }
+  }
+
+  // Update shape sources method to reflect current filter selection
+  void _updateShapeSources() {
+    // If population data isn't loaded yet and we're on General filter,
+    // don't update until we have the data
+    if (_selectedFilter == 'General' && !_isPopulationDataLoaded) {
+      debugPrint(
+          'Waiting for population data before updating shape sources...');
+      return;
+    }
+
+    debugPrint('Updating shape sources for filter: $_selectedFilter');
+
+    _shapeSource = MapShapeSource.asset(
+      'lib/map/PHGeoJSON.json',
+      shapeDataField: 'NAME_2',
+      dataCount: _data.length,
+      primaryValueMapper: (int index) => _data[index].name,
+    );
+
+    _sublayerSource = MapShapeSource.asset(
+      'lib/map/GeoJSON.json',
+      shapeDataField: 'NAME_2',
+      dataCount: _data.length,
+      primaryValueMapper: (int index) => _data[index].name,
+      // Add a color value mapper that returns a value based on filter selection
+      shapeColorValueMapper: (int index) {
+        final municipalityName = _data[index].name;
+
+        // Use population data for "General" filter, random data for others
+        if (_selectedFilter == 'General' && _isPopulationDataLoaded) {
+          final value = _populationData[municipalityName] ?? 0;
+          debugPrint('Color mapper for $municipalityName: $value');
+          return value;
+        } else {
+          return _municipalityData[municipalityName] ?? 0;
+        }
+      },
+      // Define color ranges based on selected filter
+      shapeColorMappers: _selectedFilter == 'General'
+          ? _getPopulationColorMappers() // Blue shades for population data
+          : _getCategoryColorMappers(), // Diverse colors for other filters
+    );
+
+    // Force a rebuild to ensure the map updates
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // Get color mappers for population data (blue gradient)
+  List<MapColorMapper> _getPopulationColorMappers() {
+    return [
+      // Create more distinct colors for the blue gradient
+      MapColorMapper(
+          from: 0, to: 20, color: Colors.blue[50]!, text: 'Very Low'),
+      MapColorMapper(from: 20, to: 40, color: Colors.blue[200]!, text: 'Low'),
+      MapColorMapper(
+          from: 40, to: 60, color: Colors.blue[400]!, text: 'Medium'),
+      MapColorMapper(from: 60, to: 80, color: Colors.blue[600]!, text: 'High'),
+      MapColorMapper(
+          from: 80, to: 100, color: Colors.blue[900]!, text: 'Very High'),
+    ];
+  }
+
+  // Get color mappers for category filters (diverse colors)
+  List<MapColorMapper> _getCategoryColorMappers() {
+    return [
+      MapColorMapper(from: 0, to: 20, color: Colors.green[300]!, text: '0-20'),
+      MapColorMapper(from: 20, to: 40, color: Colors.blue[300]!, text: '20-40'),
+      MapColorMapper(
+          from: 40, to: 60, color: Colors.orange[300]!, text: '40-60'),
+      MapColorMapper(from: 60, to: 80, color: Colors.red[300]!, text: '60-80'),
+      MapColorMapper(
+          from: 80, to: 100, color: Colors.purple[300]!, text: '80-100'),
+    ];
   }
 
   @override
@@ -226,6 +413,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       // Reset bottom sheet to collapsed state when changing categories
       _isBottomSheetExpanded = false;
       _bottomSheetHeight = 120.0;
+
+      // Update shape sources when filter changes to apply correct color mapping
+      _updateShapeSources();
     });
     // Here you would add logic to filter map data based on selected category
   }
@@ -356,7 +546,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   MapShapeSublayer _buildSublayer() {
     return MapShapeSublayer(
       source: _sublayerSource,
-      color: Colors.grey[300],
       strokeColor: Colors.grey[800],
       strokeWidth: 1,
       selectedIndex: _selectedSublayerIndex,
