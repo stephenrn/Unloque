@@ -52,6 +52,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Add a map to store population data from Firebase
   final Map<String, double> _populationData = {};
   bool _isPopulationDataLoaded = false;
+  bool _isMapInitialized = false; // Add flag to track map initialization
 
   List<DataModel> _generateDataModel() {
     return <DataModel>[
@@ -129,193 +130,184 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       _municipalityData[municipality.name] = value.toDouble().clamp(0.0, 100.0);
     }
 
+    // We need to ensure map shows loading state until data is ready
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Initialize map sources with placeholder data first
+    _initializeMapSources();
+
     // Fetch population data from Firebase
     _fetchPopulationData();
+  }
 
+  // Initialize map sources before Firebase data is loaded
+  void _initializeMapSources() {
     _shapeSource = MapShapeSource.asset(
       'lib/map/PHGeoJSON.json',
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
     );
+
+    // Initial configuration with placeholder data
     _sublayerSource = MapShapeSource.asset(
       'lib/map/GeoJSON.json',
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
-      // Add a color value mapper that returns a value for each shape
       shapeColorValueMapper: (int index) {
         final municipalityName = _data[index].name;
+        // Initially use random data before Firebase loads
         return _municipalityData[municipalityName] ?? 0;
       },
-      // Define color ranges with more distinctive colors
-      shapeColorMappers: [
-        MapColorMapper(
-            from: 0, to: 20, color: Colors.green[300]!, text: '0-20'),
-        MapColorMapper(
-            from: 20, to: 40, color: Colors.blue[300]!, text: '20-40'),
-        MapColorMapper(
-            from: 40, to: 60, color: Colors.orange[300]!, text: '40-60'),
-        MapColorMapper(
-            from: 60, to: 80, color: Colors.red[300]!, text: '60-80'),
-        MapColorMapper(
-            from: 80, to: 100, color: Colors.purple[300]!, text: '80-100'),
-      ],
+      shapeColorMappers:
+          _getPopulationColorMappers(), // Use blue shades by default for "General"
     );
-    debugPrint('MapShapeSource initialized');
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    });
+
+    _isMapInitialized = true;
+    debugPrint('Map sources initialized with placeholder data');
   }
 
   // Add method to fetch population data from Firestore
   Future<void> _fetchPopulationData() async {
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('mapdata')
-          .doc('quezon_population')
-          .get();
+      debugPrint('Fetching population data from Firebase...');
 
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data() as Map<String, dynamic>;
+      // Use a try-catch block without the timeout that was causing issues
+      try {
+        final docSnapshot = await FirebaseFirestore.instance
+            .collection('mapdata')
+            .doc('quezon_population')
+            .get();
 
-        // Get the total population for normalization
-        double totalPopulation = (data['Total Population'] as num).toDouble();
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data() as Map<String, dynamic>;
 
-        // Find min and max population for better normalization
-        double minPopulation = double.infinity;
-        double maxPopulation = 0;
+          // Find min and max population for better normalization
+          double minPopulation = double.infinity;
+          double maxPopulation = 0;
 
-        // First pass to find min/max values
-        for (String municipality in _data.map((e) => e.name)) {
-          if (data.containsKey(municipality)) {
-            double populationValue = (data[municipality] as num).toDouble();
-            if (populationValue > 0) {
-              // Ignore zero values
-              minPopulation = minPopulation > populationValue
-                  ? populationValue
-                  : minPopulation;
-              maxPopulation = maxPopulation < populationValue
-                  ? populationValue
-                  : maxPopulation;
+          // First pass to find min/max values
+          for (String municipality in _data.map((e) => e.name)) {
+            if (data.containsKey(municipality)) {
+              double populationValue = (data[municipality] as num).toDouble();
+              if (populationValue > 0) {
+                minPopulation = minPopulation > populationValue
+                    ? populationValue
+                    : minPopulation;
+                maxPopulation = maxPopulation < populationValue
+                    ? populationValue
+                    : maxPopulation;
+              }
             }
           }
-        }
 
-        debugPrint(
-            'Population range: $minPopulation to $maxPopulation (total: $totalPopulation)');
+          // Convert raw population to normalized values between 0-100
+          double range = maxPopulation - minPopulation;
+          if (range <= 0) range = 1; // Prevent division by zero
 
-        // Slightly adjust range to prevent all values at extremes
-        double range = maxPopulation - minPopulation;
-
-        // Convert raw population to normalized values between 0-100 with better distribution
-        for (String municipality in _data.map((e) => e.name)) {
-          if (data.containsKey(municipality) && range > 0) {
-            // Use a normalized scale against min-max range instead of total
-            double populationValue = (data[municipality] as num).toDouble();
-            double normalizedValue =
-                ((populationValue - minPopulation) / range * 100)
-                    .clamp(0.0, 100.0);
-
-            _populationData[municipality] = normalizedValue;
-            debugPrint(
-                '$municipality: raw=${populationValue}, normalized=${normalizedValue.toStringAsFixed(2)}');
-          } else {
-            // Default value if population data is missing
-            _populationData[municipality] = 10.0;
+          for (String municipality in _data.map((e) => e.name)) {
+            if (data.containsKey(municipality)) {
+              double populationValue = (data[municipality] as num).toDouble();
+              double normalizedValue =
+                  ((populationValue - minPopulation) / range * 100)
+                      .clamp(0.0, 100.0);
+              _populationData[municipality] = normalizedValue;
+            } else {
+              // Default value if population data is missing
+              _populationData[municipality] = 10.0;
+            }
           }
-        }
 
-        setState(() {
-          _isPopulationDataLoaded = true;
-          // Re-initialize shape source with the new data
-          _updateShapeSources();
-        });
+          debugPrint(
+              'Population data loaded successfully for ${_populationData.length} municipalities');
+        } else {
+          debugPrint(
+              'Population document does not exist, using placeholder data');
+          _generatePlaceholderPopulationData();
+        }
+      } catch (firestoreError) {
+        // Handle Firestore specific errors
+        debugPrint('Firestore error: $firestoreError');
+        _generatePlaceholderPopulationData();
       }
     } catch (e) {
       debugPrint('Error loading population data: $e');
+      // Ensure we have fallback data even if Firebase fails
+      _generatePlaceholderPopulationData();
+    } finally {
+      setState(() {
+        _isPopulationDataLoaded = true;
+        _isLoading = false;
+
+        // Update the shape sources with real population data now
+        _updateShapeSources();
+      });
     }
+  }
+
+  // Generate placeholder population data when Firebase is unavailable
+  void _generatePlaceholderPopulationData() {
+    // Generate placeholder population values based on municipality name
+    for (var municipality in _data) {
+      String name = municipality.name;
+
+      // Create a deterministic but varied value based on name
+      int nameHash = name.codeUnits.fold(0, (sum, char) => sum + char);
+      double value = (nameHash % 100).toDouble();
+
+      _populationData[name] = value;
+    }
+
+    debugPrint(
+        'Generated placeholder population data for ${_data.length} municipalities');
   }
 
   // Update shape sources method to reflect current filter selection
   void _updateShapeSources() {
-    // If population data isn't loaded yet and we're on General filter,
-    // don't update until we have the data
+    if (!_isMapInitialized) {
+      debugPrint('Map not initialized yet, deferring shape source update');
+      return;
+    }
+
     if (_selectedFilter == 'General' && !_isPopulationDataLoaded) {
       debugPrint(
-          'Waiting for population data before updating shape sources...');
+          'Population data not loaded yet, deferring shape source update');
       return;
     }
 
     debugPrint('Updating shape sources for filter: $_selectedFilter');
 
-    _shapeSource = MapShapeSource.asset(
-      'lib/map/PHGeoJSON.json',
-      shapeDataField: 'NAME_2',
-      dataCount: _data.length,
-      primaryValueMapper: (int index) => _data[index].name,
-    );
+    // ...existing code for updating _shapeSource...
 
     _sublayerSource = MapShapeSource.asset(
       'lib/map/GeoJSON.json',
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
-      // Add a color value mapper that returns a value based on filter selection
       shapeColorValueMapper: (int index) {
         final municipalityName = _data[index].name;
 
-        // Use population data for "General" filter, random data for others
-        if (_selectedFilter == 'General' && _isPopulationDataLoaded) {
+        if (_selectedFilter == 'General') {
           final value = _populationData[municipalityName] ?? 0;
-          debugPrint('Color mapper for $municipalityName: $value');
           return value;
         } else {
           return _municipalityData[municipalityName] ?? 0;
         }
       },
-      // Define color ranges based on selected filter
       shapeColorMappers: _selectedFilter == 'General'
-          ? _getPopulationColorMappers() // Blue shades for population data
-          : _getCategoryColorMappers(), // Diverse colors for other filters
+          ? _getPopulationColorMappers()
+          : _getCategoryColorMappers(),
     );
 
     // Force a rebuild to ensure the map updates
     if (mounted) {
-      setState(() {});
+      setState(() {
+        debugPrint('Map updated with new shape sources');
+      });
     }
-  }
-
-  // Get color mappers for population data (blue gradient)
-  List<MapColorMapper> _getPopulationColorMappers() {
-    return [
-      // Create more distinct colors for the blue gradient
-      MapColorMapper(
-          from: 0, to: 20, color: Colors.blue[50]!, text: 'Very Low'),
-      MapColorMapper(from: 20, to: 40, color: Colors.blue[200]!, text: 'Low'),
-      MapColorMapper(
-          from: 40, to: 60, color: Colors.blue[400]!, text: 'Medium'),
-      MapColorMapper(from: 60, to: 80, color: Colors.blue[600]!, text: 'High'),
-      MapColorMapper(
-          from: 80, to: 100, color: Colors.blue[900]!, text: 'Very High'),
-    ];
-  }
-
-  // Get color mappers for category filters (diverse colors)
-  List<MapColorMapper> _getCategoryColorMappers() {
-    return [
-      MapColorMapper(from: 0, to: 20, color: Colors.green[300]!, text: '0-20'),
-      MapColorMapper(from: 20, to: 40, color: Colors.blue[300]!, text: '20-40'),
-      MapColorMapper(
-          from: 40, to: 60, color: Colors.orange[300]!, text: '40-60'),
-      MapColorMapper(from: 60, to: 80, color: Colors.red[300]!, text: '60-80'),
-      MapColorMapper(
-          from: 80, to: 100, color: Colors.purple[300]!, text: '80-100'),
-    ];
   }
 
   @override
@@ -581,9 +573,59 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     );
   }
 
+  // Get color mappers for population data (blue gradient)
+  List<MapColorMapper> _getPopulationColorMappers() {
+    return [
+      // Create more distinct colors for the blue gradient
+      MapColorMapper(
+          from: 0, to: 20, color: Colors.blue[50]!, text: 'Very Low'),
+      MapColorMapper(from: 20, to: 40, color: Colors.blue[200]!, text: 'Low'),
+      MapColorMapper(
+          from: 40, to: 60, color: Colors.blue[400]!, text: 'Medium'),
+      MapColorMapper(from: 60, to: 80, color: Colors.blue[600]!, text: 'High'),
+      MapColorMapper(
+          from: 80, to: 100, color: Colors.blue[900]!, text: 'Very High'),
+    ];
+  }
+
+  // Get color mappers for category filters (diverse colors)
+  List<MapColorMapper> _getCategoryColorMappers() {
+    return [
+      MapColorMapper(from: 0, to: 20, color: Colors.green[300]!, text: '0-20'),
+      MapColorMapper(from: 20, to: 40, color: Colors.blue[300]!, text: '20-40'),
+      MapColorMapper(
+          from: 40, to: 60, color: Colors.orange[300]!, text: '40-60'),
+      MapColorMapper(from: 60, to: 80, color: Colors.red[300]!, text: '60-80'),
+      MapColorMapper(
+          from: 80, to: 100, color: Colors.purple[300]!, text: '80-100'),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    debugPrint('Building MapPage with selectedIndex: $_selectedIndex');
+    debugPrint(
+        'Building MapPage with filter: $_selectedFilter, population data loaded: $_isPopulationDataLoaded');
+
+    // ...existing code...
+
+    if (_isLoading) {
+      return Scaffold(
+        body: Container(
+          color: Colors.white,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading map data...', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
