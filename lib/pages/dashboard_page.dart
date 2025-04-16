@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:unloque/components/application_progress_section.dart';
 import 'package:unloque/components/categories_section.dart';
 import 'package:unloque/pages/admin/developer_options_page.dart';
-import '../components/auto_image_slider.dart';
+import '../components/news-slider.dart';
 import '../models/slider_item.dart';
 import '../data/available_applications_data.dart'; // Add this import
 

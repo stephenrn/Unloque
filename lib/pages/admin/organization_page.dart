@@ -4,6 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:unloque/pages/admin/program_details_form_page.dart';
 // Add import for ApplicationManagerPage at the top
 import 'package:unloque/pages/admin/application_manager_page.dart';
+// Add these imports:
+import 'package:unloque/constants/category_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
 
 class OrganizationPage extends StatefulWidget {
   final Map<String, dynamic> organization;
@@ -704,30 +709,186 @@ class _ProgramsTab extends StatelessWidget {
   }
 }
 
-class _NewsTab extends StatelessWidget {
+class _NewsTab extends StatefulWidget {
   final String organizationId;
 
   const _NewsTab({required this.organizationId});
+
+  @override
+  State<_NewsTab> createState() => _NewsTabState();
+}
+
+class _NewsTabState extends State<_NewsTab> {
+  Future<void> _showAddNewsDialog(BuildContext context,
+      {DocumentSnapshot? doc, Map<String, dynamic>? initialData}) async {
+    final formKey = GlobalKey<FormState>();
+    final headlineController =
+        TextEditingController(text: initialData?['headline'] ?? '');
+    String? selectedCategory = initialData?['category'];
+    final dateController =
+        TextEditingController(text: initialData?['date'] ?? '');
+    final imageUrlController =
+        TextEditingController(text: initialData?['imageUrl'] ?? '');
+    final newsUrlController =
+        TextEditingController(text: initialData?['newsUrl'] ?? '');
+
+    final categories = ['Social', 'Healthcare', 'Education'];
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(doc == null ? 'Add News Article' : 'Edit News Article'),
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: headlineController,
+                      decoration: InputDecoration(
+                        labelText: 'Headline',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter headline'
+                          : null,
+                    ),
+                    SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: selectedCategory,
+                      items: categories
+                          .map((cat) => DropdownMenuItem(
+                                value: cat,
+                                child: Text(cat),
+                              ))
+                          .toList(),
+                      onChanged: (val) => selectedCategory = val,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Select category'
+                          : null,
+                    ),
+                    SizedBox(height: 12),
+                    TextFormField(
+                      controller: dateController,
+                      decoration: InputDecoration(
+                        labelText: 'Date',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          dateController.text =
+                              "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                        }
+                      },
+                      validator: (value) =>
+                          value == null || value.isEmpty ? 'Select date' : null,
+                    ),
+                    SizedBox(height: 12),
+                    TextFormField(
+                      controller: imageUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'Image URL',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter image URL'
+                          : null,
+                    ),
+                    SizedBox(height: 12),
+                    TextFormField(
+                      controller: newsUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'News URL',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter news URL'
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  try {
+                    final data = {
+                      'headline': headlineController.text.trim(),
+                      'category': selectedCategory,
+                      'date': dateController.text.trim(),
+                      'imageUrl': imageUrlController.text.trim(),
+                      'newsUrl': newsUrlController.text.trim(),
+                      'createdAt': FieldValue.serverTimestamp(),
+                    };
+                    if (doc == null) {
+                      await FirebaseFirestore.instance
+                          .collection('organizations')
+                          .doc(widget.organizationId)
+                          .collection('news')
+                          .add(data);
+                    } else {
+                      await doc.reference.update(data);
+                    }
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(doc == null
+                              ? 'News article added!'
+                              : 'News article updated!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+              child: Text(doc == null ? 'Add News' : 'Save Changes'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement add news functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Add news functionality not implemented yet')),
-          );
-        },
+        onPressed: () => _showAddNewsDialog(context),
         backgroundColor: Colors.blue,
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
+            .collection('organizations')
+            .doc(widget.organizationId)
             .collection('news')
-            .where('organizationId', isEqualTo: organizationId)
+            .orderBy('date', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -776,45 +937,199 @@ class _NewsTab extends StatelessWidget {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  leading: data['imageUrl'] != null &&
-                          data['imageUrl'].toString().isNotEmpty
-                      ? SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: Image.network(
-                            data['imageUrl'],
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.image);
-                            },
-                          ),
-                        )
-                      : const SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: Icon(Icons.image),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  children: [
+                    _NewsSliderStyleCard(
+                      headline: data['headline'] ?? '',
+                      category: data['category'] ?? '',
+                      date: data['date'] ?? '',
+                      imageUrl: data['imageUrl'] ?? '',
+                      newsUrl: data['newsUrl'] ?? '',
+                      organizationName:
+                          '', // Optionally fetch org name if needed
+                      onTapEdit: () => _showAddNewsDialog(context,
+                          doc: doc, initialData: data),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          icon: Icon(Icons.edit, color: Colors.blue),
+                          label: Text('Edit',
+                              style: TextStyle(color: Colors.blue)),
+                          onPressed: () => _showAddNewsDialog(context,
+                              doc: doc, initialData: data),
                         ),
-                  title: Text(data['title'] ?? 'Untitled'),
-                  subtitle: Text(data['date'] != null
-                      ? data['date'].toString().split(' ')[0]
-                      : 'No date'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      // TODO: Implement delete news functionality
-                    },
-                  ),
-                  onTap: () {
-                    // TODO: Implement view/edit news functionality
-                  },
+                        SizedBox(width: 8),
+                        TextButton.icon(
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          label: Text('Delete',
+                              style: TextStyle(color: Colors.red)),
+                          onPressed: () async {
+                            await doc.reference.delete();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+// News card styled like the slider, but for list view
+class _NewsSliderStyleCard extends StatelessWidget {
+  final String headline;
+  final String category;
+  final String date;
+  final String imageUrl;
+  final String newsUrl;
+  final String organizationName;
+  final VoidCallback? onTapEdit;
+
+  const _NewsSliderStyleCard({
+    Key? key,
+    required this.headline,
+    required this.category,
+    required this.date,
+    required this.imageUrl,
+    required this.newsUrl,
+    required this.organizationName,
+    this.onTapEdit,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        if (newsUrl.isNotEmpty) {
+          // Show a more detailed news viewer dialog
+          showDialog(
+            context: context,
+            builder: (context) => NewsViewerDialog(
+              headline: headline,
+              category: category,
+              date: date,
+              imageUrl: imageUrl,
+              newsUrl: newsUrl,
+              organizationName: organizationName,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No news content available.')),
+          );
+        }
+      },
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.13),
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background Image
+              imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(color: Colors.grey[300]),
+              // Gradient Overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.8),
+                    ],
+                  ),
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category Badge
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: CategoryColors.colors[category] ?? Colors.grey,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        category.toUpperCase(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Spacer(),
+                    // Source and Date
+                    Row(
+                      children: [
+                        Icon(Icons.business, color: Colors.white70, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          organizationName.isNotEmpty
+                              ? organizationName
+                              : 'Organization',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        SizedBox(width: 12),
+                        Icon(Icons.calendar_today,
+                            color: Colors.white70, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          date,
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    // Headline
+                    Text(
+                      headline,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -916,6 +1231,155 @@ class _MapDataTab extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+// Add this new class for a better news viewing experience
+class NewsViewerDialog extends StatelessWidget {
+  final String headline;
+  final String category;
+  final String date;
+  final String imageUrl;
+  final String newsUrl;
+  final String organizationName;
+
+  const NewsViewerDialog({
+    Key? key,
+    required this.headline,
+    required this.category,
+    required this.date,
+    required this.imageUrl,
+    required this.newsUrl,
+    required this.organizationName,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header with image
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            child: imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 180,
+                        color: Colors.grey[300],
+                        child: Icon(Icons.image_not_supported,
+                            size: 50, color: Colors.grey),
+                      );
+                    },
+                  )
+                : Container(
+                    height: 180,
+                    color: Colors.grey[300],
+                    child: Icon(Icons.image_not_supported,
+                        size: 50, color: Colors.grey),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Category badge
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: CategoryColors.colors[category] ?? Colors.grey,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    category.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                // News headline
+                Text(
+                  headline,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                // Organization and date
+                Row(
+                  children: [
+                    Icon(Icons.business, size: 16, color: Colors.grey[700]),
+                    SizedBox(width: 4),
+                    Text(
+                      organizationName.isNotEmpty
+                          ? organizationName
+                          : 'Organization',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    SizedBox(width: 16),
+                    Icon(Icons.calendar_today,
+                        size: 16, color: Colors.grey[700]),
+                    SizedBox(width: 4),
+                    Text(
+                      date,
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+                Divider(height: 24),
+                // Original URL notice
+                Text(
+                  "Original News URL:",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 4),
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Text(
+                    newsUrl,
+                    style: TextStyle(color: Colors.blue[700]),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Note: External links cannot be opened directly in this app version.",
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16, right: 16),
+            child: Align(
+              alignment: Alignment.bottomRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('CLOSE'),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
