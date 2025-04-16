@@ -3,6 +3,12 @@ import 'package:syncfusion_flutter_maps/maps.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
 
+// Import the new files
+import '../widgets/general_bottom_sheet.dart';
+import '../widgets/category_filter_bottom_sheet.dart';
+import '../widgets/selected_municipality_bottom_sheet.dart';
+import '../models/data_model.dart';
+
 class MapPage extends StatefulWidget {
   MapPage({Key? key}) : super(key: key);
 
@@ -14,7 +20,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   _MapPageState();
   late MapShapeSource _shapeSource;
   late MapShapeSource _sublayerSource;
-  late List<_DataModel> _data;
+  late List<DataModel> _data;
   int _selectedIndex = -1;
   int _selectedSublayerIndex = -1;
   late MapZoomPanBehavior _zoomPanBehavior;
@@ -25,10 +31,10 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Modified bottom sheet variables
   bool _isBottomSheetExpanded = false;
   double _bottomSheetHeight = 120.0; // Changed back to 120.0 as default
-  _DataModel? _selectedLocation;
+  DataModel? _selectedLocation;
 
   // Quezon province default data
-  final _quezonProvince = _DataModel('Quezon Province', 14.2347, 121.9473);
+  final _quezonProvince = DataModel('Quezon Province', 14.2347, 121.9473);
 
   // Tab controller for bottom sheet tabs
   late TabController _tabController;
@@ -39,49 +45,49 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Add a state variable to track search bar open state
   bool _isSearchBarOpen = false;
 
-  List<_DataModel> _generateDataModel() {
-    return <_DataModel>[
-      _DataModel('Agdangan', 13.885378, 121.9359),
-      _DataModel('Alabat', 14.1017, 122.0184),
-      _DataModel('Atimonan', 14.0048, 121.9199),
-      _DataModel('Buenavista', 13.7087, 122.4635),
-      _DataModel('Burdeos', 14.7446, 121.9262),
-      _DataModel('Calauag', 13.9547, 122.2872),
-      _DataModel('Candelaria', 13.9311, 121.4233),
-      _DataModel('Catanauan', 13.5927, 122.3208),
-      _DataModel('Dolores', 14.0244, 121.3681),
-      _DataModel('General Luna', 13.8425, 122.1494),
-      _DataModel('General Nakar', 14.7631, 121.6349),
-      _DataModel('Guinayangan', 13.9039, 122.4467),
-      _DataModel('Gumaca', 13.9208, 122.1000),
-      _DataModel('Infanta', 14.7425, 121.6494),
-      _DataModel('Jomalig', 14.7131, 122.3677),
-      _DataModel('Lopez', 13.8881, 122.2608),
-      _DataModel('Lucban', 14.1114, 121.5575),
-      _DataModel('Lucena City', 13.9419, 121.6169),
-      _DataModel('Macalelon', 13.7458, 122.1294),
-      _DataModel('Mauban', 14.1911, 121.7308),
-      _DataModel('Mulanay', 13.5264, 122.4044),
-      _DataModel('Padre Burgos', 13.9222, 121.8125),
-      _DataModel('Pagbilao', 13.9789, 121.7119),
-      _DataModel('Panukulan', 14.7472, 121.8139),
-      _DataModel('Patnanungan', 14.7481, 122.1736),
-      _DataModel('Perez', 14.1944, 121.9394),
-      _DataModel('Pitogo', 13.7972, 122.0936),
-      _DataModel('Plaridel', 13.9392, 122.0212),
-      _DataModel('Polillo', 14.7111, 121.9556),
-      _DataModel('Quezon', 14.0314, 122.1131),
-      _DataModel('Real', 14.6647, 121.6081),
-      _DataModel('Sampaloc', 14.1774, 121.6169),
-      _DataModel('San Andres', 13.3252, 122.6504),
-      _DataModel('San Antonio', 13.8951, 121.2970),
-      _DataModel('San Francisco', 13.3471, 122.5202),
-      _DataModel('San Narciso', 13.5689, 122.5662),
-      _DataModel('Sariaya', 13.9633, 121.5253),
-      _DataModel('Tagkawayan', 13.9647, 122.5472),
-      _DataModel('Tayabas City', 14.0244, 121.5847),
-      _DataModel('Tiaong', 13.9500, 121.3167),
-      _DataModel('Unisan', 13.8558, 121.9686),
+  List<DataModel> _generateDataModel() {
+    return <DataModel>[
+      DataModel('Agdangan', 13.885378, 121.9359),
+      DataModel('Alabat', 14.1017, 122.0184),
+      DataModel('Atimonan', 14.0048, 121.9199),
+      DataModel('Buenavista', 13.7087, 122.4635),
+      DataModel('Burdeos', 14.7446, 121.9262),
+      DataModel('Calauag', 13.9547, 122.2872),
+      DataModel('Candelaria', 13.9311, 121.4233),
+      DataModel('Catanauan', 13.5927, 122.3208),
+      DataModel('Dolores', 14.0244, 121.3681),
+      DataModel('General Luna', 13.8425, 122.1494),
+      DataModel('General Nakar', 14.7631, 121.6349),
+      DataModel('Guinayangan', 13.9039, 122.4467),
+      DataModel('Gumaca', 13.9208, 122.1000),
+      DataModel('Infanta', 14.7425, 121.6494),
+      DataModel('Jomalig', 14.7131, 122.3677),
+      DataModel('Lopez', 13.8881, 122.2608),
+      DataModel('Lucban', 14.1114, 121.5575),
+      DataModel('Lucena City', 13.9419, 121.6169),
+      DataModel('Macalelon', 13.7458, 122.1294),
+      DataModel('Mauban', 14.1911, 121.7308),
+      DataModel('Mulanay', 13.5264, 122.4044),
+      DataModel('Padre Burgos', 13.9222, 121.8125),
+      DataModel('Pagbilao', 13.9789, 121.7119),
+      DataModel('Panukulan', 14.7472, 121.8139),
+      DataModel('Patnanungan', 14.7481, 122.1736),
+      DataModel('Perez', 14.1944, 121.9394),
+      DataModel('Pitogo', 13.7972, 122.0936),
+      DataModel('Plaridel', 13.9392, 122.0212),
+      DataModel('Polillo', 14.7111, 121.9556),
+      DataModel('Quezon', 14.0314, 122.1131),
+      DataModel('Real', 14.6647, 121.6081),
+      DataModel('Sampaloc', 14.1774, 121.6169),
+      DataModel('San Andres', 13.3252, 122.6504),
+      DataModel('San Antonio', 13.8951, 121.2970),
+      DataModel('San Francisco', 13.3471, 122.5202),
+      DataModel('San Narciso', 13.5689, 122.5662),
+      DataModel('Sariaya', 13.9633, 121.5253),
+      DataModel('Tagkawayan', 13.9647, 122.5472),
+      DataModel('Tayabas City', 14.0244, 121.5847),
+      DataModel('Tiaong', 13.9500, 121.3167),
+      DataModel('Unisan', 13.8558, 121.9686),
     ];
   }
 
@@ -132,7 +138,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  List<_DataModel> _getFilteredList() {
+  List<DataModel> _getFilteredList() {
     if (_searchTerm.isEmpty) return [];
     return _data
         .where((item) =>
@@ -140,17 +146,25 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         .toList();
   }
 
-  void _selectMunicity(_DataModel selected) {
+  void _selectMunicity(DataModel selected) {
     final index = _data.indexWhere((item) => item.name == selected.name);
     if (index != -1) {
+      // Get current filter to preserve it
+      final currentFilter = _selectedFilter;
+
       _zoomPanBehavior.focalLatLng =
           MapLatLng(selected.latitude, selected.longitude);
       _zoomPanBehavior.zoomLevel = 9;
+
       setState(() {
         _selectedSublayerIndex = index;
         _selectedLocation = selected;
         _isBottomSheetExpanded = false;
         _bottomSheetHeight = 120.0;
+        // Preserve current filter instead of resetting to General
+        _selectedFilter = currentFilter;
+        debugPrint(
+            'Search selected municipality: ${selected.name} with filter: $_selectedFilter');
       });
     }
     _searchBarController.close();
@@ -209,6 +223,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   void _onFilterSelected(String filter) {
     setState(() {
       _selectedFilter = filter;
+      // Reset bottom sheet to collapsed state when changing categories
+      _isBottomSheetExpanded = false;
+      _bottomSheetHeight = 120.0;
     });
     // Here you would add logic to filter map data based on selected category
   }
@@ -294,381 +311,84 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     final displayLocation = _selectedLocation ?? _quezonProvince;
     final bool isDefaultView = _selectedLocation == null;
 
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: _bottomSheetHeight,
-      child: GestureDetector(
-        onVerticalDragUpdate: _handleDragUpdate,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, -3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Fixed-size drag handle area with consistent spacing
-              Container(
-                width: double.infinity,
-                height: 16,
-                alignment: Alignment.center,
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2.5),
-                  ),
-                ),
-              ),
+    // Debug print to help track what's happening with filters
+    debugPrint(
+        'Building bottom sheet: filter=$_selectedFilter, location=${displayLocation.name}, default=$isDefaultView');
 
-              // Location header with fixed height and spacing
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                height: 50, // Fixed height for header area
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayLocation.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          isDefaultView
-                              ? const Text(
-                                  'Explore municipalities and cities',
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 12,
-                                  ),
-                                )
-                              : Text(
-                                  'Lat: ${displayLocation.latitude.toStringAsFixed(4)}, Long: ${displayLocation.longitude.toStringAsFixed(4)}',
-                                  style: const TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                        ],
-                      ),
-                    ),
-                    if (!isDefaultView)
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: _resetToQuezonProvince,
-                      ),
-                  ],
-                ),
-              ),
+    // Only show category-specific bottom sheet if it's province-wide (default) view
+    // AND a category filter is selected
+    if (_selectedFilter != 'General' && isDefaultView) {
+      return CategoryFilterBottomSheet(
+        location: displayLocation,
+        isDefaultView: isDefaultView,
+        isExpanded: _isBottomSheetExpanded,
+        sheetHeight: _bottomSheetHeight,
+        selectedFilter: _selectedFilter,
+        onClose: () => _onFilterSelected('General'),
+        onDragUpdate: _handleDragUpdate,
+      );
+    }
 
-              // Divider for consistent visual separation
-              Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
+    // Show municipality-specific bottom sheet
+    if (!isDefaultView) {
+      return SelectedMunicipalityBottomSheet(
+        location: displayLocation,
+        isExpanded: _isBottomSheetExpanded,
+        sheetHeight: _bottomSheetHeight,
+        onClose: _resetToQuezonProvince,
+        onDragUpdate: _handleDragUpdate,
+      );
+    }
 
-              // Show different content based on whether we're showing Quezon Province or a specific municipality
-              if (isDefaultView) // Only show tabs for Quezon Province
-                Expanded(
-                  child: Column(
-                    children: [
-                      // Tab Bar with fixed height
-                      Container(
-                        height: 40, // Fixed height for tab bar
-                        child: TabBar(
-                          controller: _tabController,
-                          labelColor: Colors.blue,
-                          unselectedLabelColor: Colors.grey,
-                          indicatorColor: Colors.blue,
-                          labelStyle: const TextStyle(fontSize: 14),
-                          indicatorWeight: 2.0,
-                          tabs: const [
-                            Tab(text: 'Data Analysis'),
-                            Tab(text: 'Data Summary'),
-                            Tab(text: 'Insights'),
-                          ],
-                        ),
-                      ),
-
-                      // Tab content with consistent padding
-                      if (_isBottomSheetExpanded)
-                        Expanded(
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _buildDataAnalysisTab(
-                                  displayLocation, isDefaultView),
-                              _buildDataSummaryTab(
-                                  displayLocation, isDefaultView),
-                              _buildInsightsTab(displayLocation, isDefaultView),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                )
-              else // For municipalities, show a simpler layout
-                _isBottomSheetExpanded
-                    ? Expanded(
-                        child: _buildMunicipalityContent(displayLocation),
-                      )
-                    : const SizedBox
-                        .shrink(), // No additional content when collapsed for municipalities
-            ],
-          ),
-        ),
-      ),
+    // Default to general bottom sheet for province view
+    return GeneralBottomSheet(
+      location: displayLocation,
+      isDefaultView: isDefaultView,
+      isExpanded: _isBottomSheetExpanded,
+      sheetHeight: _bottomSheetHeight,
+      onClose: _resetToQuezonProvince,
+      onDragUpdate: _handleDragUpdate,
+      onToggleExpansion: _toggleBottomSheetExpansion,
+      tabController: _tabController,
     );
   }
 
-  // New method to build municipality-specific content without tabs
-  Widget _buildMunicipalityContent(_DataModel location) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Municipality info section
-          Text(
-            'About ${location.name}',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Information about this municipality is currently being compiled. Here is what we know so far:',
-          ),
-          const SizedBox(height: 16),
+  MapShapeSublayer _buildSublayer() {
+    return MapShapeSublayer(
+      source: _sublayerSource,
+      color: Colors.grey[300],
+      strokeColor: Colors.grey[800],
+      strokeWidth: 1,
+      selectedIndex: _selectedSublayerIndex,
+      selectionSettings: const MapSelectionSettings(
+          color: Color.fromARGB(255, 27, 160, 227),
+          strokeColor: Color.fromARGB(255, 255, 255, 255),
+          strokeWidth: 1),
+      onSelectionChanged: (int index) {
+        // Preserve current filter
+        final currentFilter = _selectedFilter;
 
-          // Municipality data
-          _buildMunicipalityDataSummary(location),
+        _zoomPanBehavior.focalLatLng =
+            MapLatLng(_data[index].latitude, _data[index].longitude);
+        _zoomPanBehavior.zoomLevel = 9;
 
-          const SizedBox(height: 24),
-
-          // Additional sections can be added here for municipality-specific information
-          const Text(
-            'Geographic Features',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-              '${location.name} is located at coordinates ${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)} within Quezon Province.'),
-
-          const SizedBox(height: 24),
-          const Text(
-            'Local Economy',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text('Data on local economic activities will be added soon.'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDataAnalysisTab(_DataModel location, bool isDefaultView) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Data Analysis',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          isDefaultView
-              ? const Text(
-                  'Statistical analysis for Quezon Province showing demographic trends, '
-                  'economic indicators, and geographical data distributions.')
-              : Text(
-                  'Analysis for ${location.name} showing key metrics and comparative data '
-                  'with other municipalities in Quezon Province.'),
-          const SizedBox(height: 16),
-          // Placeholder for charts or data visualizations
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                'Chart: Population Trends for ${location.name}',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDataSummaryTab(_DataModel location, bool isDefaultView) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Data Summary',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          isDefaultView
-              ? _buildProvinceDataSummary()
-              : _buildMunicipalityDataSummary(location),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProvinceDataSummary() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDataRow('Total Area', '8,706.60 km²'),
-        _buildDataRow('Population (2020)', '1,950,459'),
-        _buildDataRow('Population Density', '224/km²'),
-        _buildDataRow('Number of Municipalities', '39'),
-        _buildDataRow('Number of Cities', '2'),
-        _buildDataRow('Capital', 'Lucena City'),
-        _buildDataRow('Regional Classification', 'CALABARZON (Region IV-A)'),
-      ],
-    );
-  }
-
-  Widget _buildMunicipalityDataSummary(_DataModel location) {
-    // This would ideally be filled with real data specific to each municipality
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDataRow('Municipality/City', location.name),
-        _buildDataRow('Geographic Position',
-            '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}'),
-        _buildDataRow('Land Area', 'Data not available'),
-        _buildDataRow('Population', 'Data not available'),
-        _buildDataRow('Barangays', 'Data not available'),
-        _buildDataRow('Classification', 'Data not available'),
-        _buildDataRow('Main Industry', 'Data not available'),
-      ],
-    );
-  }
-
-  Widget _buildDataRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: Text(value),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightsTab(_DataModel location, bool isDefaultView) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Insights',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          isDefaultView
-              ? const Text(
-                  'Quezon Province is known for its agricultural production, particularly coconut. '
-                  'The province faces challenges such as development disparities between coastal and inland areas, '
-                  'vulnerability to typhoons, and managing its natural resources sustainably.')
-              : Text(
-                  'Insights for ${location.name} will be displayed here, including '
-                  'local economic opportunities, development challenges, and unique characteristics.'),
-          const SizedBox(height: 16),
-          const Text(
-            'Key Observations:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildInsightPoint('1. Economic Potential',
-              'Tourism and agriculture present significant growth opportunities.'),
-          _buildInsightPoint('2. Development Challenges',
-              'Infrastructure gaps and climate vulnerability need addressing.'),
-          _buildInsightPoint('3. Recommendations',
-              'Focus on sustainable development and economic diversification.'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightPoint(String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(description),
-        ],
-      ),
+        setState(() {
+          if (index != _selectedSublayerIndex) {
+            _selectedSublayerIndex = -1;
+            _selectedSublayerIndex = index;
+            _selectedLocation = _data[index];
+            _isBottomSheetExpanded = false;
+            _bottomSheetHeight = 120.0;
+            // Preserve filter selection instead of resetting to General
+            _selectedFilter = currentFilter;
+            debugPrint(
+                'Selected municipality: ${_data[index].name} with filter: $_selectedFilter');
+          } else {
+            _selectedSublayerIndex = -1;
+            _selectedLocation = null;
+          }
+        });
+      },
     );
   }
 
@@ -722,36 +442,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                     });
                   },
                   sublayers: [
-                    MapShapeSublayer(
-                      source: _sublayerSource,
-                      color: Colors.grey[300], // Slightly transparent white
-                      strokeColor:
-                          Colors.grey[800], // Darker blue border for contrast
-                      strokeWidth: 1,
-                      selectedIndex: _selectedSublayerIndex,
-                      selectionSettings: const MapSelectionSettings(
-                          color: Color.fromARGB(255, 27, 160, 227),
-                          strokeColor: Color.fromARGB(255, 255, 255, 255),
-                          strokeWidth: 1),
-                      onSelectionChanged: (int index) {
-                        _zoomPanBehavior.focalLatLng = MapLatLng(
-                            _data[index].latitude, _data[index].longitude);
-                        _zoomPanBehavior.zoomLevel = 9;
-
-                        setState(() {
-                          if (index != _selectedSublayerIndex) {
-                            _selectedSublayerIndex = -1;
-                            _selectedSublayerIndex = index;
-                            _selectedLocation = _data[index];
-                            _isBottomSheetExpanded = false;
-                            _bottomSheetHeight = 120.0;
-                          } else {
-                            _selectedSublayerIndex = -1;
-                            _selectedLocation = null;
-                          }
-                        });
-                      },
-                    ),
+                    _buildSublayer(), // Use the extracted method here
                   ],
                 )
               ],
@@ -884,11 +575,4 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       ),
     );
   }
-}
-
-class _DataModel {
-  _DataModel(this.name, this.latitude, this.longitude);
-  final String name;
-  final double latitude;
-  final double longitude;
 }
