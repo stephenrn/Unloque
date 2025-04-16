@@ -9,6 +9,8 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
   final double sheetHeight;
   final Function() onClose;
   final Function(DragUpdateDetails) onDragUpdate;
+  // Add new parameter for municipality population
+  final int? municipalityPopulation;
 
   const SelectedMunicipalityBottomSheet({
     Key? key,
@@ -17,6 +19,7 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
     required this.sheetHeight,
     required this.onClose,
     required this.onDragUpdate,
+    this.municipalityPopulation,
   }) : super(key: key);
 
   @override
@@ -54,7 +57,7 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
               // Divider for visual separation
               Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
 
-              // Municipality content when expanded
+              // Municipality content when expanded - simplified to just show population
               isExpanded
                   ? Expanded(
                       child: _buildMunicipalityContent(),
@@ -127,94 +130,62 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
   }
 
   Widget _buildMunicipalityContent() {
+    // Simplified to only show population
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Municipality info section
-          Text(
-            'About ${location.name}',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+          // Municipality population card
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.people,
+                    size: 48,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${location.name} Population',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    municipalityPopulation != null
+                        ? _formatNumber(municipalityPopulation!)
+                        : 'Data not available',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Information about this municipality is currently being compiled. Here is what we know so far:',
-          ),
-          const SizedBox(height: 16),
-
-          // Municipality data
-          _buildMunicipalityDataSummary(),
-
-          const SizedBox(height: 24),
-
-          // Geographic features section
-          const Text(
-            'Geographic Features',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-              '${location.name} is located at coordinates ${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)} within Quezon Province.'),
-
-          const SizedBox(height: 24),
-
-          // Local economy section
-          const Text(
-            'Local Economy',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text('Data on local economic activities will be added soon.'),
         ],
       ),
     );
   }
 
-  Widget _buildMunicipalityDataSummary() {
-    // This would ideally be filled with real data specific to each municipality
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDataRow('Municipality/City', location.name),
-        _buildDataRow('Geographic Position',
-            '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}'),
-        _buildDataRow('Land Area', 'Data not available'),
-        _buildDataRow('Population', 'Data not available'),
-        _buildDataRow('Barangays', 'Data not available'),
-        _buildDataRow('Classification', 'Data not available'),
-        _buildDataRow('Main Industry', 'Data not available'),
-      ],
-    );
-  }
-
-  Widget _buildDataRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: Text(value),
-          ),
-        ],
-      ),
-    );
+  // Helper method to format large numbers with commas
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 }

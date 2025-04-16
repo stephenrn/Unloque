@@ -12,6 +12,8 @@ class GeneralBottomSheet extends StatelessWidget {
   final Function(DragUpdateDetails) onDragUpdate;
   final Function() onToggleExpansion;
   final TabController tabController;
+  // Add new parameter to receive total population
+  final int? totalPopulation;
 
   const GeneralBottomSheet({
     Key? key,
@@ -23,6 +25,7 @@ class GeneralBottomSheet extends StatelessWidget {
     required this.onDragUpdate,
     required this.onToggleExpansion,
     required this.tabController,
+    this.totalPopulation, // Make it optional since it might be null during loading
   }) : super(key: key);
 
   @override
@@ -178,38 +181,65 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildDataAnalysisTab() {
+    // Simplified to focus on just showing total population
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Data Analysis',
+            'Population Data',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 20,
             ),
           ),
-          const SizedBox(height: 8),
-          isDefaultView
-              ? const Text(
-                  'Statistical analysis for Quezon Province showing demographic trends, '
-                  'economic indicators, and geographical data distributions.')
-              : Text(
-                  'Analysis for ${location.name} showing key metrics and comparative data '
-                  'with other municipalities in Quezon Province.'),
           const SizedBox(height: 16),
-          // Placeholder for charts or data visualizations
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
+
+          // Population data card
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(
-              child: Text(
-                'Chart: Population Trends for ${location.name}',
-                textAlign: TextAlign.center,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.people,
+                    size: 48,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Total Population',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    totalPopulation != null
+                        ? _formatNumber(totalPopulation!)
+                        : 'Loading...',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Quezon Province',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -219,60 +249,44 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildDataSummaryTab() {
+    // Show empty content instead of population data
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Data Summary',
+            'Summary Data',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 20,
             ),
           ),
-          const SizedBox(height: 8),
-          isDefaultView ? _buildProvinceDataSummary() : _buildDataUnavailable(),
           const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildProvinceDataSummary() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDataRow('Total Area', '8,706.60 km²'),
-        _buildDataRow('Population (2020)', '1,950,459'),
-        _buildDataRow('Population Density', '224/km²'),
-        _buildDataRow('Number of Municipalities', '39'),
-        _buildDataRow('Number of Cities', '2'),
-        _buildDataRow('Capital', 'Lucena City'),
-        _buildDataRow('Regional Classification', 'CALABARZON (Region IV-A)'),
-      ],
-    );
-  }
-
-  Widget _buildDataUnavailable() {
-    return const Text('Detailed data not available for this location.');
-  }
-
-  Widget _buildDataRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          // Empty state message
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40.0),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.analytics_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No data summary available',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: Text(value),
           ),
         ],
       ),
@@ -280,6 +294,7 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildInsightsTab() {
+    // Show empty content instead of population data
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -289,54 +304,45 @@ class GeneralBottomSheet extends StatelessWidget {
             'Insights',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 20,
             ),
           ),
-          const SizedBox(height: 8),
-          isDefaultView
-              ? const Text(
-                  'Quezon Province is known for its agricultural production, particularly coconut. '
-                  'The province faces challenges such as development disparities between coastal and inland areas, '
-                  'vulnerability to typhoons, and managing its natural resources sustainably.')
-              : Text(
-                  'Insights for ${location.name} will be displayed here, including '
-                  'local economic opportunities, development challenges, and unique characteristics.'),
           const SizedBox(height: 16),
-          const Text(
-            'Key Observations:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+
+          // Empty state message
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40.0),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No insights available',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          _buildInsightPoint('1. Economic Potential',
-              'Tourism and agriculture present significant growth opportunities.'),
-          _buildInsightPoint('2. Development Challenges',
-              'Infrastructure gaps and climate vulnerability need addressing.'),
-          _buildInsightPoint('3. Recommendations',
-              'Focus on sustainable development and economic diversification.'),
         ],
       ),
     );
   }
 
-  Widget _buildInsightPoint(String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(description),
-        ],
-      ),
-    );
+  // Helper method to format large numbers with commas
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 }

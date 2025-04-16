@@ -54,6 +54,10 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   bool _isPopulationDataLoaded = false;
   bool _isMapInitialized = false; // Add flag to track map initialization
 
+  // Add a map to store raw population data, not just normalized values
+  final Map<String, int> _rawPopulationData = {};
+  int? _totalPopulation;
+
   List<DataModel> _generateDataModel() {
     return <DataModel>[
       DataModel('Agdangan', 13.885378, 121.9359),
@@ -185,6 +189,19 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         if (docSnapshot.exists) {
           final data = docSnapshot.data() as Map<String, dynamic>;
 
+          // Store the total population
+          if (data.containsKey('Total Population')) {
+            _totalPopulation = (data['Total Population'] as num).toInt();
+          }
+
+          // Store raw population data
+          for (String municipality in _data.map((e) => e.name)) {
+            if (data.containsKey(municipality)) {
+              _rawPopulationData[municipality] =
+                  (data[municipality] as num).toInt();
+            }
+          }
+
           // Find min and max population for better normalization
           double minPopulation = double.infinity;
           double maxPopulation = 0;
@@ -250,15 +267,21 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Generate placeholder population data when Firebase is unavailable
   void _generatePlaceholderPopulationData() {
+    // Generate placeholder for total population too
+    _totalPopulation = 1950459; // Example total population for Quezon
+
     // Generate placeholder population values based on municipality name
     for (var municipality in _data) {
       String name = municipality.name;
 
       // Create a deterministic but varied value based on name
       int nameHash = name.codeUnits.fold(0, (sum, char) => sum + char);
-      double value = (nameHash % 100).toDouble();
+      int rawValue =
+          10000 + (nameHash % 90000); // Generate values between 10k and 100k
 
-      _populationData[name] = value;
+      // Store both raw and normalized values
+      _rawPopulationData[name] = rawValue;
+      _populationData[name] = (rawValue % 100).toDouble();
     }
 
     debugPrint(
@@ -497,6 +520,13 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     debugPrint(
         'Building bottom sheet: filter=$_selectedFilter, location=${displayLocation.name}, default=$isDefaultView');
 
+    // Get the municipality population if selected
+    int? municipalityPopulation;
+    if (!isDefaultView &&
+        _rawPopulationData.containsKey(_selectedLocation!.name)) {
+      municipalityPopulation = _rawPopulationData[_selectedLocation!.name];
+    }
+
     // Only show category-specific bottom sheet if it's province-wide (default) view
     // AND a category filter is selected
     if (_selectedFilter != 'General' && isDefaultView) {
@@ -519,6 +549,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         sheetHeight: _bottomSheetHeight,
         onClose: _resetToQuezonProvince,
         onDragUpdate: _handleDragUpdate,
+        municipalityPopulation: municipalityPopulation,
       );
     }
 
@@ -532,6 +563,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       onDragUpdate: _handleDragUpdate,
       onToggleExpansion: _toggleBottomSheetExpansion,
       tabController: _tabController,
+      totalPopulation: _totalPopulation,
     );
   }
 
@@ -573,19 +605,68 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     );
   }
 
-  // Get color mappers for population data (blue gradient)
+  // Get color mappers for population data (grey gradient with 20 shades)
   List<MapColorMapper> _getPopulationColorMappers() {
-    return [
-      // Create more distinct colors for the blue gradient
-      MapColorMapper(
-          from: 0, to: 20, color: Colors.blue[50]!, text: 'Very Low'),
-      MapColorMapper(from: 20, to: 40, color: Colors.blue[200]!, text: 'Low'),
-      MapColorMapper(
-          from: 40, to: 60, color: Colors.blue[400]!, text: 'Medium'),
-      MapColorMapper(from: 60, to: 80, color: Colors.blue[600]!, text: 'High'),
-      MapColorMapper(
-          from: 80, to: 100, color: Colors.blue[900]!, text: 'Very High'),
-    ];
+    // Create a list to hold all color mappers
+    List<MapColorMapper> mappers = [];
+
+    // Define 20 shades of grey with 5% intervals
+    for (int i = 0; i < 20; i++) {
+      // Calculate start and end values for the current interval (5% each)
+      double from = i * 5.0;
+      double to = (i + 1) * 5.0;
+
+      // Generate appropriate shade of grey
+      // The greyscale goes from very light (50) to very dark (900)
+      // We'll interpolate between these values
+
+      // The standard Material grey scale has: 50, 100, 200, 300, 400, 500, 600, 700, 800, 900
+      // For 20 shades, we'll need to create intermediate values
+
+      // Map the range 0-20 to the range 50-900 for the grey scale
+      double greyValue = 50.0 + (i / 19.0) * 850.0;
+
+      // Find the closest standard grey values and interpolate between them
+      int lowerGrey = (greyValue ~/ 100) * 100;
+      if (lowerGrey < 50) lowerGrey = 50;
+
+      int upperGrey = lowerGrey + 100;
+      if (lowerGrey == 50) upperGrey = 100;
+      if (upperGrey > 900) upperGrey = 900;
+
+      // Calculate interpolation factor between the two standard grey values
+      double factor = (greyValue - lowerGrey) / (upperGrey - lowerGrey);
+
+      // Get or create the appropriate color
+      Color color;
+      if (lowerGrey == upperGrey) {
+        color = Colors.grey[lowerGrey]!;
+      } else {
+        // For standard Material Design grey levels
+        if (lowerGrey % 100 == 0 || lowerGrey == 50) {
+          if (upperGrey % 100 == 0 || upperGrey == 50) {
+            color = Color.lerp(
+                Colors.grey[lowerGrey]!, Colors.grey[upperGrey]!, factor)!;
+          } else {
+            // Handle the case where upperGrey is non-standard
+            color = Colors.grey[lowerGrey]!;
+          }
+        } else {
+          // Handle non-standard lower grey value
+          color = Colors.grey[100]!; // Fallback
+        }
+      }
+
+      // Add the mapper with a formatted text label
+      mappers.add(MapColorMapper(
+        from: from,
+        to: to,
+        color: color,
+        text: '${from.toStringAsFixed(0)}-${to.toStringAsFixed(0)}%',
+      ));
+    }
+
+    return mappers;
   }
 
   // Get color mappers for category filters (diverse colors)
