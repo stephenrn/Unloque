@@ -167,7 +167,7 @@ class _ProgramsTab extends StatelessWidget {
       Colors.cyan[100]!,
     ];
 
-    // List of available categories
+    // List of available categories - make sure this matches how data is stored in Firebase
     final categories = ['Educational', 'Social', 'Healthcare'];
 
     showDialog(
@@ -1174,13 +1174,19 @@ class _NewsSliderStyleCard extends StatelessWidget {
                                     height: 24,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
-                                      return Icon(Icons.business,
-                                          size: 16, color: Colors.grey[600]);
+                                      return Icon(
+                                        Icons.business,
+                                        size: 16,
+                                        color: Colors.grey[600],
+                                      );
                                     },
                                   ),
                                 )
-                              : Icon(Icons.business,
-                                  size: 16, color: Colors.grey[600]),
+                              : Icon(
+                                  Icons.business,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
                         ),
                         SizedBox(width: 4),
                         // Handle long organization names with Expanded and ellipsis

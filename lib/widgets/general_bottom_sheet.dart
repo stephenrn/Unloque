@@ -14,6 +14,10 @@ class GeneralBottomSheet extends StatelessWidget {
   final TabController tabController;
   // Add new parameter to receive total population
   final int? totalPopulation;
+  // Add parameters for category data totals
+  final int? healthcareTotalBeneficiaries;
+  final int? socialTotalBeneficiaries;
+  final int? educationTotalBeneficiaries;
 
   const GeneralBottomSheet({
     Key? key,
@@ -26,6 +30,9 @@ class GeneralBottomSheet extends StatelessWidget {
     required this.onToggleExpansion,
     required this.tabController,
     this.totalPopulation, // Make it optional since it might be null during loading
+    this.healthcareTotalBeneficiaries,
+    this.socialTotalBeneficiaries,
+    this.educationTotalBeneficiaries,
   }) : super(key: key);
 
   @override
@@ -54,38 +61,28 @@ class GeneralBottomSheet extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Fixed-size drag handle area
+              // Drag handle
               _buildDragHandle(),
 
-              // Location header
+              // Location header with name and population
               _buildLocationHeader(),
 
-              // Divider for visual separation
-              Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
+              if (isExpanded) ...[
+                // Tab bar
+                _buildTabBar(),
 
-              // Show different content based on whether we're showing Quezon Province or a specific municipality
-              if (isDefaultView) // Only show tabs for Quezon Province
+                // Tab content
                 Expanded(
-                  child: Column(
+                  child: TabBarView(
+                    controller: tabController,
                     children: [
-                      // Tab Bar with fixed height
-                      _buildTabBar(),
-
-                      // Tab content with consistent padding
-                      if (isExpanded)
-                        Expanded(
-                          child: TabBarView(
-                            controller: tabController,
-                            children: [
-                              _buildDataAnalysisTab(),
-                              _buildDataSummaryTab(),
-                              _buildInsightsTab(),
-                            ],
-                          ),
-                        ),
+                      _buildDataAnalysisTab(),
+                      _buildDataSummaryTab(),
+                      _buildInsightsTab(),
                     ],
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -94,16 +91,19 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildDragHandle() {
-    return Container(
-      width: double.infinity,
-      height: 16,
-      alignment: Alignment.center,
+    return GestureDetector(
+      onTap: onToggleExpansion,
       child: Container(
-        width: 50,
-        height: 5,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade400,
-          borderRadius: BorderRadius.circular(2.5),
+        width: double.infinity,
+        height: 16,
+        alignment: Alignment.center,
+        child: Container(
+          width: 50,
+          height: 5,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade400,
+            borderRadius: BorderRadius.circular(2.5),
+          ),
         ),
       ),
     );
@@ -130,26 +130,19 @@ class GeneralBottomSheet extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                isDefaultView
-                    ? const Text(
-                        'Explore municipalities and cities',
-                        style: TextStyle(
-                          fontStyle: FontStyle.italic,
-                          fontSize: 12,
-                        ),
-                      )
-                    : Text(
-                        'Lat: ${location.latitude.toStringAsFixed(4)}, Long: ${location.longitude.toStringAsFixed(4)}',
-                        style: const TextStyle(
-                          fontStyle: FontStyle.italic,
-                          fontSize: 12,
-                        ),
-                      ),
+                if (totalPopulation != null)
+                  Text(
+                    'Population: ${_formatNumber(totalPopulation!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
               ],
             ),
           ),
-          if (!isDefaultView)
+          if (isDefaultView ==
+              false) // Close button only if we are viewing a specific municipality
             IconButton(
               icon: const Icon(Icons.close, size: 20),
               padding: EdgeInsets.zero,
@@ -163,14 +156,13 @@ class GeneralBottomSheet extends StatelessWidget {
 
   Widget _buildTabBar() {
     return SizedBox(
-      height: 40, // Fixed height for tab bar
+      height: 48,
       child: TabBar(
         controller: tabController,
-        labelColor: Colors.blue,
-        unselectedLabelColor: Colors.grey,
-        indicatorColor: Colors.blue,
-        labelStyle: const TextStyle(fontSize: 14),
-        indicatorWeight: 2.0,
+        labelColor: Colors.blue[700],
+        unselectedLabelColor: Colors.grey[600],
+        indicatorColor: Colors.blue[700],
+        indicatorWeight: 3.0,
         tabs: const [
           Tab(text: 'Data Analysis'),
           Tab(text: 'Data Summary'),
@@ -181,14 +173,14 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildDataAnalysisTab() {
-    // Simplified to focus on just showing total population
+    // Updated to show category totals
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Population Data',
+            'Beneficiaries by Category',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
@@ -196,7 +188,7 @@ class GeneralBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Population data card
+          // Total Population card
           Card(
             elevation: 3,
             shape: RoundedRectangleBorder(
@@ -243,6 +235,132 @@ class GeneralBottomSheet extends StatelessWidget {
               ),
             ),
           ),
+
+          const SizedBox(height: 16),
+
+          // Healthcare Beneficiaries Card
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.local_hospital,
+                    size: 48,
+                    color: Colors.red[600],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Healthcare Beneficiaries',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    healthcareTotalBeneficiaries != null
+                        ? _formatNumber(healthcareTotalBeneficiaries!)
+                        : 'Loading...',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Social Beneficiaries Card
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.people,
+                    size: 48,
+                    color: Colors.green[600],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Social Beneficiaries',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    socialTotalBeneficiaries != null
+                        ? _formatNumber(socialTotalBeneficiaries!)
+                        : 'Loading...',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Education Beneficiaries Card
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.school,
+                    size: 48,
+                    color: Colors.blue[600],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Educational Beneficiaries', // Changed from 'Education Beneficiaries' to 'Educational Beneficiaries'
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    educationTotalBeneficiaries != null
+                        ? _formatNumber(educationTotalBeneficiaries!)
+                        : 'Loading...',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -256,35 +374,20 @@ class GeneralBottomSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Summary Data',
+            'Data Summary',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
             ),
           ),
           const SizedBox(height: 16),
-
-          // Empty state message
-          Center(
+          // Additional summary widgets would go here
+          const Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40.0),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.analytics_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No data summary available',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              padding: EdgeInsets.symmetric(vertical: 50.0),
+              child: Text(
+                'Summary data coming soon',
+                style: TextStyle(color: Colors.grey),
               ),
             ),
           ),
@@ -308,28 +411,13 @@ class GeneralBottomSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Empty state message
-          Center(
+          // Insights content would go here
+          const Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40.0),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No insights available',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              padding: EdgeInsets.symmetric(vertical: 50.0),
+              child: Text(
+                'Insights coming soon',
+                style: TextStyle(color: Colors.grey),
               ),
             ),
           ),

@@ -58,6 +58,21 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   final Map<String, int> _rawPopulationData = {};
   int? _totalPopulation;
 
+  // Add maps to store beneficiary data for each category
+  final Map<String, Map<String, int>> _categoryData = {
+    'Healthcare': {},
+    'Social': {},
+    'Educational': {}, // Changed from 'Education' to 'Educational'
+  };
+
+  // Add variables for category totals
+  int? _healthcareTotalBeneficiaries;
+  int? _socialTotalBeneficiaries;
+  int? _educationTotalBeneficiaries;
+
+  // Track if category data is loaded
+  bool _isCategoryDataLoaded = false;
+
   List<DataModel> _generateDataModel() {
     return <DataModel>[
       DataModel('Agdangan', 13.885378, 121.9359),
@@ -144,6 +159,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     // Fetch population data from Firebase
     _fetchPopulationData();
+
+    // Add call to fetch category data
+    _fetchCategoryData();
   }
 
   // Initialize map sources before Firebase data is loaded
@@ -172,6 +190,220 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     _isMapInitialized = true;
     debugPrint('Map sources initialized with placeholder data');
+  }
+
+  // Add method to fetch program categories
+  Future<Map<String, String>> _fetchProgramCategories() async {
+    Map<String, String> programCategories = {};
+
+    try {
+      // Query all organizations
+      final orgSnapshot =
+          await FirebaseFirestore.instance.collection('organizations').get();
+
+      // For each organization, get its programs
+      for (var orgDoc in orgSnapshot.docs) {
+        final programsSnapshot = await FirebaseFirestore.instance
+            .collection('organizations')
+            .doc(orgDoc.id)
+            .collection('programs')
+            .get();
+
+        // Store program id -> category mapping
+        for (var programDoc in programsSnapshot.docs) {
+          final data = programDoc.data();
+          final programId = data['id'] as String?;
+          final category = data['category'] as String?;
+
+          if (programId != null && category != null) {
+            programCategories[programId] = category;
+          }
+        }
+      }
+
+      debugPrint('Fetched ${programCategories.length} program categories');
+      return programCategories;
+    } catch (e) {
+      debugPrint('Error fetching program categories: $e');
+      return {};
+    }
+  }
+
+  // Add method to fetch beneficiary data by category
+  Future<void> _fetchCategoryData() async {
+    try {
+      debugPrint('Fetching beneficiary data by category...');
+
+      // First get program categories
+      final programCategories = await _fetchProgramCategories();
+
+      if (programCategories.isEmpty) {
+        debugPrint('No program categories found, using placeholder data');
+        _generatePlaceholderCategoryData();
+        return;
+      }
+
+      // Fetch all beneficiary data from mapdata collection
+      final beneficiarySnapshot = await FirebaseFirestore.instance
+          .collection('mapdata')
+          .where('type', isEqualTo: 'beneficiaries')
+          .get();
+
+      // Initialize category totals
+      _healthcareTotalBeneficiaries = 0;
+      _socialTotalBeneficiaries = 0;
+      _educationTotalBeneficiaries = 0;
+
+      // Process each beneficiary document
+      for (var doc in beneficiarySnapshot.docs) {
+        final data = doc.data();
+        final programId = data['programId'] as String?;
+
+        // Skip if no programId or not in our categories map
+        if (programId == null || !programCategories.containsKey(programId)) {
+          continue;
+        }
+
+        // Get the program category
+        final category = programCategories[programId]!;
+
+        // Create a normalized category name for consistent comparison
+        String normalizedCategory = category.toLowerCase();
+
+        // Skip if not one of our target categories
+        bool isHealthcare = normalizedCategory == 'healthcare';
+        bool isSocial = normalizedCategory == 'social';
+        bool isEducational = normalizedCategory == 'education' ||
+            normalizedCategory == 'educational';
+
+        if (!isHealthcare && !isSocial && !isEducational) {
+          continue;
+        }
+
+        // Process municipality data - exclude non-municipality fields
+        final excludeFields = [
+          'programId',
+          'programName',
+          'organizationId',
+          'type',
+          'title',
+          'updatedAt'
+        ];
+
+        // Process each municipality and its beneficiaries
+        for (String municipality in _data.map((e) => e.name)) {
+          if (data.containsKey(municipality) &&
+              !excludeFields.contains(municipality)) {
+            int beneficiaries = (data[municipality] as num).toInt();
+
+            // Add to the category map for this municipality based on normalized categories
+            if (isHealthcare) {
+              _categoryData['Healthcare']![municipality] =
+                  (_categoryData['Healthcare']![municipality] ?? 0) +
+                      beneficiaries;
+              _healthcareTotalBeneficiaries =
+                  (_healthcareTotalBeneficiaries ?? 0) + beneficiaries;
+            } else if (isSocial) {
+              _categoryData['Social']![municipality] =
+                  (_categoryData['Social']![municipality] ?? 0) + beneficiaries;
+              _socialTotalBeneficiaries =
+                  (_socialTotalBeneficiaries ?? 0) + beneficiaries;
+            } else if (isEducational) {
+              _categoryData['Educational']![municipality] =
+                  (_categoryData['Educational']![municipality] ?? 0) +
+                      beneficiaries;
+              _educationTotalBeneficiaries =
+                  (_educationTotalBeneficiaries ?? 0) + beneficiaries;
+            }
+          }
+        }
+
+        // Also handle Total Beneficiaries
+        if (data.containsKey('Total Beneficiaries')) {
+          int totalBeneficiaries = (data['Total Beneficiaries'] as num).toInt();
+
+          // Update category totals
+          if (isHealthcare) {
+            _healthcareTotalBeneficiaries =
+                (_healthcareTotalBeneficiaries ?? 0) + totalBeneficiaries;
+          } else if (isSocial) {
+            _socialTotalBeneficiaries =
+                (_socialTotalBeneficiaries ?? 0) + totalBeneficiaries;
+          } else if (isEducational) {
+            _educationTotalBeneficiaries =
+                (_educationTotalBeneficiaries ?? 0) + totalBeneficiaries;
+          }
+        }
+      }
+
+      // Normalize the data for map display (0-100 scale)
+      for (String category in _categoryData.keys) {
+        int maxValue = 0;
+
+        // Find the maximum value for this category
+        for (String municipality in _data.map((e) => e.name)) {
+          int value = _categoryData[category]![municipality] ?? 0;
+          if (value > maxValue) maxValue = value;
+        }
+
+        // Normalize if maxValue is > 0
+        if (maxValue > 0) {
+          for (String municipality in _data.map((e) => e.name)) {
+            int value = _categoryData[category]![municipality] ?? 0;
+            _municipalityData[category + "_" + municipality] =
+                (value / maxValue * 100).toDouble();
+          }
+        }
+      }
+
+      debugPrint(
+          'Beneficiary data loaded: Healthcare=${_healthcareTotalBeneficiaries}, Social=${_socialTotalBeneficiaries}, Education=${_educationTotalBeneficiaries}');
+      setState(() {
+        _isCategoryDataLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('Error loading category data: $e');
+      _generatePlaceholderCategoryData();
+    } finally {
+      setState(() {
+        _isCategoryDataLoaded = true;
+        _isLoading = false;
+        _updateShapeSources();
+      });
+    }
+  }
+
+  // Generate placeholder category data when Firebase is unavailable
+  void _generatePlaceholderCategoryData() {
+    debugPrint('Generating placeholder category data');
+
+    // Create some placeholder totals
+    _healthcareTotalBeneficiaries = 75000;
+    _socialTotalBeneficiaries = 125000;
+    _educationTotalBeneficiaries = 98000;
+
+    // Generate placeholder values for each municipality and category
+    for (String category in _categoryData.keys) {
+      for (var municipality in _data) {
+        String name = municipality.name;
+
+        // Create a deterministic but varied value based on name and category
+        int nameHash = name.codeUnits.fold(0, (sum, char) => sum + char);
+        int categoryHash =
+            category.codeUnits.fold(0, (sum, char) => sum + char);
+        int combinedHash = nameHash + categoryHash;
+
+        // Store raw value in category data
+        int value = 100 + (combinedHash % 9900); // 100-10000 range
+        _categoryData[category]![name] = value;
+
+        // Store normalized value (0-100) in municipality data for mapping
+        _municipalityData[category + "_" + name] = (value % 100).toDouble();
+      }
+    }
+
+    debugPrint(
+        'Generated placeholder data for ${_data.length} municipalities in 3 categories');
   }
 
   // Add method to fetch population data from Firestore
@@ -273,12 +505,10 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     // Generate placeholder population values based on municipality name
     for (var municipality in _data) {
       String name = municipality.name;
-
       // Create a deterministic but varied value based on name
       int nameHash = name.codeUnits.fold(0, (sum, char) => sum + char);
       int rawValue =
           10000 + (nameHash % 90000); // Generate values between 10k and 100k
-
       // Store both raw and normalized values
       _rawPopulationData[name] = rawValue;
       _populationData[name] = (rawValue % 100).toDouble();
@@ -301,9 +531,12 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       return;
     }
 
-    debugPrint('Updating shape sources for filter: $_selectedFilter');
+    if (_selectedFilter != 'General' && !_isCategoryDataLoaded) {
+      debugPrint('Category data not loaded yet, deferring shape source update');
+      return;
+    }
 
-    // ...existing code for updating _shapeSource...
+    debugPrint('Updating shape sources for filter: $_selectedFilter');
 
     _sublayerSource = MapShapeSource.asset(
       'lib/map/GeoJSON.json',
@@ -317,12 +550,15 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           final value = _populationData[municipalityName] ?? 0;
           return value;
         } else {
-          return _municipalityData[municipalityName] ?? 0;
+          // Use the category-specific data
+          final value =
+              _municipalityData[_selectedFilter + "_" + municipalityName] ?? 0;
+          return value;
         }
       },
       shapeColorMappers: _selectedFilter == 'General'
           ? _getPopulationColorMappers()
-          : _getCategoryColorMappers(),
+          : _getCategoryColorMappers(_selectedFilter),
     );
 
     // Force a rebuild to ensure the map updates
@@ -421,7 +657,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     });
   }
 
-  // Add method to handle filter selection
+  // Method to handle filter selection
   void _onFilterSelected(String filter) {
     setState(() {
       _selectedFilter = filter;
@@ -432,7 +668,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       // Update shape sources when filter changes to apply correct color mapping
       _updateShapeSources();
     });
-    // Here you would add logic to filter map data based on selected category
   }
 
   // Create widget for filter buttons with improved positioning and no splash
@@ -445,7 +680,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       'General',
       'Healthcare',
       'Social',
-      'Education'
+      'Educational' // Changed from 'Education' to 'Educational'
     ];
 
     return Positioned(
@@ -530,6 +765,18 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     // Only show category-specific bottom sheet if it's province-wide (default) view
     // AND a category filter is selected
     if (_selectedFilter != 'General' && isDefaultView) {
+      // Get the appropriate category data
+      Map<String, int>? categoryData = _categoryData[_selectedFilter];
+      int? categoryTotal;
+
+      if (_selectedFilter == 'Healthcare') {
+        categoryTotal = _healthcareTotalBeneficiaries;
+      } else if (_selectedFilter == 'Social') {
+        categoryTotal = _socialTotalBeneficiaries;
+      } else if (_selectedFilter == 'Educational') {
+        categoryTotal = _educationTotalBeneficiaries;
+      }
+
       return CategoryFilterBottomSheet(
         location: displayLocation,
         isDefaultView: isDefaultView,
@@ -538,6 +785,35 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         selectedFilter: _selectedFilter,
         onClose: () => _onFilterSelected('General'),
         onDragUpdate: _handleDragUpdate,
+        categoryMunicipalityData: categoryData,
+        categoryTotalBeneficiaries: categoryTotal,
+      );
+    }
+
+    // Show municipality-specific bottom sheet with category data if a filter is active
+    if (!isDefaultView && _selectedFilter != 'General') {
+      // Get the appropriate category data
+      Map<String, int>? categoryData = _categoryData[_selectedFilter];
+      int? categoryTotal;
+
+      if (_selectedFilter == 'Healthcare') {
+        categoryTotal = _healthcareTotalBeneficiaries;
+      } else if (_selectedFilter == 'Social') {
+        categoryTotal = _socialTotalBeneficiaries;
+      } else if (_selectedFilter == 'Educational') {
+        categoryTotal = _educationTotalBeneficiaries;
+      }
+
+      return CategoryFilterBottomSheet(
+        location: displayLocation,
+        isDefaultView: isDefaultView,
+        isExpanded: _isBottomSheetExpanded,
+        sheetHeight: _bottomSheetHeight,
+        selectedFilter: _selectedFilter,
+        onClose: _resetToQuezonProvince,
+        onDragUpdate: _handleDragUpdate,
+        categoryMunicipalityData: categoryData,
+        categoryTotalBeneficiaries: categoryTotal,
       );
     }
 
@@ -564,6 +840,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       onToggleExpansion: _toggleBottomSheetExpansion,
       tabController: _tabController,
       totalPopulation: _totalPopulation,
+      healthcareTotalBeneficiaries: _healthcareTotalBeneficiaries,
+      socialTotalBeneficiaries: _socialTotalBeneficiaries,
+      educationTotalBeneficiaries: _educationTotalBeneficiaries,
     );
   }
 
@@ -669,25 +948,103 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     return mappers;
   }
 
-  // Get color mappers for category filters (diverse colors)
-  List<MapColorMapper> _getCategoryColorMappers() {
-    return [
-      MapColorMapper(from: 0, to: 20, color: Colors.green[300]!, text: '0-20'),
-      MapColorMapper(from: 20, to: 40, color: Colors.blue[300]!, text: '20-40'),
-      MapColorMapper(
-          from: 40, to: 60, color: Colors.orange[300]!, text: '40-60'),
-      MapColorMapper(from: 60, to: 80, color: Colors.red[300]!, text: '60-80'),
-      MapColorMapper(
-          from: 80, to: 100, color: Colors.purple[300]!, text: '80-100'),
-    ];
+  // Get category-specific color mappers
+  List<MapColorMapper> _getCategoryColorMappers(String category) {
+    List<MapColorMapper> mappers = [];
+
+    // Define colors based on category
+    List<Color> colorShades;
+
+    switch (category) {
+      case 'Healthcare':
+        // Red shades for healthcare
+        colorShades = [
+          Colors.red[50]!,
+          Colors.red[100]!,
+          Colors.red[200]!,
+          Colors.red[300]!,
+          Colors.red[400]!,
+          Colors.red[500]!,
+          Colors.red[600]!,
+          Colors.red[700]!,
+          Colors.red[800]!,
+          Colors.red[900]!,
+        ];
+        break;
+      case 'Social':
+        // Green shades for social
+        colorShades = [
+          Colors.green[50]!,
+          Colors.green[100]!,
+          Colors.green[200]!,
+          Colors.green[300]!,
+          Colors.green[400]!,
+          Colors.green[500]!,
+          Colors.green[600]!,
+          Colors.green[700]!,
+          Colors.green[800]!,
+          Colors.green[900]!,
+        ];
+        break;
+      case 'Education':
+        // Blue shades for education
+        colorShades = [
+          Colors.blue[50]!,
+          Colors.blue[100]!,
+          Colors.blue[200]!,
+          Colors.blue[300]!,
+          Colors.blue[400]!,
+          Colors.blue[500]!,
+          Colors.blue[600]!,
+          Colors.blue[700]!,
+          Colors.blue[800]!,
+          Colors.blue[900]!,
+        ];
+        break;
+      default:
+        // Default to blue shades
+        colorShades = [
+          Colors.blue[50]!,
+          Colors.blue[100]!,
+          Colors.blue[200]!,
+          Colors.blue[300]!,
+          Colors.blue[400]!,
+          Colors.blue[500]!,
+          Colors.blue[600]!,
+          Colors.blue[700]!,
+          Colors.blue[800]!,
+          Colors.blue[900]!,
+        ];
+    }
+
+    // Create 10 color mappers with 10% range each
+    for (int i = 0; i < 10; i++) {
+      double from = i * 10.0;
+      double to = (i + 1) * 10.0;
+
+      mappers.add(MapColorMapper(
+        from: from,
+        to: to,
+        color: colorShades[i],
+        text: '${from.toStringAsFixed(0)}-${to.toStringAsFixed(0)}%',
+      ));
+    }
+
+    return mappers;
+  }
+
+  // Format number with commas
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     debugPrint(
         'Building MapPage with filter: $_selectedFilter, population data loaded: $_isPopulationDataLoaded');
-
-    // ...existing code...
 
     if (_isLoading) {
       return Scaffold(

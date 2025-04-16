@@ -12,6 +12,10 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   final Function() onClose;
   final Function(DragUpdateDetails) onDragUpdate;
 
+  // Add parameters to receive beneficiary data
+  final Map<String, int>? categoryMunicipalityData;
+  final int? categoryTotalBeneficiaries;
+
   const CategoryFilterBottomSheet({
     Key? key,
     required this.location,
@@ -21,6 +25,8 @@ class CategoryFilterBottomSheet extends StatelessWidget {
     required this.selectedFilter,
     required this.onClose,
     required this.onDragUpdate,
+    this.categoryMunicipalityData,
+    this.categoryTotalBeneficiaries,
   }) : super(key: key);
 
   @override
@@ -35,11 +41,11 @@ class CategoryFilterBottomSheet extends StatelessWidget {
         categoryIcon = Icons.local_hospital;
         break;
       case 'Social':
-        categoryColor = Colors.purple.shade600;
+        categoryColor = Colors.green.shade600;
         categoryIcon = Icons.people;
         break;
-      case 'Education':
-        categoryColor = Colors.green.shade600;
+      case 'Educational': // Changed from 'Education' to 'Educational'
+        categoryColor = Colors.blue.shade600;
         categoryIcon = Icons.school;
         break;
       default:
@@ -165,20 +171,51 @@ class CategoryFilterBottomSheet extends StatelessWidget {
         return _buildHealthcareContent();
       case 'Social':
         return _buildSocialContent();
-      case 'Education':
+      case 'Educational': // Changed from 'Education' to 'Educational'
         return _buildEducationContent();
       default:
         return Container();
     }
   }
 
-  // Healthcare content
+  // Healthcare content - UPDATED
   Widget _buildHealthcareContent() {
+    // Get beneficiary count for this municipality if available
+    String beneficiaryCount = 'Not available';
+    if (!isDefaultView &&
+        categoryMunicipalityData != null &&
+        categoryMunicipalityData!.containsKey(location.name)) {
+      beneficiaryCount =
+          _formatNumber(categoryMunicipalityData![location.name]!);
+    }
+
+    // Get total beneficiaries if available
+    String totalBeneficiaries = 'Data not available';
+    if (categoryTotalBeneficiaries != null) {
+      totalBeneficiaries = _formatNumber(categoryTotalBeneficiaries!);
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            isDefaultView
+                ? 'Healthcare Beneficiaries in Quezon Province'
+                : 'Healthcare Beneficiaries in ${location.name}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildFacilityCard(
+            'Total Beneficiaries',
+            isDefaultView ? totalBeneficiaries : beneficiaryCount,
+            Icons.local_hospital,
+            Colors.red.shade100,
+          ),
           Text(
             isDefaultView
                 ? 'Healthcare Facilities in Quezon Province'
@@ -229,13 +266,44 @@ class CategoryFilterBottomSheet extends StatelessWidget {
     );
   }
 
-  // Social welfare content
+  // Social welfare content - UPDATED
   Widget _buildSocialContent() {
+    // Get beneficiary count for this municipality if available
+    String beneficiaryCount = 'Not available';
+    if (!isDefaultView &&
+        categoryMunicipalityData != null &&
+        categoryMunicipalityData!.containsKey(location.name)) {
+      beneficiaryCount =
+          _formatNumber(categoryMunicipalityData![location.name]!);
+    }
+
+    // Get total beneficiaries if available
+    String totalBeneficiaries = 'Data not available';
+    if (categoryTotalBeneficiaries != null) {
+      totalBeneficiaries = _formatNumber(categoryTotalBeneficiaries!);
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            isDefaultView
+                ? 'Social Welfare Beneficiaries in Quezon Province'
+                : 'Social Welfare Beneficiaries in ${location.name}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildFacilityCard(
+            'Total Beneficiaries',
+            isDefaultView ? totalBeneficiaries : beneficiaryCount,
+            Icons.people,
+            Colors.green.shade100,
+          ),
           Text(
             isDefaultView
                 ? 'Social Welfare Programs in Quezon Province'
@@ -290,13 +358,44 @@ class CategoryFilterBottomSheet extends StatelessWidget {
     );
   }
 
-  // Education content
+  // Education content - UPDATED
   Widget _buildEducationContent() {
+    // Get beneficiary count for this municipality if available
+    String beneficiaryCount = 'Not available';
+    if (!isDefaultView &&
+        categoryMunicipalityData != null &&
+        categoryMunicipalityData!.containsKey(location.name)) {
+      beneficiaryCount =
+          _formatNumber(categoryMunicipalityData![location.name]!);
+    }
+
+    // Get total beneficiaries if available
+    String totalBeneficiaries = 'Data not available';
+    if (categoryTotalBeneficiaries != null) {
+      totalBeneficiaries = _formatNumber(categoryTotalBeneficiaries!);
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            isDefaultView
+                ? 'Education Beneficiaries in Quezon Province'
+                : 'Education Beneficiaries in ${location.name}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildFacilityCard(
+            'Total Beneficiaries',
+            isDefaultView ? totalBeneficiaries : beneficiaryCount,
+            Icons.school,
+            Colors.blue.shade100,
+          ),
           Text(
             isDefaultView
                 ? 'Education in Quezon Province'
@@ -359,6 +458,14 @@ class CategoryFilterBottomSheet extends StatelessWidget {
 
   int _getMunicipalitySchoolCount(String municipality) {
     return municipality.length + 5; // Simple formula for demo purposes
+  }
+
+  // Add method to format numbers with commas
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
   // Helper widgets for category contents
