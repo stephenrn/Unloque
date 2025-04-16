@@ -876,6 +876,43 @@ class _NewsTabState extends State<_NewsTab> {
     );
   }
 
+  // Add this method to delete a news article
+  void _deleteNewsArticle(DocumentSnapshot doc) {
+    final headline =
+        (doc.data() as Map<String, dynamic>)['headline'] ?? 'this article';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete News Article'),
+        content: Text('Are you sure you want to delete "$headline"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await doc.reference.delete();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('News article deleted!')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting article: $e')),
+                );
+              }
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // First, get the organization data to pass to news cards
@@ -969,11 +1006,11 @@ class _NewsTabState extends State<_NewsTab> {
                           date: data['date'] ?? '',
                           imageUrl: data['imageUrl'] ?? '',
                           newsUrl: data['newsUrl'] ?? '',
-                          organizationName:
-                              organizationName, // Pass correct org name
-                          logoUrl: logoUrl ?? '', // Pass org logo URL
+                          organizationName: organizationName,
+                          logoUrl: logoUrl ?? '',
                           onTapEdit: () => _showAddNewsDialog(context,
                               doc: doc, initialData: data),
+                          onTapDelete: () => _deleteNewsArticle(doc),
                         ),
                         // ...existing code...
                       ],
@@ -999,6 +1036,7 @@ class _NewsSliderStyleCard extends StatelessWidget {
   final String organizationName;
   final String logoUrl;
   final VoidCallback? onTapEdit;
+  final VoidCallback? onTapDelete; // Add this property
 
   const _NewsSliderStyleCard({
     Key? key,
@@ -1010,6 +1048,7 @@ class _NewsSliderStyleCard extends StatelessWidget {
     required this.organizationName,
     this.logoUrl = '',
     this.onTapEdit,
+    this.onTapDelete, // Add this parameter
   }) : super(key: key);
 
   // Updated colors to even lighter variants
@@ -1143,26 +1182,38 @@ class _NewsSliderStyleCard extends StatelessWidget {
                                   size: 16, color: Colors.grey[600]),
                         ),
                         SizedBox(width: 4),
-                        Text(
-                          organizationName,
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        // Handle long organization names with Expanded and ellipsis
+                        Expanded(
+                          child: Text(
+                            organizationName,
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         SizedBox(width: 12),
-                        Icon(Icons.calendar_today,
-                            color: Colors.white70, size: 14),
-                        SizedBox(width: 4),
-                        Text(
-                          date,
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                          ),
+                        // Ensure date always shows by using a non-flexible container
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_today,
+                                color: Colors.white70, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              date,
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     SizedBox(height: 8),
-                    // Headline
+                    // Headline - Add this section that was missing
                     Text(
                       headline,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1171,6 +1222,46 @@ class _NewsSliderStyleCard extends StatelessWidget {
                           ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // Admin action buttons - Add these to the top right
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Row(
+                  children: [
+                    // Edit button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.edit, size: 20),
+                        color: Colors.blue[800],
+                        padding: EdgeInsets.all(4),
+                        constraints: BoxConstraints(),
+                        onPressed: onTapEdit,
+                        tooltip: 'Edit',
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    // Delete button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.delete, size: 20),
+                        color: Colors.red[800],
+                        padding: EdgeInsets.all(4),
+                        constraints: BoxConstraints(),
+                        onPressed: onTapDelete,
+                        tooltip: 'Delete',
+                      ),
                     ),
                   ],
                 ),
@@ -1408,24 +1499,40 @@ class NewsViewerDialog extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 8),
-                // Organization and date with organization logo
+                // Organization and date with better support for long organization names
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     orgIcon, // Use the custom icon widget
                     SizedBox(width: 4),
-                    Text(
-                      organizationName.isNotEmpty
-                          ? organizationName
-                          : 'Organization',
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                    SizedBox(width: 16),
-                    Icon(Icons.calendar_today,
-                        size: 16, color: Colors.grey[700]),
-                    SizedBox(width: 4),
-                    Text(
-                      date,
-                      style: TextStyle(color: Colors.grey[700]),
+                    // Wrap the organization name in an Expanded to handle long text
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            organizationName.isNotEmpty
+                                ? organizationName
+                                : 'Organization',
+                            style: TextStyle(color: Colors.grey[700]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4),
+                          // Move date below for cleaner layout when org name is long
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.grey[700]),
+                              SizedBox(width: 4),
+                              Text(
+                                date,
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

@@ -6,22 +6,28 @@ import 'package:flutter/services.dart';
 import '../models/slider_item.dart';
 import '../constants/category_colors.dart';
 import '../utils/web_viewer.dart';
+import '../pages/all_news_page.dart'; // Add this import
 import 'dart:async';
 
 class AutoImageSlider extends StatefulWidget {
   const AutoImageSlider({super.key});
 
   @override
-  State<AutoImageSlider> createState() => _AutoImageSliderState();
+  State<AutoImageSlider> createState() => AutoImageSliderState();
 }
 
-class _AutoImageSliderState extends State<AutoImageSlider> {
+class AutoImageSliderState extends State<AutoImageSlider> {
   List<_NewsSliderItem> _newsItems = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _fetchNews();
+  }
+
+  // Public method that can be called directly via GlobalKey
+  void refreshNews() {
     _fetchNews();
   }
 
@@ -64,37 +70,43 @@ class _AutoImageSliderState extends State<AutoImageSlider> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_newsItems.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-            child: Text('No news available.',
-                style: TextStyle(color: Colors.grey[600]))),
-      );
-    }
     return Column(
       children: [
+        // Always show the header and view all button
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Breaking News',
+                'News Articles',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: Colors.grey[800],
                 ),
               ),
-              TextButton(
-                onPressed: _fetchNews,
+              TextButton.icon(
+                onPressed: () {
+                  // Navigate to All News page instead of refreshing
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AllNewsPage()),
+                  );
+                },
+                icon: Icon(
+                  Icons.article_outlined,
+                  color: Colors.grey[800],
+                  size: 14,
+                ),
+                label: Text(
+                  'All',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.grey[300],
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
@@ -103,29 +115,55 @@ class _AutoImageSliderState extends State<AutoImageSlider> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                child: Text(
-                  'Refresh',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
               ),
             ],
           ),
         ),
-        CarouselSlider(
-          options: CarouselOptions(
-            aspectRatio: 16 / 9,
-            viewportFraction: 0.80,
-            enlargeCenterPage: true,
-            enlargeFactor: 0.25,
-            autoPlay: true,
-            autoPlayInterval: Duration(seconds: 5),
+        // Conditionally show loading indicator, empty state message, or carousel
+        if (_loading)
+          Container(
+            height: 200, // Match the approximate height of the carousel
+            width: double.infinity, // Ensure full width
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 12),
+                  Text(
+                    'Loading news...',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (_newsItems.isEmpty)
+          Container(
+            height: 200, // Match the approximate height of the carousel
+            child: Center(
+              child: Text(
+                'No news available.',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          )
+        else
+          CarouselSlider(
+            options: CarouselOptions(
+              aspectRatio: 16 / 9,
+              viewportFraction: 0.80,
+              enlargeCenterPage: true,
+              enlargeFactor: 0.25,
+              autoPlay: true,
+              autoPlayInterval: Duration(seconds: 5),
+            ),
+            items: _newsItems.map((item) => _NewsCard(item: item)).toList(),
           ),
-          items: _newsItems.map((item) => _NewsCard(item: item)).toList(),
-        ),
       ],
     );
   }
@@ -203,11 +241,33 @@ class _NewsCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Background Image
+              // Background Image with error handling
               item.imageUrl.isNotEmpty
                   ? Image.network(
                       item.imageUrl,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Handle image loading errors gracefully
+                        print('Error loading image: $error');
+                        return Container(
+                          color: Colors.grey[300],
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.broken_image,
+                                    size: 40, color: Colors.grey[600]),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Image not available',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     )
                   : Container(color: Colors.grey[300]),
               // Gradient Overlay
@@ -246,7 +306,7 @@ class _NewsCard extends StatelessWidget {
                       ),
                     ),
                     Spacer(),
-                    // Source and Date
+                    // Source and Date - Fix for long organization names
                     Row(
                       children: [
                         Container(
@@ -276,21 +336,33 @@ class _NewsCard extends StatelessWidget {
                                   size: 16, color: Colors.grey[600]),
                         ),
                         SizedBox(width: 4),
-                        Text(
-                          item.organizationName,
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        // Wrap organization name in Expanded with ellipsis
+                        Expanded(
+                          child: Text(
+                            item.organizationName,
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         SizedBox(width: 12),
-                        Icon(Icons.calendar_today,
-                            color: Colors.white70, size: 14),
-                        SizedBox(width: 4),
-                        Text(
-                          item.date,
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                          ),
+                        // Ensure date always shows by not allowing it to be squeezed out
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_today,
+                                color: Colors.white70, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              item.date,
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -368,7 +440,7 @@ class NewsViewerDialog extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header with image
+          // Header with image - Add error handling
           ClipRRect(
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             child: item.imageUrl.isNotEmpty
@@ -378,11 +450,22 @@ class NewsViewerDialog extends StatelessWidget {
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
+                      print('Error loading image in dialog: $error');
                       return Container(
                         height: 180,
                         color: Colors.grey[300],
-                        child: Icon(Icons.image_not_supported,
-                            size: 50, color: Colors.grey),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.broken_image,
+                                size: 50, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text(
+                              'Unable to load image',
+                              style: TextStyle(color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   )
@@ -424,22 +507,40 @@ class NewsViewerDialog extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 8),
-                // Organization and date
+                // Organization and date with organization logo - Fix layout for long organization names
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     orgIcon,
                     SizedBox(width: 4),
-                    Text(
-                      item.organizationName,
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                    SizedBox(width: 16),
-                    Icon(Icons.calendar_today,
-                        size: 16, color: Colors.grey[700]),
-                    SizedBox(width: 4),
-                    Text(
-                      item.date,
-                      style: TextStyle(color: Colors.grey[700]),
+                    // Wrap the organization name in an Expanded to handle long text
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.organizationName.isNotEmpty
+                                ? item.organizationName
+                                : 'Organization',
+                            style: TextStyle(color: Colors.grey[700]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4),
+                          // Move date below for cleaner layout when org name is long
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.grey[700]),
+                              SizedBox(width: 4),
+                              Text(
+                                item.date,
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

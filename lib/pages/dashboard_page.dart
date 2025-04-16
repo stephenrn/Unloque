@@ -18,6 +18,8 @@ class DashboardPage extends StatefulWidget {
 class DashboardPageState extends State<DashboardPage> {
   final GlobalKey<ApplicationProgressSectionState> _progressSectionKey =
       GlobalKey();
+  // Use the correct public class name
+  final GlobalKey<AutoImageSliderState> _newsSliderKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _categoriesSectionKey = GlobalKey();
 
@@ -39,6 +41,8 @@ class DashboardPageState extends State<DashboardPage> {
       AvailableApplicationsData.clearCache();
       // Refresh the progress section
       refreshProgressSection();
+      // Directly call the refresh method on the news slider
+      _newsSliderKey.currentState?.refreshNews();
       print('Dashboard refreshed from DeveloperOptionsPage');
     });
   }
@@ -188,6 +192,9 @@ class DashboardPageState extends State<DashboardPage> {
               // Call the method to refresh applications
               refreshProgressSection();
 
+              // Directly refresh the news slider using the GlobalKey
+              _newsSliderKey.currentState?.refreshNews();
+
               // Also clear the applications cache
               AvailableApplicationsData.clearCache();
             },
@@ -250,8 +257,8 @@ class DashboardPageState extends State<DashboardPage> {
                   ),
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 5),
-                    child:
-                        AutoImageSlider(), // No items passed, handled internally
+                    child: AutoImageSlider(
+                        key: _newsSliderKey), // Keep only the key
                   ),
                   // Add a key to the CategoriesSection for scrolling
                   CategoriesSection(
