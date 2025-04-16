@@ -6,7 +6,6 @@ class SliderItem {
   final String date;
   final String headline;
   final String backgroundImage;
-  final String route;
   final bool isUrgent;
 
   SliderItem({
@@ -15,7 +14,6 @@ class SliderItem {
     required this.date,
     required this.headline,
     required this.backgroundImage,
-    required this.route,
     this.isUrgent = false,
   });
 }

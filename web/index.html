@@ -31,8 +31,39 @@
 
   <title>unloque</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-analytics.js"></script>
+
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnYYU3V1dLiSWyuAdysmE_CWPhcEYSzSc",
+      authDomain: "unloque.firebaseapp.com",
+      projectId: "unloque",
+      storageBucket: "unloque.firebasestorage.app",
+      messagingSenderId: "77901567813",
+      appId: "1:77901567813:web:cfbdd44a91c84ed316502c",
+      measurementId: "G-X08N3W6WZB"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+  </script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
+    }
+  </script>
+  <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>

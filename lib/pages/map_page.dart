@@ -3,6 +3,12 @@ import 'package:syncfusion_flutter_maps/maps.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
 
+// Import the new files
+import '../widgets/general_bottom_sheet.dart';
+import '../widgets/category_filter_bottom_sheet.dart';
+import '../widgets/selected_municipality_bottom_sheet.dart';
+import '../models/data_model.dart';
+
 class MapPage extends StatefulWidget {
   MapPage({Key? key}) : super(key: key);
 
@@ -10,11 +16,11 @@ class MapPage extends StatefulWidget {
   _MapPageState createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   _MapPageState();
   late MapShapeSource _shapeSource;
   late MapShapeSource _sublayerSource;
-  late List<_DataModel> _data;
+  late List<DataModel> _data;
   int _selectedIndex = -1;
   int _selectedSublayerIndex = -1;
   late MapZoomPanBehavior _zoomPanBehavior;
@@ -22,49 +28,66 @@ class _MapPageState extends State<MapPage> {
   late FloatingSearchBarController _searchBarController;
   String _searchTerm = '';
 
-  List<_DataModel> _generateDataModel() {
-    return <_DataModel>[
-      _DataModel('Agdangan', 13.885378, 121.9359),
-      _DataModel('Alabat', 14.1017, 122.0184),
-      _DataModel('Atimonan', 14.0048, 121.9199),
-      _DataModel('Buenavista', 13.7087, 122.4635),
-      _DataModel('Burdeos', 14.7446, 121.9262),
-      _DataModel('Calauag', 13.9547, 122.2872),
-      _DataModel('Candelaria', 13.9311, 121.4233),
-      _DataModel('Catanauan', 13.5927, 122.3208),
-      _DataModel('Dolores', 14.0244, 121.3681),
-      _DataModel('General Luna', 13.8425, 122.1494),
-      _DataModel('General Nakar', 14.7631, 121.6349),
-      _DataModel('Guinayangan', 13.9039, 122.4467),
-      _DataModel('Gumaca', 13.9208, 122.1000),
-      _DataModel('Infanta', 14.7425, 121.6494),
-      _DataModel('Jomalig', 14.7131, 122.3677),
-      _DataModel('Lopez', 13.8881, 122.2608),
-      _DataModel('Lucban', 14.1114, 121.5575),
-      _DataModel('Lucena City', 13.9419, 121.6169),
-      _DataModel('Macalelon', 13.7458, 122.1294),
-      _DataModel('Mauban', 14.1911, 121.7308),
-      _DataModel('Mulanay', 13.5264, 122.4044),
-      _DataModel('Padre Burgos', 13.9222, 121.8125),
-      _DataModel('Pagbilao', 13.9789, 121.7119),
-      _DataModel('Panukulan', 14.7472, 121.8139),
-      _DataModel('Patnanungan', 14.7481, 122.1736),
-      _DataModel('Perez', 14.1944, 121.9394),
-      _DataModel('Pitogo', 13.7972, 122.0936),
-      _DataModel('Plaridel', 13.9392, 122.0212),
-      _DataModel('Polillo', 14.7111, 121.9556),
-      _DataModel('Quezon', 14.0314, 122.1131),
-      _DataModel('Real', 14.6647, 121.6081),
-      _DataModel('Sampaloc', 14.1774, 121.6169),
-      _DataModel('San Andres', 13.3252, 122.6504),
-      _DataModel('San Antonio', 13.8951, 121.2970),
-      _DataModel('San Francisco', 13.3471, 122.5202),
-      _DataModel('San Narciso', 13.5689, 122.5662),
-      _DataModel('Sariaya', 13.9633, 121.5253),
-      _DataModel('Tagkawayan', 13.9647, 122.5472),
-      _DataModel('Tayabas City', 14.0244, 121.5847),
-      _DataModel('Tiaong', 13.9500, 121.3167),
-      _DataModel('Unisan', 13.8558, 121.9686),
+  // Modified bottom sheet variables
+  bool _isBottomSheetExpanded = false;
+  double _bottomSheetHeight = 120.0; // Changed back to 120.0 as default
+  DataModel? _selectedLocation;
+
+  // Quezon province default data
+  final _quezonProvince = DataModel('Quezon Province', 14.2347, 121.9473);
+
+  // Tab controller for bottom sheet tabs
+  late TabController _tabController;
+
+  // Add new state variable for filter selection
+  String _selectedFilter = 'General'; // Default selected filter
+
+  // Add a state variable to track search bar open state
+  bool _isSearchBarOpen = false;
+
+  List<DataModel> _generateDataModel() {
+    return <DataModel>[
+      DataModel('Agdangan', 13.885378, 121.9359),
+      DataModel('Alabat', 14.1017, 122.0184),
+      DataModel('Atimonan', 14.0048, 121.9199),
+      DataModel('Buenavista', 13.7087, 122.4635),
+      DataModel('Burdeos', 14.7446, 121.9262),
+      DataModel('Calauag', 13.9547, 122.2872),
+      DataModel('Candelaria', 13.9311, 121.4233),
+      DataModel('Catanauan', 13.5927, 122.3208),
+      DataModel('Dolores', 14.0244, 121.3681),
+      DataModel('General Luna', 13.8425, 122.1494),
+      DataModel('General Nakar', 14.7631, 121.6349),
+      DataModel('Guinayangan', 13.9039, 122.4467),
+      DataModel('Gumaca', 13.9208, 122.1000),
+      DataModel('Infanta', 14.7425, 121.6494),
+      DataModel('Jomalig', 14.7131, 122.3677),
+      DataModel('Lopez', 13.8881, 122.2608),
+      DataModel('Lucban', 14.1114, 121.5575),
+      DataModel('Lucena City', 13.9419, 121.6169),
+      DataModel('Macalelon', 13.7458, 122.1294),
+      DataModel('Mauban', 14.1911, 121.7308),
+      DataModel('Mulanay', 13.5264, 122.4044),
+      DataModel('Padre Burgos', 13.9222, 121.8125),
+      DataModel('Pagbilao', 13.9789, 121.7119),
+      DataModel('Panukulan', 14.7472, 121.8139),
+      DataModel('Patnanungan', 14.7481, 122.1736),
+      DataModel('Perez', 14.1944, 121.9394),
+      DataModel('Pitogo', 13.7972, 122.0936),
+      DataModel('Plaridel', 13.9392, 122.0212),
+      DataModel('Polillo', 14.7111, 121.9556),
+      DataModel('Quezon', 14.0314, 122.1131),
+      DataModel('Real', 14.6647, 121.6081),
+      DataModel('Sampaloc', 14.1774, 121.6169),
+      DataModel('San Andres', 13.3252, 122.6504),
+      DataModel('San Antonio', 13.8951, 121.2970),
+      DataModel('San Francisco', 13.3471, 122.5202),
+      DataModel('San Narciso', 13.5689, 122.5662),
+      DataModel('Sariaya', 13.9633, 121.5253),
+      DataModel('Tagkawayan', 13.9647, 122.5472),
+      DataModel('Tayabas City', 14.0244, 121.5847),
+      DataModel('Tiaong', 13.9500, 121.3167),
+      DataModel('Unisan', 13.8558, 121.9686),
     ];
   }
 
@@ -80,6 +103,10 @@ class _MapPageState extends State<MapPage> {
       maxZoomLevel: 10,
       focalLatLng: MapLatLng(14.2347, 121.9473), // Centered on Quezon province
     );
+
+    // Initialize tab controller with 3 tabs
+    _tabController = TabController(length: 3, vsync: this);
+
     super.initState();
     _data = _generateDataModel();
     _shapeSource = MapShapeSource.asset(
@@ -107,79 +134,37 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _searchBarController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
-  List<_DataModel> _getFilteredList() {
+  List<DataModel> _getFilteredList() {
     if (_searchTerm.isEmpty) return [];
-    return _data.where((item) => 
-      item.name.toLowerCase().contains(_searchTerm.toLowerCase())
-    ).toList();
+    return _data
+        .where((item) =>
+            item.name.toLowerCase().contains(_searchTerm.toLowerCase()))
+        .toList();
   }
 
-  void _selectMunicity(_DataModel selected) {
+  void _selectMunicity(DataModel selected) {
     final index = _data.indexWhere((item) => item.name == selected.name);
     if (index != -1) {
-      _zoomPanBehavior.focalLatLng = MapLatLng(
-        selected.latitude,
-        selected.longitude
-      );
+      // Get current filter to preserve it
+      final currentFilter = _selectedFilter;
+
+      _zoomPanBehavior.focalLatLng =
+          MapLatLng(selected.latitude, selected.longitude);
       _zoomPanBehavior.zoomLevel = 9;
+
       setState(() {
         _selectedSublayerIndex = index;
-        
-        // Add snackbar display
-        ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 3),
-          content: Container(
-            height: 100,
-            padding: const EdgeInsets.only(top: 8),
-            child: Center(
-              child: Column(
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Text(selected.name,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge!
-                              .copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: GestureDetector(
-                            onTap: () {
-                              ScaffoldMessenger.of(context)
-                                  .removeCurrentSnackBar();
-                            },
-                            child: const Icon(Icons.close,
-                                color: Colors.white),
-                          ),
-                        ),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: <Widget>[
-                      Text("hello",
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium!
-                              .copyWith(
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.white))
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ));
+        _selectedLocation = selected;
+        _isBottomSheetExpanded = false;
+        _bottomSheetHeight = 120.0;
+        // Preserve current filter instead of resetting to General
+        _selectedFilter = currentFilter;
+        debugPrint(
+            'Search selected municipality: ${selected.name} with filter: $_selectedFilter');
       });
     }
     _searchBarController.close();
@@ -199,6 +184,214 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  void _toggleBottomSheetExpansion() {
+    setState(() {
+      _isBottomSheetExpanded = !_isBottomSheetExpanded;
+      _bottomSheetHeight = _isBottomSheetExpanded
+          ? 700.0
+          : 120.0; // Increased expanded height from 350 to 500
+    });
+  }
+
+  // Add method to handle drag gesture on bottom sheet
+  void _handleDragUpdate(DragUpdateDetails details) {
+    // Negative delta.dy means upward drag, positive means downward drag
+    if (details.delta.dy < -5 && !_isBottomSheetExpanded) {
+      // Expand when dragging up
+      _toggleBottomSheetExpansion();
+    } else if (details.delta.dy > 5 && _isBottomSheetExpanded) {
+      // Collapse when dragging down
+      _toggleBottomSheetExpansion();
+    }
+  }
+
+  void _resetToQuezonProvince() {
+    setState(() {
+      _selectedLocation = null;
+      _selectedSublayerIndex = -1;
+      _isBottomSheetExpanded = false;
+      _bottomSheetHeight = 120.0;
+
+      // Reset map view to Quezon province
+      _zoomPanBehavior.focalLatLng =
+          MapLatLng(_quezonProvince.latitude, _quezonProvince.longitude);
+      _zoomPanBehavior.zoomLevel = 5;
+    });
+  }
+
+  // Add method to handle filter selection
+  void _onFilterSelected(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+      // Reset bottom sheet to collapsed state when changing categories
+      _isBottomSheetExpanded = false;
+      _bottomSheetHeight = 120.0;
+    });
+    // Here you would add logic to filter map data based on selected category
+  }
+
+  // Create widget for filter buttons with improved positioning and no splash
+  Widget _buildFilterChips() {
+    // If search bar is open, don't show the filter chips
+    if (_isSearchBarOpen) return const SizedBox.shrink();
+
+    // Define all filter options
+    final List<String> filters = [
+      'General',
+      'Healthcare',
+      'Social',
+      'Education'
+    ];
+
+    return Positioned(
+      top: 120, // Position precisely below search bar
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 32,
+        alignment: Alignment.centerLeft, // Align to left side
+        child: ListView(
+          shrinkWrap: true,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(left: 16), // Left padding only
+          children: filters.map((filter) {
+            final isSelected = _selectedFilter == filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Theme(
+                data: ThemeData(
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  // Disable any shadow or elevation
+                  chipTheme: ChipThemeData(
+                    elevation: 0,
+                    pressElevation: 0,
+                    shadowColor: Colors.transparent,
+                  ),
+                ),
+                child: RawChip(
+                  // Use RawChip for more control
+                  label: Text(
+                    filter,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  selected: isSelected,
+                  onSelected: (_) => _onFilterSelected(filter),
+                  backgroundColor: Colors.blue
+                      .shade50, // Changed from shade100 to shade50 for lighter blue
+                  selectedColor: Colors.blue.shade600,
+                  showCheckmark: false,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  elevation: 0, // No elevation
+                  pressElevation: 0, // No elevation when pressed
+                  shadowColor: Colors.transparent, // No shadow
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide.none, // No border
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomSheet() {
+    // Get the location to display - either selected location or default Quezon province
+    final displayLocation = _selectedLocation ?? _quezonProvince;
+    final bool isDefaultView = _selectedLocation == null;
+
+    // Debug print to help track what's happening with filters
+    debugPrint(
+        'Building bottom sheet: filter=$_selectedFilter, location=${displayLocation.name}, default=$isDefaultView');
+
+    // Only show category-specific bottom sheet if it's province-wide (default) view
+    // AND a category filter is selected
+    if (_selectedFilter != 'General' && isDefaultView) {
+      return CategoryFilterBottomSheet(
+        location: displayLocation,
+        isDefaultView: isDefaultView,
+        isExpanded: _isBottomSheetExpanded,
+        sheetHeight: _bottomSheetHeight,
+        selectedFilter: _selectedFilter,
+        onClose: () => _onFilterSelected('General'),
+        onDragUpdate: _handleDragUpdate,
+      );
+    }
+
+    // Show municipality-specific bottom sheet
+    if (!isDefaultView) {
+      return SelectedMunicipalityBottomSheet(
+        location: displayLocation,
+        isExpanded: _isBottomSheetExpanded,
+        sheetHeight: _bottomSheetHeight,
+        onClose: _resetToQuezonProvince,
+        onDragUpdate: _handleDragUpdate,
+      );
+    }
+
+    // Default to general bottom sheet for province view
+    return GeneralBottomSheet(
+      location: displayLocation,
+      isDefaultView: isDefaultView,
+      isExpanded: _isBottomSheetExpanded,
+      sheetHeight: _bottomSheetHeight,
+      onClose: _resetToQuezonProvince,
+      onDragUpdate: _handleDragUpdate,
+      onToggleExpansion: _toggleBottomSheetExpansion,
+      tabController: _tabController,
+    );
+  }
+
+  MapShapeSublayer _buildSublayer() {
+    return MapShapeSublayer(
+      source: _sublayerSource,
+      color: Colors.grey[300],
+      strokeColor: Colors.grey[800],
+      strokeWidth: 1,
+      selectedIndex: _selectedSublayerIndex,
+      selectionSettings: const MapSelectionSettings(
+          color: Color.fromARGB(255, 27, 160, 227),
+          strokeColor: Color.fromARGB(255, 255, 255, 255),
+          strokeWidth: 1),
+      onSelectionChanged: (int index) {
+        // Preserve current filter
+        final currentFilter = _selectedFilter;
+
+        _zoomPanBehavior.focalLatLng =
+            MapLatLng(_data[index].latitude, _data[index].longitude);
+        _zoomPanBehavior.zoomLevel = 9;
+
+        setState(() {
+          if (index != _selectedSublayerIndex) {
+            _selectedSublayerIndex = -1;
+            _selectedSublayerIndex = index;
+            _selectedLocation = _data[index];
+            _isBottomSheetExpanded = false;
+            _bottomSheetHeight = 120.0;
+            // Preserve filter selection instead of resetting to General
+            _selectedFilter = currentFilter;
+            debugPrint(
+                'Selected municipality: ${_data[index].name} with filter: $_selectedFilter');
+          } else {
+            _selectedSublayerIndex = -1;
+            _selectedLocation = null;
+          }
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('Building MapPage with selectedIndex: $_selectedIndex');
@@ -206,6 +399,12 @@ class _MapPageState extends State<MapPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // Change the background of the map to light blue
+          Container(
+            color: Colors
+                .blue.shade100, // Light blue background for the entire map
+          ),
+
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: SfMaps(
@@ -223,8 +422,8 @@ class _MapPageState extends State<MapPage> {
                     );
                   },
                   source: _shapeSource,
-                  color: const Color.fromARGB(255, 218, 216, 216), // Set the color to blue
-                  strokeColor: Colors.white, // Set the stroke color to white
+                  color: Colors.white, // Changed to white for PHGeoJSON
+                  strokeColor: Colors.white, // Light blue border
                   strokeWidth: 1,
                   selectedIndex: _selectedIndex,
                   selectionSettings: const MapSelectionSettings(
@@ -243,93 +442,60 @@ class _MapPageState extends State<MapPage> {
                     });
                   },
                   sublayers: [
-                    MapShapeSublayer(
-                      source: _sublayerSource,
-                      color: const Color.fromARGB(255, 156, 156, 156), // Solid red default color
-                      strokeColor: const Color.fromARGB(255, 201, 201, 201),
-                      strokeWidth: 1,
-                      selectedIndex: _selectedSublayerIndex,
-                      selectionSettings: const MapSelectionSettings(
-                        color: Color.fromARGB(255, 116, 92, 255),
-                        strokeColor: Color.fromARGB(255, 0, 0, 0),
-                        strokeWidth: 1
-                      ),
-                      onSelectionChanged: (int index) {
-                        _zoomPanBehavior.focalLatLng = MapLatLng(
-                          _data[index].latitude,
-                          _data[index].longitude
-                        );
-                        _zoomPanBehavior.zoomLevel = 9;
-                        
-                        setState(() {
-                          if (index != _selectedSublayerIndex) {
-                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              backgroundColor: Colors.blue,
-                              duration: const Duration(seconds: 3),
-                              content: Container(
-                                height: 100,
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Center(
-                                  child: Column(
-                                    children: <Widget>[
-                                      Row(
-                                        children: <Widget>[
-                                          Text(_data[index].name,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleLarge!
-                                                  .copyWith(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold)),
-                                          Expanded(
-                                            child: Align(
-                                              alignment: Alignment.centerRight,
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  ScaffoldMessenger.of(context)
-                                                      .removeCurrentSnackBar();
-                                                },
-                                                child: const Icon(Icons.close,
-                                                    color: Colors.white),
-                                              ),
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        children: <Widget>[
-                                          Text("hello",
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium!
-                                                  .copyWith(
-                                                      fontStyle: FontStyle.italic,
-                                                      color: Colors.white))
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ));
-                            _selectedSublayerIndex = -1;
-                            _selectedSublayerIndex = index;
-                          } else {
-                            _selectedSublayerIndex = -1;
-                          }
-                        });
-                      },
-                    ),
+                    _buildSublayer(), // Use the extracted method here
                   ],
                 )
               ],
             ),
           ),
+
+          // Updated simple left-aligned title text
+          Positioned(
+            top: 35,
+            left: 26, // Left-aligned
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: const Text(
+                'Welfare Distribution Map',
+                style: TextStyle(
+                  fontSize: 26, // Increased font size
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+
           FloatingSearchBar(
             controller: _searchBarController,
+            margins: const EdgeInsets.fromLTRB(16, 75, 16, 16),
             hint: 'Search municipalities...',
+            height: 40, // Small height
+
+            // Replace button with plain icon without margins
+            leadingActions: [
+              FloatingSearchBarAction.icon(
+                icon: const Icon(
+                  Icons.search,
+                  color: Colors.grey,
+                  size: 20,
+                ),
+                showIfOpened: true,
+                size: 20, onTap: () {}, // Smaller size without padding
+              ),
+            ],
+
+            // Add onFocusChanged callback to track when search bar is open
+            onFocusChanged: (isFocused) {
+              setState(() {
+                _isSearchBarOpen = isFocused;
+              });
+            },
+
+            // Other existing properties
+            iconColor: Colors.grey,
+            queryStyle: const TextStyle(fontSize: 14),
+            hintStyle: const TextStyle(fontSize: 14),
             scrollPadding: const EdgeInsets.only(top: 16, bottom: 56),
             transitionDuration: const Duration(milliseconds: 800),
             transitionCurve: Curves.easeInOut,
@@ -338,6 +504,10 @@ class _MapPageState extends State<MapPage> {
             openAxisAlignment: 0.0,
             width: 600,
             debounceDelay: const Duration(milliseconds: 500),
+            borderRadius: BorderRadius.circular(15),
+            elevation: 0,
+            border: BorderSide(color: Colors.grey.shade900, width: 0.5),
+            backgroundColor: Colors.white,
             onQueryChanged: (query) {
               setState(() {
                 _searchTerm = query;
@@ -358,21 +528,34 @@ class _MapPageState extends State<MapPage> {
             builder: (context, transition) {
               final filteredList = _getFilteredList();
               return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                    20), // Match dropdown corners with search bar
                 child: Material(
                   color: Colors.white,
-                  elevation: 4.0,
+                  elevation: 0, // Remove shadow from dropdown
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                        color: Colors.grey.shade300,
+                        width: 1.0), // Add outline to dropdown
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: filteredList.map((place) => ListTile(
-                      title: Text(place.name),
-                      onTap: () => _selectMunicity(place),
-                    )).toList(),
+                    children: filteredList
+                        .map((place) => ListTile(
+                              title: Text(place.name),
+                              onTap: () => _selectMunicity(place),
+                            ))
+                        .toList(),
                   ),
                 ),
               );
             },
           ),
+
+          // Add filter chips below search bar
+          _buildFilterChips(),
+
           if (_isLoading)
             Container(
               color: Colors.white.withOpacity(0.5),
@@ -386,15 +569,10 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
+          // Always show the bottom sheet
+          _buildBottomSheet(),
         ],
       ),
     );
   }
-}
-
-class _DataModel {
-  _DataModel(this.name, this.latitude, this.longitude);
-  final String name;
-  final double latitude;
-  final double longitude;
 }
