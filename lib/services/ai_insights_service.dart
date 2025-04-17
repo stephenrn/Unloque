@@ -111,6 +111,8 @@ Based on this data, provide strategic insights in markdown format:
 4. Identify opportunities for better resource allocation
 5. Explain specific actions citizens can take to improve their access to programs, advocate for better services, or help their communities based on this data
 
+IMPORTANT: When identifying underserved municipalities, provide specific numbers for healthcare, social, and educational coverage. Do not show zeros or dashes - instead show the actual numbers even if they are low or zero, and explain what those low numbers mean for citizens. Use percentages of coverage relative to population where possible.
+
 DO NOT include any contact information, email addresses, phone numbers, or personal recommendations.
 Do not suggest contacting specific offices, as contact details would be inaccurate.
 Keep your response factual and objective. Format tables properly with clear headers and alignment.
@@ -296,11 +298,14 @@ Keep your response factual and objective. Format tables properly with clear head
 
       // Now create a consolidated table for top municipalities
       buffer.writeln("### Welfare Program Coverage by Municipality");
-      buffer.writeln("| Municipality | Healthcare | Social | Educational |");
-      buffer.writeln("| -------------- | ---------- | ------ | ----------- |");
+      buffer.writeln(
+          "| Municipality | Healthcare | Social | Educational | Population Coverage Ratio |");
+      buffer.writeln(
+          "| -------------- | ---------- | ------ | ----------- | ----------------------- |");
 
       // Find municipalities with highest total beneficiaries
       Map<String, int> municipalityTotals = {};
+      Map<String, int> municipalityPopulation = {};
 
       // First get all municipality names
       Set<String> allMunicipalities = {};
@@ -309,11 +314,12 @@ Keep your response factual and objective. Format tables properly with clear head
       });
 
       if (allMunicipalities.isEmpty) {
-        buffer.writeln("| No municipality data available | N/A | N/A | N/A |");
+        buffer.writeln(
+            "| No municipality data available | N/A | N/A | N/A | N/A |");
         return buffer.toString();
       }
 
-      // Calculate totals
+      // Calculate totals and include some underserved municipalities
       for (String municipality in allMunicipalities) {
         int total = 0;
         categoryData.forEach((category, data) {
@@ -322,35 +328,61 @@ Keep your response factual and objective. Format tables properly with clear head
         municipalityTotals[municipality] = total;
       }
 
-      // Sort municipalities by total beneficiaries
-      List<String> sortedMunicipalities = municipalityTotals.keys.toList()
+      // Include both high-coverage and underserved municipalities
+      List<String> sortedByTotal = municipalityTotals.keys.toList()
         ..sort(
             (a, b) => municipalityTotals[b]!.compareTo(municipalityTotals[a]!));
 
-      // Take top municipalities (limit to prevent token issues)
-      final topMunicipalities = sortedMunicipalities.take(10);
+      // Take top municipalities by coverage (limit to prevent token issues)
+      final topMunicipalities = sortedByTotal.take(8);
+
+      // Find potentially underserved municipalities (low coverage but might have population)
+      final underservedMunicipalities = sortedByTotal.reversed.take(3).toList();
+
+      // Combine both lists for display, removing duplicates
+      final Set<String> municipalitiesToShow = {
+        ...topMunicipalities,
+        ...underservedMunicipalities
+      };
 
       // Build the table
-      for (String municipality in topMunicipalities) {
+      for (String municipality in municipalitiesToShow) {
         final healthcare = categoryData['Healthcare']?[municipality] != null
             ? _formatNumber(categoryData['Healthcare']![municipality]!)
-            : 'N/A';
+            : '0'; // Changed from 'N/A' to '0' to be more clear
 
         final social = categoryData['Social']?[municipality] != null
             ? _formatNumber(categoryData['Social']![municipality]!)
-            : 'N/A';
+            : '0'; // Changed from 'N/A' to '0'
 
         final educational = categoryData['Educational']?[municipality] != null
             ? _formatNumber(categoryData['Educational']![municipality]!)
-            : 'N/A';
+            : '0'; // Changed from 'N/A' to '0'
+
+        // Calculate ratio or coverage indicator
+        final totalBeneficiaries = municipalityTotals[municipality] ?? 0;
+        final coverageIndicator = (totalBeneficiaries == 0)
+            ? "Underserved"
+            : (totalBeneficiaries < 1000 ? "Low coverage" : "Standard");
 
         buffer.writeln(
-            "| $municipality | $healthcare | $social | $educational |");
+            "| $municipality | $healthcare | $social | $educational | $coverageIndicator |");
       }
 
-      // If there are more entries, indicate that they're omitted
-      if (sortedMunicipalities.length > 10) {
-        buffer.writeln("| ... (remaining municipalities omitted) | | | |");
+      // Add a special section for underserved municipalities
+      buffer.writeln("\n### Potentially Underserved Municipalities");
+      buffer.writeln(
+          "| Municipality | Healthcare | Social | Educational | Note |");
+      buffer.writeln(
+          "| ------------ | ---------- | ------ | ----------- | ---- |");
+
+      for (String municipality in underservedMunicipalities) {
+        final healthcare = categoryData['Healthcare']?[municipality] ?? 0;
+        final social = categoryData['Social']?[municipality] ?? 0;
+        final educational = categoryData['Educational']?[municipality] ?? 0;
+
+        buffer.writeln(
+            "| $municipality | ${_formatNumber(healthcare)} | ${_formatNumber(social)} | ${_formatNumber(educational)} | May need additional resources |");
       }
     } catch (e) {
       debugPrint('Error formatting category data: $e');
@@ -402,6 +434,8 @@ Keep your response factual and objective. Format tables properly with clear head
               'role': 'system',
               'content': 'You are a data analyst specializing in population statistics and welfare program distribution. '
                   'Provide clear, concise, and factual analysis with properly formatted markdown tables. '
+                  'When reporting on underserved areas, always show specific numbers rather than zeros or dashes. '
+                  'Even low numbers should be clearly displayed and analyzed for what they mean for citizens. '
                   'DO NOT include any contact information, email addresses, phone numbers, or personal references as these would be inaccurate. '
                   'Focus solely on data analysis and objective insights.'
             },
