@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'dart:convert'; // Add this for base64 encoding
 
 class MarkdownRenderer extends StatelessWidget {
   final String data;
@@ -73,73 +72,36 @@ class MarkdownRenderer extends StatelessWidget {
       );
     }
 
-    // NEW APPROACH: Split and process content differently based on type
-    final processedContent = _processContent(data);
+    // Parse the content to identify tables and text blocks
+    final segments = _parseContent(data);
 
-    // Return a Column containing both HTML and Markdown widgets
+    debugPrint('PARSED ${segments.length} CONTENT SEGMENTS');
+
+    // Single section, no tables found - use standard markdown
+    if (segments.length == 1 && segments.first.type == SegmentType.text) {
+      return Markdown(
+        data: data,
+        styleSheet: styleSheet ?? _getDefaultStyleSheet(),
+        shrinkWrap: true,
+        physics: const ClampingScrollPhysics(),
+        onTapLink: (text, href, title) {
+          if (href != null) {
+            launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+          }
+        },
+        selectable: true,
+      );
+    }
+
+    // Multiple segments - build custom layout with tables
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: processedContent,
-      ),
-    );
-  }
-
-  // New method that splits content and returns appropriate widgets
-  List<Widget> _processContent(String rawContent) {
-    debugPrint('PROCESSING CONTENT WITH NEW STRATEGY');
-
-    // Split content into sections: text and tables
-    List<Widget> contentWidgets = [];
-
-    // Extract tables and their positions
-    final tablePattern = RegExp(
-        r'(\|[^\n]*\|\n\|[\s\-:]+\|[\s\-:]+\|[^\n]*\n(?:\|[^\n]*\|\n)*)',
-        multiLine: true);
-
-    // Find all tables in the content
-    final matches = tablePattern.allMatches(rawContent);
-    List<MapEntry<int, int>> tablePositions = [];
-
-    for (final match in matches) {
-      tablePositions.add(MapEntry(match.start, match.end));
-      debugPrint('FOUND TABLE AT POSITIONS ${match.start}-${match.end}');
-    }
-
-    // If no tables, just use the standard Markdown widget
-    if (tablePositions.isEmpty) {
-      debugPrint('NO TABLES FOUND - USING STANDARD MARKDOWN');
-      contentWidgets.add(
-        Markdown(
-          data: rawContent,
-          styleSheet: styleSheet ?? _getDefaultStyleSheet(),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          onTapLink: (text, href, title) {
-            if (href != null) {
-              launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
-            }
-          },
-          selectable: true,
-        ),
-      );
-      return contentWidgets;
-    }
-
-    // If there are tables, split content and process each section
-    int currentPosition = 0;
-
-    for (var tablePos in tablePositions) {
-      int tableStart = tablePos.key;
-      int tableEnd = tablePos.value;
-
-      // Add text before the table as Markdown
-      if (tableStart > currentPosition) {
-        final textBefore = rawContent.substring(currentPosition, tableStart);
-        if (textBefore.trim().isNotEmpty) {
-          contentWidgets.add(
-            Markdown(
-              data: textBefore,
+        children: segments.map((segment) {
+          if (segment.type == SegmentType.text) {
+            // Render regular text with Markdown
+            return Markdown(
+              data: segment.content,
               styleSheet: styleSheet ?? _getDefaultStyleSheet(),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -150,158 +112,211 @@ class MarkdownRenderer extends StatelessWidget {
                 }
               },
               selectable: true,
-            ),
-          );
-        }
-      }
-
-      // Process the table as HTML
-      final tableText = rawContent.substring(tableStart, tableEnd);
-      final htmlTable = _convertTableToHTML(tableText);
-
-      // Directly embed the HTML table using Html widget
-      contentWidgets.add(
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Html(
-              data: htmlTable,
-              style: {
-                'table': Style(
-                  border: Border.all(color: Colors.grey.shade300, width: 1),
-                  backgroundColor: Colors.white,
-                ),
-                'th': Style(
-                  backgroundColor: Colors.blue.shade50,
-                  padding: HtmlPaddings.all(8),
-                  textAlign: TextAlign.center,
-                  fontWeight: FontWeight.bold,
-                ),
-                'td': Style(
-                  padding: HtmlPaddings.all(8),
-                  textAlign: TextAlign.center,
-                ),
-                'tr': Style(
-                  border: Border.all(color: Colors.grey.shade300, width: 1),
-                ),
-              },
-            ),
-          ),
-        ),
-      );
-
-      currentPosition = tableEnd;
-    }
-
-    // Add any remaining text after the last table
-    if (currentPosition < rawContent.length) {
-      final textAfter = rawContent.substring(currentPosition);
-      if (textAfter.trim().isNotEmpty) {
-        contentWidgets.add(
-          Markdown(
-            data: textAfter,
-            styleSheet: styleSheet ?? _getDefaultStyleSheet(),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            onTapLink: (text, href, title) {
-              if (href != null) {
-                launchUrl(Uri.parse(href),
-                    mode: LaunchMode.externalApplication);
-              }
-            },
-            selectable: true,
-          ),
-        );
-      }
-    }
-
-    return contentWidgets;
+            );
+          } else {
+            // Render table with custom widget
+            return _buildTableWidget(segment.content, context);
+          }
+        }).toList(),
+      ),
+    );
   }
 
-  // Convert markdown table to clean HTML with enhanced CSS
-  String _convertTableToHTML(String tableMarkdown) {
+  // Parse content into text and table segments
+  List<ContentSegment> _parseContent(String content) {
+    final List<ContentSegment> segments = [];
+    final List<String> lines = content.split('\n');
+
+    int currentPos = 0;
+    int i = 0;
+
+    while (i < lines.length) {
+      // Look for the start of a table
+      if (_isTableHeader(lines, i)) {
+        // Add preceding text if any
+        if (currentPos < i) {
+          final textContent = lines.sublist(currentPos, i).join('\n');
+          segments.add(ContentSegment(SegmentType.text, textContent));
+        }
+
+        // Extract the table
+        final tableStart = i;
+        i++; // Skip header line
+
+        // Skip separator line
+        if (i < lines.length && _isTableSeparator(lines[i])) {
+          i++;
+
+          // Read table rows
+          while (i < lines.length &&
+              lines[i].trim().startsWith('|') &&
+              lines[i].trim().endsWith('|')) {
+            i++;
+          }
+
+          // Extract the table content
+          final tableContent = lines.sublist(tableStart, i).join('\n');
+          segments.add(ContentSegment(SegmentType.table, tableContent));
+          currentPos = i;
+        } else {
+          // Not a valid table, continue
+          i++;
+        }
+      } else {
+        // Not a table, continue
+        i++;
+      }
+    }
+
+    // Add remaining text
+    if (currentPos < lines.length) {
+      final textContent = lines.sublist(currentPos).join('\n');
+      segments.add(ContentSegment(SegmentType.text, textContent));
+    }
+
+    return segments;
+  }
+
+  // Check if a line is a valid table header
+  bool _isTableHeader(List<String> lines, int index) {
+    if (index >= lines.length ||
+        !lines[index].trim().startsWith('|') ||
+        !lines[index].trim().endsWith('|')) {
+      return false;
+    }
+
+    // Check if next line is a separator
+    if (index + 1 >= lines.length) {
+      return false;
+    }
+
+    final nextLine = lines[index + 1].trim();
+    return _isTableSeparator(nextLine);
+  }
+
+  // Check if a line is a table separator
+  bool _isTableSeparator(String line) {
+    if (!line.startsWith('|') || !line.endsWith('|')) {
+      return false;
+    }
+
+    // Remove pipes
+    final content = line.substring(1, line.length - 1);
+    // Check if it only contains dashes, colons, and spaces
+    return RegExp(r'^[\s\-:]+$').hasMatch(content) && content.contains('-');
+  }
+
+  // Build a native Flutter Table widget
+  Widget _buildTableWidget(String tableContent, BuildContext context) {
     debugPrint(
-        'CONVERTING TABLE MARKDOWN TO HTML: ${tableMarkdown.substring(0, tableMarkdown.length > 50 ? 50 : tableMarkdown.length)}...');
+        'BUILDING NATIVE TABLE WIDGET FOR: ${tableContent.substring(0, min(50, tableContent.length))}...');
 
-    List<String> lines = tableMarkdown.trim().split('\n');
+    // Parse table
+    final List<String> lines = tableContent.split('\n');
     if (lines.length < 3) {
-      debugPrint('INVALID TABLE FORMAT: Less than 3 lines');
-      return '<p><em>Invalid table format</em></p>';
+      return const SizedBox(); // Empty table
     }
 
-    // Extract header row and separator
-    String headerLine = lines[0];
-    String separatorLine = lines[1];
+    // Extract header and rows
+    final List<String> headerCells = _parseTableRow(lines[0]);
+    final List<List<String>> rows = [];
 
-    // Validate table format
-    if (!headerLine.contains('|') ||
-        !separatorLine.contains('|') ||
-        !separatorLine.contains('-')) {
-      debugPrint('INVALID TABLE FORMAT: Missing separators');
-      return '<p><em>Invalid table format</em></p>';
-    }
-
-    // Extract header cells
-    List<String> headers = _parseTableRow(headerLine);
-
-    // Extract data rows
-    List<List<String>> rows = [];
     for (int i = 2; i < lines.length; i++) {
-      if (lines[i].trim().isNotEmpty && lines[i].contains('|')) {
+      if (lines[i].trim().isNotEmpty) {
         rows.add(_parseTableRow(lines[i]));
       }
     }
 
-    // Create HTML table with enhanced CSS
-    StringBuffer html = StringBuffer();
-    html.write('''
-    <div style="width:100%; overflow-x:auto; margin:16px 0;">
-      <table style="width:100%; border-collapse:collapse; border:2px solid #ddd; table-layout:fixed;">
-        <thead>
-          <tr style="background-color:#edf6ff;">
-    ''');
-
-    // Add header cells
-    for (String header in headers) {
-      html.write(
-          '<th style="padding:12px; text-align:center; border:1px solid #ddd; font-weight:bold;">${_escapeHtml(header)}</th>');
-    }
-
-    html.write('''
-          </tr>
-        </thead>
-        <tbody>
-    ''');
-
-    // Add data rows with alternating colors
-    for (int i = 0; i < rows.length; i++) {
-      String bgColor = i % 2 == 0 ? '#ffffff' : '#f8f9fa';
-      html.write('<tr style="background-color:$bgColor;">');
-
-      for (int j = 0; j < headers.length && j < rows[i].length; j++) {
-        html.write(
-            '<td style="padding:10px; text-align:center; border:1px solid #ddd;">${_escapeHtml(rows[i][j])}</td>');
-      }
-
-      html.write('</tr>');
-    }
-
-    html.write('''
-        </tbody>
-      </table>
-    </div>
-    ''');
-
-    final result = html.toString();
     debugPrint(
-        'GENERATED HTML TABLE: ${result.substring(0, result.length > 50 ? 50 : result.length)}...');
+        'TABLE HAS ${headerCells.length} COLUMNS AND ${rows.length} ROWS');
 
-    return result;
+    // Create table widget
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Table header
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+              ),
+              child: Row(
+                children: headerCells.map((cell) {
+                  return Container(
+                    padding: EdgeInsets.all(12),
+                    width: _calculateColumnWidth(cell),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    child: Text(
+                      cell,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+            // Table rows
+            ...rows.asMap().entries.map((entry) {
+              final rowIndex = entry.key;
+              final row = entry.value;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: rowIndex % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                  border: Border(
+                    top: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                child: Row(
+                  children: row.asMap().entries.map((cellEntry) {
+                    final colIndex = cellEntry.key;
+                    final cell = cellEntry.value;
+
+                    return Container(
+                      padding: EdgeInsets.all(12),
+                      width: colIndex < headerCells.length
+                          ? _calculateColumnWidth(headerCells[colIndex])
+                          : 100,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Text(
+                        cell,
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 
   // Parse table row into cells
@@ -313,14 +328,10 @@ class MarkdownRenderer extends StatelessWidget {
     return line.split('|').map((cell) => cell.trim()).toList();
   }
 
-  // Escape HTML special characters
-  String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+  // Calculate column width based on content
+  double _calculateColumnWidth(String content) {
+    // Base width + character count to ensure columns with more text are wider
+    return 100.0 + (content.length * 4.0).clamp(0.0, 100.0);
   }
 
   // Get default style sheet for markdown
@@ -341,3 +352,16 @@ class MarkdownRenderer extends StatelessWidget {
     );
   }
 }
+
+// Helper class for content segmentation
+enum SegmentType { text, table }
+
+class ContentSegment {
+  final SegmentType type;
+  final String content;
+
+  ContentSegment(this.type, this.content);
+}
+
+// Helper function to get minimum of two numbers
+int min(int a, int b) => a < b ? a : b;
