@@ -280,17 +280,43 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           continue;
         }
 
-        // Process municipality data - exclude non-municipality fields
+        // Fields to exclude when processing municipalities
         final excludeFields = [
           'programId',
           'programName',
           'organizationId',
           'type',
           'title',
-          'updatedAt'
+          'updatedAt',
         ];
 
-        // Process each municipality and its beneficiaries
+        // Get program's total beneficiaries (preferred method)
+        int totalBeneficiaries = 0;
+        if (data.containsKey('Total Beneficiaries')) {
+          totalBeneficiaries = (data['Total Beneficiaries'] as num).toInt();
+        } else {
+          // Fallback: Calculate by summing municipality counts if Total Beneficiaries is missing
+          for (String municipality in _data.map((e) => e.name)) {
+            if (data.containsKey(municipality) &&
+                !excludeFields.contains(municipality)) {
+              totalBeneficiaries += (data[municipality] as num).toInt();
+            }
+          }
+        }
+
+        // Add the program's total beneficiaries to the appropriate category total
+        if (isHealthcare) {
+          _healthcareTotalBeneficiaries =
+              (_healthcareTotalBeneficiaries ?? 0) + totalBeneficiaries;
+        } else if (isSocial) {
+          _socialTotalBeneficiaries =
+              (_socialTotalBeneficiaries ?? 0) + totalBeneficiaries;
+        } else if (isEducational) {
+          _educationTotalBeneficiaries =
+              (_educationTotalBeneficiaries ?? 0) + totalBeneficiaries;
+        }
+
+        // Process each municipality to populate municipality-specific data
         for (String municipality in _data.map((e) => e.name)) {
           if (data.containsKey(municipality) &&
               !excludeFields.contains(municipality)) {
@@ -301,37 +327,14 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
               _categoryData['Healthcare']![municipality] =
                   (_categoryData['Healthcare']![municipality] ?? 0) +
                       beneficiaries;
-              _healthcareTotalBeneficiaries =
-                  (_healthcareTotalBeneficiaries ?? 0) + beneficiaries;
             } else if (isSocial) {
               _categoryData['Social']![municipality] =
                   (_categoryData['Social']![municipality] ?? 0) + beneficiaries;
-              _socialTotalBeneficiaries =
-                  (_socialTotalBeneficiaries ?? 0) + beneficiaries;
             } else if (isEducational) {
               _categoryData['Educational']![municipality] =
                   (_categoryData['Educational']![municipality] ?? 0) +
                       beneficiaries;
-              _educationTotalBeneficiaries =
-                  (_educationTotalBeneficiaries ?? 0) + beneficiaries;
             }
-          }
-        }
-
-        // Also handle Total Beneficiaries
-        if (data.containsKey('Total Beneficiaries')) {
-          int totalBeneficiaries = (data['Total Beneficiaries'] as num).toInt();
-
-          // Update category totals
-          if (isHealthcare) {
-            _healthcareTotalBeneficiaries =
-                (_healthcareTotalBeneficiaries ?? 0) + totalBeneficiaries;
-          } else if (isSocial) {
-            _socialTotalBeneficiaries =
-                (_socialTotalBeneficiaries ?? 0) + totalBeneficiaries;
-          } else if (isEducational) {
-            _educationTotalBeneficiaries =
-                (_educationTotalBeneficiaries ?? 0) + totalBeneficiaries;
           }
         }
       }
