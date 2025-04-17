@@ -35,7 +35,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   DataModel? _selectedLocation;
 
   // Quezon province default data
-  final _quezonProvince = DataModel('Quezon Province', 14.2347, 121.9473);
+  final _quezonProvince = DataModel('Quezon Province', 14.1247, 121.9473);
 
   // Tab controller for bottom sheet tabs
   late TabController _tabController;
@@ -129,7 +129,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       zoomLevel: 5, // Increased initial zoom level
       minZoomLevel: 1,
       maxZoomLevel: 10,
-      focalLatLng: MapLatLng(14.2347, 121.9473), // Centered on Quezon province
+      focalLatLng: MapLatLng(14.1247, 121.9473), // Centered on Quezon province
     );
 
     // Initialize tab controller with 3 tabs
@@ -686,7 +686,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     ];
 
     return Positioned(
-      top: 120, // Position precisely below search bar
+      top: 70, // Adjusted to account for the new AppBar and search bar position
       left: 0,
       right: 0,
       child: Container(
@@ -1031,6 +1031,121 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         );
   }
 
+  // Add this method to show the info dialog
+  void _showMapInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue[700]),
+              SizedBox(width: 8),
+              Text('Map Information'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Welcome to the Welfare Distribution Map!',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 12),
+                Text(
+                    'This map shows the distribution of welfare programs across municipalities in Quezon Province.'),
+                SizedBox(height: 16),
+                Text(
+                  'Color Filters:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                _buildInfoItem(
+                    'General',
+                    'Shows population density across municipalities',
+                    Colors.grey[700]!),
+                _buildInfoItem(
+                    'Healthcare',
+                    'Shows healthcare program beneficiaries distribution',
+                    Colors.red[700]!),
+                _buildInfoItem(
+                    'Social',
+                    'Shows social welfare program beneficiaries distribution',
+                    Colors.green[700]!),
+                _buildInfoItem(
+                    'Educational',
+                    'Shows educational program beneficiaries distribution',
+                    Colors.blue[700]!),
+                SizedBox(height: 16),
+                Text(
+                  'How to use:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text('• Tap on a municipality to see detailed information'),
+                Text(
+                    '• Use the filter chips to switch between different program categories'),
+                Text(
+                    '• Search for specific municipalities using the search bar'),
+                Text('• Pinch to zoom in/out of the map'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper method to build info items
+  Widget _buildInfoItem(String title, String description, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            margin: EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint(
@@ -1055,13 +1170,75 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     }
 
     return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(100),
+        child: AppBar(
+          scrolledUnderElevation: 0.0,
+          toolbarHeight: 80,
+          backgroundColor: Colors.grey[850],
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(16),
+            ),
+          ),
+          title: Column(
+            children: [
+              SizedBox(height: 20),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.blue[700],
+                    child: Icon(
+                      Icons.map_outlined,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  SizedBox(width: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Explore Distribution',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white,
+                            fontStyle: FontStyle.italic),
+                      ),
+                      Text(
+                        'Welfare Distribution Map',
+                        style: TextStyle(
+                            fontSize: 22,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                  Spacer(),
+                  IconButton(
+                    icon: Icon(
+                      Icons.info_outline,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                    onPressed: _showMapInfoDialog,
+                    tooltip: 'Map Information',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: Colors.grey[100],
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Change the background of the map to light blue
+          // Background color for the map
           Container(
-            color: Colors
-                .blue.shade100, // Light blue background for the entire map
+            color: Colors.blue.shade50,
           ),
 
           Padding(
@@ -1108,26 +1285,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             ),
           ),
 
-          // Updated simple left-aligned title text
-          Positioned(
-            top: 35,
-            left: 26, // Left-aligned
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: const Text(
-                'Welfare Distribution Map',
-                style: TextStyle(
-                  fontSize: 26, // Increased font size
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ),
-
           FloatingSearchBar(
             controller: _searchBarController,
-            margins: const EdgeInsets.fromLTRB(16, 75, 16, 16),
+            margins: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             hint: 'Search municipalities...',
             height: 40, // Small height
 
