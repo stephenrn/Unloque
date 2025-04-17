@@ -135,6 +135,166 @@ Keep your response factual and objective. Format tables properly with clear head
     }
   }
 
+  // New method to translate content to Tagalog
+  static Future<String> translateContent({
+    required String content,
+    required String targetLanguage,
+  }) async {
+    try {
+      // Debug length
+      debugPrint(
+          'Translating content of length: ${content.length} to $targetLanguage');
+
+      final apiKey = APIKeys.getOpenAIKey();
+
+      if (apiKey.isEmpty) {
+        throw Exception('API key is empty or invalid');
+      }
+
+      // If content is too long, we'll translate in parts
+      if (content.length > 4000) {
+        return _translateLongContent(content, targetLanguage, apiKey);
+      }
+
+      final response = await http.post(
+        Uri.parse('https://api.openai.com/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-3.5-turbo',
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are a professional translator specialized in Filipino/Tagalog. '
+                  'Translate the provided text from English to Tagalog in a way that\'s clear and easy to understand. '
+                  'Maintain the original formatting, including headings, bullet points, and tables. '
+                  'For technical terms that don\'t have direct Tagalog translations, provide the English term '
+                  'followed by a brief explanation in Tagalog in parentheses.'
+            },
+            {
+              'role': 'user',
+              'content':
+                  'Please translate the following text to Tagalog, keeping all markdown formatting intact:\n\n$content',
+            }
+          ],
+          'temperature': 0.3,
+          'max_tokens': 1500,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> data = json.decode(response.body);
+
+        if (!data.containsKey('choices') ||
+            data['choices'].isEmpty ||
+            !data['choices'][0].containsKey('message') ||
+            !data['choices'][0]['message'].containsKey('content')) {
+          throw Exception('Unexpected response format from API');
+        }
+
+        String translatedContent = data['choices'][0]['message']['content'];
+        debugPrint(
+            'Successfully received translation with length: ${translatedContent.length}');
+        return translatedContent;
+      } else {
+        throw Exception(
+            'Translation request failed with status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Error in translation request: $e');
+      return 'Error translating content: ${e.toString()}';
+    }
+  }
+
+  // Helper method to translate long content in chunks
+  static Future<String> _translateLongContent(
+      String content, String targetLanguage, String apiKey) async {
+    // Split content into major sections (headings and paragraphs)
+    List<String> parts = [];
+    StringBuffer currentPart = StringBuffer();
+    int currentLength = 0;
+
+    // Split by double newlines (typically separating paragraphs)
+    List<String> paragraphs = content.split('\n\n');
+
+    for (String paragraph in paragraphs) {
+      // If adding this paragraph would exceed our chunk size
+      if (currentLength + paragraph.length > 3000) {
+        if (currentPart.isNotEmpty) {
+          parts.add(currentPart.toString());
+          currentPart = StringBuffer();
+          currentLength = 0;
+        }
+      }
+
+      currentPart.writeln(paragraph);
+      currentPart.writeln(); // Add back the newlines
+      currentLength += paragraph.length + 2;
+    }
+
+    // Add the last part if it has content
+    if (currentPart.isNotEmpty) {
+      parts.add(currentPart.toString());
+    }
+
+    debugPrint('Split content into ${parts.length} parts for translation');
+
+    // Translate each part
+    List<String> translatedParts = [];
+    for (int i = 0; i < parts.length; i++) {
+      debugPrint('Translating part ${i + 1} of ${parts.length}');
+
+      try {
+        final response = await http.post(
+          Uri.parse('https://api.openai.com/v1/chat/completions'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $apiKey',
+          },
+          body: jsonEncode({
+            'model': 'gpt-3.5-turbo',
+            'messages': [
+              {
+                'role': 'system',
+                'content': 'You are a professional translator specialized in Filipino/Tagalog. '
+                    'Translate the provided text from English to Tagalog in a way that\'s clear and easy to understand. '
+                    'Maintain the original formatting, including headings, bullet points, and tables. '
+                    'This is part ${i + 1} of a larger document with ${parts.length} parts.'
+              },
+              {
+                'role': 'user',
+                'content':
+                    'Please translate the following text to Tagalog, keeping all markdown formatting intact:\n\n${parts[i]}',
+              }
+            ],
+            'temperature': 0.3,
+            'max_tokens': 1500,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          Map<String, dynamic> data = json.decode(response.body);
+          String translatedPart = data['choices'][0]['message']['content'];
+          translatedParts.add(translatedPart);
+
+          // Add a small delay to respect rate limits
+          await Future.delayed(Duration(milliseconds: 500));
+        } else {
+          throw Exception(
+              'Translation request failed with status ${response.statusCode}: ${response.body}');
+        }
+      } catch (e) {
+        debugPrint('Error translating part ${i + 1}: $e');
+        translatedParts.add('Error translating this section: ${e.toString()}');
+      }
+    }
+
+    // Combine all translated parts
+    return translatedParts.join('\n\n');
+  }
+
   // Helper function to safely make API requests with large data
   static Future<String> _makeAPIRequestWithDataSafeguards(String prompt) async {
     // Create a simplified version of the prompt by reducing the data samples

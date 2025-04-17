@@ -59,6 +59,16 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
   String? _dataSummaryError;
   String? _insightsError;
 
+  // New state variables for translation
+  bool _isTagalogDataSummary = false;
+  bool _isTagalogInsights = false;
+  bool _isTranslatingDataSummary = false;
+  bool _isTranslatingInsights = false;
+  String _tagalogDataSummaryContent = '';
+  String _tagalogInsightsContent = '';
+  String? _translationDataSummaryError;
+  String? _translationInsightsError;
+
   // Flag to track if tabs have been selected and need data loading
   bool _dataSummaryTabSelected = false;
   bool _insightsTabSelected = false;
@@ -221,6 +231,96 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
       setState(() {
         _insightsError = 'Failed to generate insights. Please try again.';
         _isLoadingInsights = false;
+      });
+    }
+  }
+
+  // New method to translate data summary
+  Future<void> _translateDataSummary() async {
+    // Only proceed if we have content to translate
+    if (_dataSummaryContent.isEmpty) {
+      setState(() {
+        _translationDataSummaryError = 'No content available to translate';
+      });
+      return;
+    }
+
+    // If we already have a translation and are toggling back to English
+    if (_isTagalogDataSummary) {
+      setState(() {
+        _isTagalogDataSummary = false;
+      });
+      return;
+    }
+
+    // If we need to translate to Tagalog
+    setState(() {
+      _isTranslatingDataSummary = true;
+      _translationDataSummaryError = null;
+    });
+
+    try {
+      final translation = await AIInsightsService.translateContent(
+        content: _dataSummaryContent,
+        targetLanguage: 'Tagalog',
+      );
+
+      setState(() {
+        _tagalogDataSummaryContent = translation;
+        _isTagalogDataSummary = true;
+        _isTranslatingDataSummary = false;
+      });
+    } catch (e) {
+      debugPrint('Error translating data summary: $e');
+      setState(() {
+        _translationDataSummaryError =
+            'Failed to translate content. Please try again.';
+        _isTranslatingDataSummary = false;
+      });
+    }
+  }
+
+  // New method to translate insights
+  Future<void> _translateInsights() async {
+    // Only proceed if we have content to translate
+    if (_insightsContent.isEmpty) {
+      setState(() {
+        _translationInsightsError = 'No content available to translate';
+      });
+      return;
+    }
+
+    // If we already have a translation and are toggling back to English
+    if (_isTagalogInsights) {
+      setState(() {
+        _isTagalogInsights = false;
+      });
+      return;
+    }
+
+    // If we need to translate to Tagalog
+    setState(() {
+      _isTranslatingInsights = true;
+      _translationInsightsError = null;
+    });
+
+    try {
+      final translation = await AIInsightsService.translateContent(
+        content: _insightsContent,
+        targetLanguage: 'Tagalog',
+      );
+
+      setState(() {
+        _tagalogInsightsContent = translation;
+        _isTagalogInsights = true;
+        _isTranslatingInsights = false;
+      });
+    } catch (e) {
+      debugPrint('Error translating insights: $e');
+      setState(() {
+        _translationInsightsError =
+            'Failed to translate content. Please try again.';
+        _isTranslatingInsights = false;
       });
     }
   }
@@ -837,7 +937,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
   }
 
   Widget _buildDataSummaryTab() {
-    // Updated to show AI-generated data summary
+    // Updated to show AI-generated data summary and translation button
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -853,21 +953,57 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
                   fontSize: 20,
                 ),
               ),
-              if (!_isLoadingDataSummary)
-                IconButton(
-                  icon: Icon(Icons.refresh),
-                  onPressed: _generateDataSummary,
-                  tooltip: 'Refresh analysis',
-                ),
+              Row(
+                children: [
+                  if (!_isLoadingDataSummary && _dataSummaryContent.isNotEmpty)
+                    // Translation button
+                    IconButton(
+                      icon: Icon(_isTagalogDataSummary
+                          ? Icons.language
+                          : Icons.translate),
+                      onPressed: _isTranslatingDataSummary
+                          ? null
+                          : _translateDataSummary,
+                      tooltip: _isTagalogDataSummary
+                          ? 'Switch to English'
+                          : 'Translate to Tagalog',
+                    ),
+                  if (!_isLoadingDataSummary)
+                    IconButton(
+                      icon: Icon(Icons.refresh),
+                      onPressed: _generateDataSummary,
+                      tooltip: 'Refresh analysis',
+                    ),
+                ],
+              ),
             ],
           ),
+          if (_isTranslatingDataSummary)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text('Translating to Tagalog...'),
+                ],
+              ),
+            ),
           const SizedBox(height: 8),
 
-          // Display AI-powered analysis - removed Card container
+          // Display AI-powered analysis with translation support
           MarkdownRenderer(
-            data: _dataSummaryContent,
+            data: _isTagalogDataSummary
+                ? _tagalogDataSummaryContent
+                : _dataSummaryContent,
             isLoading: _isLoadingDataSummary,
-            errorMessage: _dataSummaryError,
+            errorMessage: _dataSummaryError ?? _translationDataSummaryError,
             onRetry: _generateDataSummary,
           ),
         ],
@@ -876,7 +1012,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
   }
 
   Widget _buildInsightsTab() {
-    // Updated to show AI-generated insights
+    // Updated to show AI-generated insights and translation button
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -892,21 +1028,55 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
                   fontSize: 20,
                 ),
               ),
-              if (!_isLoadingInsights)
-                IconButton(
-                  icon: Icon(Icons.refresh),
-                  onPressed: _generateInsights,
-                  tooltip: 'Refresh insights',
-                ),
+              Row(
+                children: [
+                  if (!_isLoadingInsights && _insightsContent.isNotEmpty)
+                    // Translation button
+                    IconButton(
+                      icon: Icon(_isTagalogInsights
+                          ? Icons.language
+                          : Icons.translate),
+                      onPressed:
+                          _isTranslatingInsights ? null : _translateInsights,
+                      tooltip: _isTagalogInsights
+                          ? 'Switch to English'
+                          : 'Translate to Tagalog',
+                    ),
+                  if (!_isLoadingInsights)
+                    IconButton(
+                      icon: Icon(Icons.refresh),
+                      onPressed: _generateInsights,
+                      tooltip: 'Refresh insights',
+                    ),
+                ],
+              ),
             ],
           ),
+          if (_isTranslatingInsights)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text('Translating to Tagalog...'),
+                ],
+              ),
+            ),
           const SizedBox(height: 8),
 
-          // Display AI-powered insights - removed Card container
+          // Display AI-powered insights with translation support
           MarkdownRenderer(
-            data: _insightsContent,
+            data:
+                _isTagalogInsights ? _tagalogInsightsContent : _insightsContent,
             isLoading: _isLoadingInsights,
-            errorMessage: _insightsError,
+            errorMessage: _insightsError ?? _translationInsightsError,
             onRetry: _generateInsights,
           ),
         ],
