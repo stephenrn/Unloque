@@ -751,73 +751,26 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     final displayLocation = _selectedLocation ?? _quezonProvince;
     final bool isDefaultView = _selectedLocation == null;
 
-    // Debug print to help track what's happening with filters
-    debugPrint(
-        'Building bottom sheet: filter=$_selectedFilter, location=${displayLocation.name}, default=$isDefaultView');
-
-    // Get the municipality population if selected
+    // Get the municipality population and beneficiary data if selected
     int? municipalityPopulation;
-    if (!isDefaultView &&
-        _rawPopulationData.containsKey(_selectedLocation!.name)) {
-      municipalityPopulation = _rawPopulationData[_selectedLocation!.name];
-    }
+    Map<String, int> beneficiaryData = {};
 
-    // Only show category-specific bottom sheet if it's province-wide (default) view
-    // AND a category filter is selected
-    if (_selectedFilter != 'General' && isDefaultView) {
-      // Get the appropriate category data
-      Map<String, int>? categoryData = _categoryData[_selectedFilter];
-      int? categoryTotal;
-
-      if (_selectedFilter == 'Healthcare') {
-        categoryTotal = _healthcareTotalBeneficiaries;
-      } else if (_selectedFilter == 'Social') {
-        categoryTotal = _socialTotalBeneficiaries;
-      } else if (_selectedFilter == 'Educational') {
-        categoryTotal = _educationTotalBeneficiaries;
+    if (!isDefaultView) {
+      // Get population data for this municipality
+      if (_rawPopulationData.containsKey(_selectedLocation!.name)) {
+        municipalityPopulation = _rawPopulationData[_selectedLocation!.name];
       }
 
-      return CategoryFilterBottomSheet(
-        location: displayLocation,
-        isDefaultView: isDefaultView,
-        isExpanded: _isBottomSheetExpanded,
-        sheetHeight: _bottomSheetHeight,
-        selectedFilter: _selectedFilter,
-        onClose: () => _onFilterSelected('General'),
-        onDragUpdate: _handleDragUpdate,
-        categoryMunicipalityData: categoryData,
-        categoryTotalBeneficiaries: categoryTotal,
-      );
-    }
-
-    // Show municipality-specific bottom sheet with category data if a filter is active
-    if (!isDefaultView && _selectedFilter != 'General') {
-      // Get the appropriate category data
-      Map<String, int>? categoryData = _categoryData[_selectedFilter];
-      int? categoryTotal;
-
-      if (_selectedFilter == 'Healthcare') {
-        categoryTotal = _healthcareTotalBeneficiaries;
-      } else if (_selectedFilter == 'Social') {
-        categoryTotal = _socialTotalBeneficiaries;
-      } else if (_selectedFilter == 'Educational') {
-        categoryTotal = _educationTotalBeneficiaries;
+      // Get beneficiary data for all categories for this municipality
+      for (String category in _categoryData.keys) {
+        if (_categoryData[category]!.containsKey(_selectedLocation!.name)) {
+          beneficiaryData[category] =
+              _categoryData[category]![_selectedLocation!.name]!;
+        }
       }
-
-      return CategoryFilterBottomSheet(
-        location: displayLocation,
-        isDefaultView: isDefaultView,
-        isExpanded: _isBottomSheetExpanded,
-        sheetHeight: _bottomSheetHeight,
-        selectedFilter: _selectedFilter,
-        onClose: _resetToQuezonProvince,
-        onDragUpdate: _handleDragUpdate,
-        categoryMunicipalityData: categoryData,
-        categoryTotalBeneficiaries: categoryTotal,
-      );
     }
 
-    // Show municipality-specific bottom sheet
+    // Only show municipality-specific bottom sheet when a municipality is selected
     if (!isDefaultView) {
       return SelectedMunicipalityBottomSheet(
         location: displayLocation,
@@ -826,6 +779,14 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         onClose: _resetToQuezonProvince,
         onDragUpdate: _handleDragUpdate,
         municipalityPopulation: municipalityPopulation,
+        beneficiaryData: beneficiaryData,
+        categoryTotals: {
+          'Healthcare': _healthcareTotalBeneficiaries,
+          'Social': _socialTotalBeneficiaries,
+          'Educational': _educationTotalBeneficiaries,
+        },
+        selectedFilter:
+            _selectedFilter, // Pass the selected filter for highlighting relevant data
       );
     }
 
