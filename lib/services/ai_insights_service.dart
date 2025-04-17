@@ -13,21 +13,6 @@ class AIInsightsService {
     Map<String, int?>? categoryTotals,
   }) async {
     try {
-      debugPrint('AI Service - Generating data summary');
-      debugPrint('Population data received: ${populationData.length} items');
-      debugPrint('Total population value: $totalPopulation');
-
-      // Debug: check the populationData structure
-      if (populationData['Total Population'] == null) {
-        debugPrint('WARNING: Missing total population in population data');
-        // Ensure total population exists in the data
-        if (totalPopulation != null) {
-          populationData = Map.from(populationData);
-          populationData['Total Population'] = totalPopulation;
-          debugPrint('Added total population from parameter: $totalPopulation');
-        }
-      }
-
       // Format population data
       final formattedPopData = _formatPopulationData(populationData);
 
@@ -51,7 +36,8 @@ Please provide a clear, informative summary of this data in markdown format. Inc
 3. Highlight areas with high/low coverage
 4. Show relevant data in tables for clarity
 
-DO NOT include any contact information, personal details, or recommendations to contact specific persons or offices.
+DO NOT include any contact information, email addresses, phone numbers, or specific points of contact.
+Do not make up or suggest any contact details, as these would be inaccurate.
 Keep the analysis factual and data-driven. Format tables properly with clear headers and alignment.
 ''';
 
@@ -72,21 +58,6 @@ Keep the analysis factual and data-driven. Format tables properly with clear hea
     Map<String, int?>? categoryTotals,
   }) async {
     try {
-      debugPrint('AI Service - Generating insights');
-      debugPrint('Population data received: ${populationData.length} items');
-      debugPrint('Total population value: $totalPopulation');
-
-      // Debug: check the populationData structure
-      if (populationData['Total Population'] == null) {
-        debugPrint('WARNING: Missing total population in population data');
-        // Ensure total population exists in the data
-        if (totalPopulation != null) {
-          populationData = Map.from(populationData);
-          populationData['Total Population'] = totalPopulation;
-          debugPrint('Added total population from parameter: $totalPopulation');
-        }
-      }
-
       // Format population data
       final formattedPopData = _formatPopulationData(populationData);
 
@@ -110,7 +81,8 @@ Based on this data, provide strategic insights in markdown format:
 3. Highlight successful distribution patterns
 4. Identify opportunities for better resource allocation
 
-DO NOT include any contact information, phone numbers, email addresses, or specific points of contact.
+DO NOT include any contact information, email addresses, phone numbers, or personal recommendations.
+Do not suggest contacting specific offices, as contact details would be inaccurate.
 Keep your response factual and objective. Format tables properly with clear headers and alignment.
 ''';
 
@@ -293,7 +265,8 @@ Keep your response factual and objective. Format tables properly with clear head
             'role': 'system',
             'content': 'You are a data analyst specializing in population statistics and welfare program distribution. '
                 'Provide clear, concise, and factual analysis with properly formatted markdown tables. '
-                'Do NOT include any contact information, email addresses, phone numbers, or personal references.'
+                'DO NOT include any contact information, email addresses, phone numbers, or personal references as these would be inaccurate. '
+                'Focus solely on data analysis and objective insights.'
           },
           {
             'role': 'user',
@@ -317,7 +290,7 @@ Keep your response factual and objective. Format tables properly with clear head
     }
   }
 
-  // Helper to process and clean up markdown
+  // Helper to process and clean up markdown - REINSTATED CONTACT INFO FILTERING
   static String _processMarkdown(String markdown) {
     // Replace complex markdown elements with simpler ones if necessary
     String processed = markdown;
@@ -332,9 +305,6 @@ Keep your response factual and objective. Format tables properly with clear head
         .replaceAll('â', "'") // Single quote
         .replaceAll('Â', "") // Non-breaking space
         .replaceAll('\u00A0', " "); // Another non-breaking space
-
-    // CRITICAL: Completely disable table conversion to maintain table structure
-    // processed = _convertMarkdownTablesToLists(processed);
 
     // Remove any contact information that might have slipped through
     processed = _removeContactInfo(processed);
@@ -378,10 +348,12 @@ Keep your response factual and objective. Format tables properly with clear head
       RegExp(r'reach\s+out\s+to', caseSensitive: false),
       RegExp(r'call\s+\w+\s+at', caseSensitive: false),
       RegExp(r'email\s+\w+\s+at', caseSensitive: false),
+      RegExp(r'contact\s+information', caseSensitive: false),
+      RegExp(r'contact\s+details', caseSensitive: false),
     ];
 
     for (final pattern in contactPhrases) {
-      text = text.replaceAll(pattern, "contact");
+      text = text.replaceAll(pattern, "For more information");
     }
 
     return text;
