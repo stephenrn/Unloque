@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 
 // Import the data model and other necessary classes
 import '../models/data_model.dart';
+import '../services/ai_insights_service.dart';
+import '../services/api_keys.dart';
+import '../widgets/markdown_renderer.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-class GeneralBottomSheet extends StatelessWidget {
+class GeneralBottomSheet extends StatefulWidget {
   final DataModel location;
   final bool isDefaultView;
   final bool isExpanded;
@@ -18,6 +22,9 @@ class GeneralBottomSheet extends StatelessWidget {
   final int? healthcareTotalBeneficiaries;
   final int? socialTotalBeneficiaries;
   final int? educationTotalBeneficiaries;
+  // Add new parameters for the raw data needed for AI analysis
+  final Map<String, int>? rawPopulationData;
+  final Map<String, Map<String, int>>? categoryData;
 
   const GeneralBottomSheet({
     Key? key,
@@ -29,11 +36,154 @@ class GeneralBottomSheet extends StatelessWidget {
     required this.onDragUpdate,
     required this.onToggleExpansion,
     required this.tabController,
-    this.totalPopulation, // Make it optional since it might be null during loading
+    this.totalPopulation,
     this.healthcareTotalBeneficiaries,
     this.socialTotalBeneficiaries,
     this.educationTotalBeneficiaries,
+    this.rawPopulationData,
+    this.categoryData,
   }) : super(key: key);
+
+  @override
+  State<GeneralBottomSheet> createState() => _GeneralBottomSheetState();
+}
+
+class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
+  // State variables for AI-generated content
+  bool _isLoadingDataSummary = false;
+  bool _isLoadingInsights = false;
+  String _dataSummaryContent = '';
+  String _insightsContent = '';
+  String? _dataSummaryError;
+  String? _insightsError;
+
+  // Flag to track if tabs have been selected and need data loading
+  bool _dataSummaryTabSelected = false;
+  bool _insightsTabSelected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for tab changes
+    widget.tabController.addListener(_handleTabChange);
+  }
+
+  @override
+  void dispose() {
+    // Clean up listeners
+    widget.tabController.removeListener(_handleTabChange);
+    super.dispose();
+  }
+
+  // Handle tab changes
+  void _handleTabChange() {
+    if (!widget.tabController.indexIsChanging) {
+      // Data Analysis tab is index 0
+      // Data Summary tab is index 1
+      // Insights tab is index 2
+
+      if (widget.tabController.index == 1 && !_dataSummaryTabSelected) {
+        setState(() {
+          _dataSummaryTabSelected = true;
+        });
+        _generateDataSummary();
+      }
+
+      if (widget.tabController.index == 2 && !_insightsTabSelected) {
+        setState(() {
+          _insightsTabSelected = true;
+        });
+        _generateInsights();
+      }
+    }
+  }
+
+  // Generate data summary using AI
+  Future<void> _generateDataSummary() async {
+    // Only proceed if we have the necessary data
+    if (widget.rawPopulationData == null || widget.categoryData == null) {
+      setState(() {
+        _dataSummaryError = 'Insufficient data available for analysis';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingDataSummary = true;
+      _dataSummaryError = null;
+      _dataSummaryContent = ''; // Clear previous content
+    });
+
+    try {
+      // Prepare category totals map
+      Map<String, int?> categoryTotals = {
+        'Healthcare': widget.healthcareTotalBeneficiaries,
+        'Social': widget.socialTotalBeneficiaries,
+        'Educational': widget.educationTotalBeneficiaries,
+      };
+
+      final summary = await AIInsightsService.generateDataSummary(
+        populationData: Map<String, dynamic>.from(widget.rawPopulationData!),
+        categoryData: widget.categoryData!,
+        totalPopulation: widget.totalPopulation,
+        categoryTotals: categoryTotals,
+      );
+
+      setState(() {
+        _dataSummaryContent = summary;
+        _isLoadingDataSummary = false;
+      });
+    } catch (e) {
+      setState(() {
+        _dataSummaryError =
+            'Failed to generate data summary. Please try again.';
+        _isLoadingDataSummary = false;
+      });
+    }
+  }
+
+  // Generate insights using AI
+  Future<void> _generateInsights() async {
+    // Only proceed if we have the necessary data
+    if (widget.rawPopulationData == null || widget.categoryData == null) {
+      setState(() {
+        _insightsError = 'Insufficient data available for analysis';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingInsights = true;
+      _insightsError = null;
+      _insightsContent = ''; // Clear previous content
+    });
+
+    try {
+      // Prepare category totals map
+      Map<String, int?> categoryTotals = {
+        'Healthcare': widget.healthcareTotalBeneficiaries,
+        'Social': widget.socialTotalBeneficiaries,
+        'Educational': widget.educationTotalBeneficiaries,
+      };
+
+      final insights = await AIInsightsService.generateInsights(
+        populationData: Map<String, dynamic>.from(widget.rawPopulationData!),
+        categoryData: widget.categoryData!,
+        totalPopulation: widget.totalPopulation,
+        categoryTotals: categoryTotals,
+      );
+
+      setState(() {
+        _insightsContent = insights;
+        _isLoadingInsights = false;
+      });
+    } catch (e) {
+      setState(() {
+        _insightsError = 'Failed to generate insights. Please try again.';
+        _isLoadingInsights = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +193,9 @@ class GeneralBottomSheet extends StatelessWidget {
       bottom: 0,
       left: 0,
       right: 0,
-      height: sheetHeight,
+      height: widget.sheetHeight,
       child: GestureDetector(
-        onVerticalDragUpdate: onDragUpdate,
+        onVerticalDragUpdate: widget.onDragUpdate,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -67,14 +217,14 @@ class GeneralBottomSheet extends StatelessWidget {
               // Location header with name and population
               _buildLocationHeader(),
 
-              if (isExpanded) ...[
+              if (widget.isExpanded) ...[
                 // Tab bar
                 _buildTabBar(),
 
                 // Tab content
                 Expanded(
                   child: TabBarView(
-                    controller: tabController,
+                    controller: widget.tabController,
                     children: [
                       _buildDataAnalysisTab(),
                       _buildDataSummaryTab(),
@@ -92,7 +242,7 @@ class GeneralBottomSheet extends StatelessWidget {
 
   Widget _buildDragHandle() {
     return GestureDetector(
-      onTap: onToggleExpansion,
+      onTap: widget.onToggleExpansion,
       child: Container(
         width: double.infinity,
         height: 16,
@@ -122,7 +272,7 @@ class GeneralBottomSheet extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  location.name,
+                  widget.location.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
@@ -130,9 +280,9 @@ class GeneralBottomSheet extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (totalPopulation != null)
+                if (widget.totalPopulation != null)
                   Text(
-                    'Population: ${_formatNumber(totalPopulation!)}',
+                    'Population: ${_formatNumber(widget.totalPopulation!)}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -141,13 +291,13 @@ class GeneralBottomSheet extends StatelessWidget {
               ],
             ),
           ),
-          if (isDefaultView ==
+          if (widget.isDefaultView ==
               false) // Close button only if we are viewing a specific municipality
             IconButton(
               icon: const Icon(Icons.close, size: 20),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              onPressed: onClose,
+              onPressed: widget.onClose,
             ),
         ],
       ),
@@ -158,7 +308,7 @@ class GeneralBottomSheet extends StatelessWidget {
     return SizedBox(
       height: 48,
       child: TabBar(
-        controller: tabController,
+        controller: widget.tabController,
         labelColor: Colors.blue[700],
         unselectedLabelColor: Colors.grey[600],
         indicatorColor: Colors.blue[700],
@@ -214,8 +364,8 @@ class GeneralBottomSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    totalPopulation != null
-                        ? _formatNumber(totalPopulation!)
+                    widget.totalPopulation != null
+                        ? _formatNumber(widget.totalPopulation!)
                         : 'Loading...',
                     style: const TextStyle(
                       fontSize: 24,
@@ -264,8 +414,8 @@ class GeneralBottomSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    healthcareTotalBeneficiaries != null
-                        ? _formatNumber(healthcareTotalBeneficiaries!)
+                    widget.healthcareTotalBeneficiaries != null
+                        ? _formatNumber(widget.healthcareTotalBeneficiaries!)
                         : 'Loading...',
                     style: TextStyle(
                       fontSize: 24,
@@ -306,8 +456,8 @@ class GeneralBottomSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    socialTotalBeneficiaries != null
-                        ? _formatNumber(socialTotalBeneficiaries!)
+                    widget.socialTotalBeneficiaries != null
+                        ? _formatNumber(widget.socialTotalBeneficiaries!)
                         : 'Loading...',
                     style: TextStyle(
                       fontSize: 24,
@@ -348,8 +498,8 @@ class GeneralBottomSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    educationTotalBeneficiaries != null
-                        ? _formatNumber(educationTotalBeneficiaries!)
+                    widget.educationTotalBeneficiaries != null
+                        ? _formatNumber(widget.educationTotalBeneficiaries!)
                         : 'Loading...',
                     style: TextStyle(
                       fontSize: 24,
@@ -367,29 +517,38 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildDataSummaryTab() {
-    // Show empty content instead of population data
+    // Updated to show AI-generated data summary
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Data Summary',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Additional summary widgets would go here
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 50.0),
-              child: Text(
-                'Summary data coming soon',
-                style: TextStyle(color: Colors.grey),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Data Summary',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
-            ),
+              if (!_isLoadingDataSummary)
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  onPressed: _generateDataSummary,
+                  tooltip: 'Refresh analysis',
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Display AI-powered analysis - removed Card container
+          MarkdownRenderer(
+            data: _dataSummaryContent,
+            isLoading: _isLoadingDataSummary,
+            errorMessage: _dataSummaryError,
+            onRetry: _generateDataSummary,
           ),
         ],
       ),
@@ -397,29 +556,38 @@ class GeneralBottomSheet extends StatelessWidget {
   }
 
   Widget _buildInsightsTab() {
-    // Show empty content instead of population data
+    // Updated to show AI-generated insights
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Insights',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Insights content would go here
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 50.0),
-              child: Text(
-                'Insights coming soon',
-                style: TextStyle(color: Colors.grey),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Strategic Insights',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
-            ),
+              if (!_isLoadingInsights)
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  onPressed: _generateInsights,
+                  tooltip: 'Refresh insights',
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Display AI-powered insights - removed Card container
+          MarkdownRenderer(
+            data: _insightsContent,
+            isLoading: _isLoadingInsights,
+            errorMessage: _insightsError,
+            onRetry: _generateInsights,
           ),
         ],
       ),

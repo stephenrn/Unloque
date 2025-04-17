@@ -831,6 +831,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       healthcareTotalBeneficiaries: _healthcareTotalBeneficiaries,
       socialTotalBeneficiaries: _socialTotalBeneficiaries,
       educationTotalBeneficiaries: _educationTotalBeneficiaries,
+      // Add these new parameters for AI analysis
+      rawPopulationData: _rawPopulationData,
+      categoryData: _categoryData,
     );
   }
 
