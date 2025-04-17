@@ -49,19 +49,64 @@ class _OrganizationPageState extends State<OrganizationPage>
     final organizationWebsite = widget.organization['website'] ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[850],
       appBar: AppBar(
-        backgroundColor: Colors.grey[850],
-        title: Text(
-          organizationName,
-          style: const TextStyle(color: Colors.white),
+        toolbarHeight: 100,
+        title: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            organizationName,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[200],
+            ),
+          ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        backgroundColor: Colors.grey[850],
+        automaticallyImplyLeading: false,
+        leading: Container(
+          margin: EdgeInsets.only(left: 16),
+          child: Container(
+            height: 28,
+            width: 28,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.pop(context),
+              icon: Transform.rotate(
+                angle: 4.71239,
+                child: Icon(
+                  Icons.arrow_outward_rounded,
+                  color: Colors.grey[900],
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.grey[400],
-          indicatorColor: Colors.blue,
+          labelStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          unselectedLabelColor: Colors.grey[600],
+          labelColor: Colors.grey[200],
+          dividerColor: Colors.transparent,
+          indicator: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey[200]!,
+                width: 2.0,
+              ),
+            ),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
           tabs: const [
             Tab(text: 'Programs'),
             Tab(text: 'News'),
@@ -69,71 +114,133 @@ class _OrganizationPageState extends State<OrganizationPage>
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Organization header
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  color: Colors.grey[200],
-                  child: organizationLogo != null &&
-                          organizationLogo.toString().isNotEmpty
-                      ? Image.network(
-                          organizationLogo,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.business, size: 40);
-                          },
-                        )
-                      : const Icon(Icons.business, size: 40),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        organizationName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (organizationWebsite.isNotEmpty)
+      body: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Organization header - redesigned for better aesthetics
+            Container(
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: organizationLogo != null &&
+                              organizationLogo.toString().isNotEmpty
+                          ? Image.network(
+                              organizationLogo,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.business,
+                                  size: 40,
+                                  color: Colors.grey[600],
+                                );
+                              },
+                            )
+                          : Icon(
+                              Icons.business,
+                              size: 40,
+                              color: Colors.grey[600],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          organizationWebsite,
+                          organizationName,
                           style: TextStyle(
-                            color: Colors.blue[700],
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
                           ),
                         ),
-                    ],
+                        SizedBox(height: 4),
+                        if (organizationWebsite.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              // You can add url_launcher functionality here
+                            },
+                            child: Row(
+                              children: [
+                                Icon(Icons.language,
+                                    size: 16, color: Colors.blue[700]),
+                                SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    organizationWebsite,
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (organizationWebsite.isEmpty)
+                          Text(
+                            'No website provided',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Programs Tab
-                _ProgramsTab(organizationId: widget.organization['id']),
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Programs Tab
+                  _ProgramsTab(organizationId: widget.organization['id']),
 
-                // News Tab
-                _NewsTab(organizationId: widget.organization['id']),
+                  // News Tab
+                  _NewsTab(organizationId: widget.organization['id']),
 
-                // Map Data Tab
-                _MapDataTab(organizationId: widget.organization['id']),
-              ],
+                  // Map Data Tab
+                  _MapDataTab(organizationId: widget.organization['id']),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -936,7 +1043,7 @@ class _NewsTabState extends State<_NewsTab> {
           backgroundColor: Colors.transparent,
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddNewsDialog(context),
-            backgroundColor: Colors.blue,
+            backgroundColor: Colors.grey[300], // Changed from blue to grey[300]
             child: const Icon(Icons.add),
           ),
           body: StreamBuilder<QuerySnapshot>(
@@ -1239,15 +1346,16 @@ class _NewsSliderStyleCard extends StatelessWidget {
                 right: 8,
                 child: Row(
                   children: [
-                    // Edit button
+                    // Edit button - Changed background and icon colors
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.grey[300]?.withOpacity(
+                            0.8), // Changed from white.withOpacity(0.8)
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: IconButton(
                         icon: Icon(Icons.edit, size: 20),
-                        color: Colors.blue[800],
+                        color: Colors.grey[700], // Changed from blue[800]
                         padding: EdgeInsets.all(4),
                         constraints: BoxConstraints(),
                         onPressed: onTapEdit,
@@ -1255,15 +1363,16 @@ class _NewsSliderStyleCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 8),
-                    // Delete button
+                    // Delete button - Changed background and kept red icon slightly muted
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.grey[300]?.withOpacity(
+                            0.8), // Changed from white.withOpacity(0.8)
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: IconButton(
                         icon: Icon(Icons.delete, size: 20),
-                        color: Colors.red[800],
+                        color: Colors.red[600], // Slightly muted red
                         padding: EdgeInsets.all(4),
                         constraints: BoxConstraints(),
                         onPressed: onTapDelete,
@@ -1415,7 +1524,7 @@ class _MapDataTab extends StatelessWidget {
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showProgramSelectionDialog(context),
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.grey[300], // Changed from blue to grey[300]
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -1484,7 +1593,8 @@ class _MapDataTab extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          icon: Icon(Icons.edit,
+                              color: Colors.grey[600]), // Fixed: removed const
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -1501,7 +1611,8 @@ class _MapDataTab extends StatelessWidget {
                           tooltip: 'Edit',
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
+                          icon: Icon(Icons.delete,
+                              color: Colors.grey[600]), // Fixed: removed const
                           onPressed: () {
                             _deleteMapData(context, doc.id,
                                 data['title'] ?? 'Program Beneficiaries');
@@ -1538,7 +1649,8 @@ class _MapDataTab extends StatelessWidget {
                     'Lng: ${data['longitude']?.toStringAsFixed(4) ?? 'N/A'}',
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: Icon(Icons.delete,
+                        color: Colors.grey[600]), // Fixed: removed const
                     onPressed: () {
                       _deleteMapData(context, doc.id,
                           data['locationName'] ?? 'Unnamed Location');

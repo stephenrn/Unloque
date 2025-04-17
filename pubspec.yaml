@@ -47,6 +47,8 @@ dependencies:
   data_table_2: ^2.5.11  # Add this line for improved DataTable widgets
   flutter_html: ^3.0.0-beta.2  # Add this package for HTML rendering
   html: ^0.15.4  # Add this helper package for HTML parsing
+  intl: ^0.20.2
+  image_picker: ^1.1.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

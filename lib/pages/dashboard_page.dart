@@ -4,10 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:unloque/components/application_progress_section.dart';
 import 'package:unloque/components/categories_section.dart';
 import 'package:unloque/pages/admin/developer_options_page.dart';
+import 'package:unloque/pages/notification_page.dart';
 import '../components/news-slider.dart';
 import '../models/slider_item.dart';
 import '../data/available_applications_data.dart';
-import '../pages/program_search_results_page.dart'; // Add this import
+import '../pages/program_search_results_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -142,10 +143,9 @@ class DashboardPageState extends State<DashboardPage> {
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(100),
         child: AppBar(
-          scrolledUnderElevation: 0.0, // Add this line
+          scrolledUnderElevation: 0.0,
           toolbarHeight: 80,
-          backgroundColor:
-              Colors.grey[850] ?? Colors.grey, // Provide fallback color
+          backgroundColor: Colors.grey[850] ?? Colors.grey,
           elevation: 0,
           title: Column(
             children: [
@@ -156,29 +156,25 @@ class DashboardPageState extends State<DashboardPage> {
                     .doc(user?.uid)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Text('Loading...',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600] ?? Colors.grey,
-                            fontStyle: FontStyle.italic));
+                  // Get username and photo if available
+                  String username = '';
+                  String? photoUrl;
+
+                  if (snapshot.connectionState != ConnectionState.waiting &&
+                      !snapshot.hasError &&
+                      snapshot.hasData &&
+                      snapshot.data!.exists) {
+                    // Extract username if available
+                    var userData =
+                        snapshot.data!.data() as Map<String, dynamic>;
+                    if (userData.containsKey('username')) {
+                      username = userData['username'] ?? '';
+                    }
+                    if (userData.containsKey('photoUrl')) {
+                      photoUrl = userData['photoUrl'];
+                    }
                   }
-                  if (snapshot.hasError) {
-                    return Text('Error',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600] ?? Colors.grey,
-                            fontStyle: FontStyle.italic));
-                  }
-                  if (!snapshot.hasData || !snapshot.data!.exists) {
-                    return Text('No Data',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600] ?? Colors.grey,
-                            fontStyle: FontStyle.italic));
-                  }
-                  String username = snapshot.data!['username'];
-                  String? photoUrl = snapshot.data!['photoUrl'];
+
                   return Row(
                     children: [
                       CircleAvatar(
@@ -191,32 +187,38 @@ class DashboardPageState extends State<DashboardPage> {
                             : null,
                       ),
                       SizedBox(width: 15),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Welcome Back',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.white,
-                                  fontStyle: FontStyle.italic)),
-                          Row(
-                            children: [
-                              Text('Mabuhay, ',
-                                  style: TextStyle(
-                                      fontSize: 22,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500)),
-                              Text('$username!',
-                                  style: TextStyle(
-                                      fontSize: 22,
-                                      color: Colors.blue[200] ?? Colors.blue,
-                                      fontWeight: FontWeight.w500)),
-                            ],
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Welcome Back',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white,
+                                    fontStyle: FontStyle.italic)),
+                            Row(
+                              children: [
+                                Text('Mabuhay, ',
+                                    style: TextStyle(
+                                        fontSize: 22,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500)),
+                                Flexible(
+                                  child: Text(
+                                    username.isNotEmpty ? '$username!' : '!',
+                                    style: TextStyle(
+                                        fontSize: 22,
+                                        color: Colors.blue[200] ?? Colors.blue,
+                                        fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      Spacer(),
-                      // Developer/Admin button - Updated to properly await and handle the result
+                      // Developer/Admin button
                       IconButton(
                         icon: Icon(Icons.admin_panel_settings,
                             color: Colors.white, size: 26),
@@ -236,8 +238,85 @@ class DashboardPageState extends State<DashboardPage> {
                         },
                         tooltip: 'Developer Options',
                       ),
-                      Icon(Icons.notifications_none_outlined,
-                          size: 30, color: Colors.white),
+                      // Notification button with badge for unread notifications
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(user?.uid)
+                            .collection('notifications')
+                            .where('isRead', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          int unreadCount = 0;
+                          if (snapshot.hasData && !snapshot.hasError) {
+                            unreadCount = snapshot.data!.docs.length;
+                          }
+
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.notifications_none_outlined,
+                                    size: 30, color: Colors.white),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => NotificationPage(),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Notifications',
+                              ),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  right: 0,
+                                  top: 8,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: unreadCount > 9 ? 20 : 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: unreadCount > 9
+                                        ? Center(
+                                            child: Text(
+                                              '9+',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          )
+                                        : unreadCount > 0
+                                            ? Center(
+                                                child: Text(
+                                                  '$unreadCount',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              )
+                                            : SizedBox(),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                       SizedBox(width: 5),
                     ],
                   );
@@ -247,8 +326,7 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
-      backgroundColor:
-          Colors.grey[100] ?? Colors.white, // Provide fallback color
+      backgroundColor: Colors.grey[100] ?? Colors.white,
       body: Stack(
         children: [
           RefreshIndicator(
@@ -263,36 +341,32 @@ class DashboardPageState extends State<DashboardPage> {
               AvailableApplicationsData.clearCache();
             },
             child: SingleChildScrollView(
-              controller: _scrollController, // Add the controller here
+              controller: _scrollController,
               child: Column(
                 children: [
                   Container(
-                    color: Colors.grey[850] ??
-                        Colors.grey, // Provide fallback color
+                    color: Colors.grey[850] ?? Colors.grey,
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     child: Container(
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.grey[200] ??
-                            Colors.grey, // Provide fallback color
+                        color: Colors.grey[200] ?? Colors.grey,
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: TextField(
                         controller: _searchController,
-                        style: TextStyle(
-                            color: Colors.grey[800] ??
-                                Colors.black), // Provide fallback color
+                        style:
+                            TextStyle(color: Colors.grey[800] ?? Colors.black),
                         decoration: InputDecoration(
                           hintText: 'Search for programs...',
                           hintStyle: TextStyle(
-                            color: Colors.grey[500] ??
-                                Colors.grey, // Provide fallback color
+                            color: Colors.grey[500] ?? Colors.grey,
                             fontSize: 15,
                             fontStyle: FontStyle.italic,
                           ),
                           prefixIcon: Icon(Icons.search_outlined,
                               color: Colors.grey[800] ?? Colors.black,
-                              size: 22), // Provide fallback color
+                              size: 22),
                           suffixIcon: IconButton(
                             icon: Icon(
                               Icons.arrow_forward,
@@ -312,9 +386,8 @@ class DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                   Container(
-                    padding:
-                        EdgeInsets.only(bottom: 16), // Reduce bottom padding
-                    height: 260, // Increase height to fully contain cards
+                    padding: EdgeInsets.only(bottom: 16),
+                    height: 260,
                     clipBehavior: Clip.none,
                     decoration: BoxDecoration(
                       color: Colors.grey[850],
@@ -330,8 +403,7 @@ class DashboardPageState extends State<DashboardPage> {
                   ),
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 5),
-                    child: AutoImageSlider(
-                        key: _newsSliderKey), // Keep only the key
+                    child: AutoImageSlider(key: _newsSliderKey),
                   ),
                   // Add a key to the CategoriesSection for scrolling
                   CategoriesSection(
