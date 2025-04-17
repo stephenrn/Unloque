@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'dart:convert'; // For HTML escaping and Unicode handling
 
 class MarkdownRenderer extends StatelessWidget {
   final String data;
@@ -325,13 +326,164 @@ class MarkdownRenderer extends StatelessWidget {
     if (line.startsWith('|')) line = line.substring(1);
     if (line.endsWith('|')) line = line.substring(0, line.length - 1);
 
-    return line.split('|').map((cell) => cell.trim()).toList();
+    // Enhanced parsing to handle potential issues
+    return line.split('|').map((cell) {
+      // Clean up cell content more thoroughly
+      return _superSanitizeContent(cell.trim());
+    }).toList();
   }
 
-  // Calculate column width based on content
+  // Add the missing method for calculating column width
   double _calculateColumnWidth(String content) {
     // Base width + character count to ensure columns with more text are wider
     return 100.0 + (content.length * 4.0).clamp(0.0, 100.0);
+  }
+
+  // Enhanced sanitization function with more comprehensive character handling
+  String _superSanitizeContent(String content) {
+    debugPrint('SANITIZING CONTENT: $content');
+
+    // First pass - replace all common problematic characters
+    String sanitized = content
+        // Fix common encoding issues
+        .replaceAll('â€™', "'") // Right single quotation mark
+        .replaceAll('â€œ', '"') // Left double quotation mark
+        .replaceAll('â€', '"') // Right double quotation mark
+        .replaceAll('â€"', "–") // En dash
+        .replaceAll('â€"', "—") // Em dash
+        .replaceAll('â', "'") // Single quote
+        .replaceAll('Â', "") // Non-breaking space
+        .replaceAll('\u00A0', " ") // Another non-breaking space
+        // Replace other common problematic characters
+        .replaceAll('–', '-') // En dash to hyphen
+        .replaceAll('—', '-') // Em dash to hyphen
+        .replaceAll('…', '...') // Ellipsis to dots
+        .replaceAll('•', '*') // Bullet to asterisk
+        .replaceAll('·', '*') // Middle dot to asterisk
+        .replaceAll('\'', "'") // Smart quote to regular quote
+        .replaceAll('\'', "'") // Smart quote to regular quote
+        .replaceAll('"', '"') // Smart quote to regular quote
+        .replaceAll('"', '"') // Smart quote to regular quote
+        .replaceAll('„', '"') // Double low-9 quotation mark
+        .replaceAll('‹', '<') // Single left-pointing angle quotation
+        .replaceAll('›', '>') // Single right-pointing angle quotation
+        .replaceAll('«', '<<') // Left-pointing double angle quotation
+        .replaceAll('»', '>>') // Right-pointing double angle quotation
+        .replaceAll('±', '+/-') // Plus-minus sign
+        .replaceAll('×', 'x') // Multiplication sign
+        .replaceAll('÷', '/') // Division sign
+        .replaceAll('≤', '<=') // Less-than or equal to
+        .replaceAll('≥', '>=') // Greater-than or equal to
+        .replaceAll('≠', '!=') // Not equal to
+        .replaceAll('≈', '~=') // Almost equal to
+        .replaceAll('∞', 'infinity') // Infinity
+        .replaceAll('£', 'GBP ') // Pound
+        .replaceAll('€', 'EUR ') // Euro
+        .replaceAll('¥', 'JPY ') // Yen
+        .replaceAll('©', '(c)') // Copyright
+        .replaceAll('®', '(R)') // Registered trademark
+        .replaceAll('™', '(TM)') // Trademark
+        .replaceAll('\t', '    ') // Tab to spaces
+        // Remove control characters
+        .replaceAll(RegExp(r'[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]'), '');
+
+    // Special handling for Unicode surrogate pairs
+    try {
+      // Try to normalize the string - convert to well-formed UTF-8 text
+      List<int> bytes = utf8.encode(sanitized);
+      sanitized = utf8.decode(bytes, allowMalformed: true);
+    } catch (e) {
+      debugPrint('Error normalizing text: $e');
+      // If normalization fails, do more aggressive character filtering
+      sanitized = sanitized.replaceAll(RegExp(r'[^\x20-\x7E]'), '?');
+    }
+
+    // Escape HTML entities to prevent rendering issues
+    sanitized = _escapeHTML(sanitized);
+
+    // Final safety check - replace any remaining problematic characters with ?
+    if (sanitized.contains(RegExp(r'[^\x20-\x7E]'))) {
+      sanitized = sanitized.replaceAll(RegExp(r'[^\x20-\x7E]'), '?');
+    }
+
+    return sanitized;
+  }
+
+  // Better HTML escaping function
+  String _escapeHTML(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+  }
+
+  // Generate HTML table with robust character handling
+  String _generateHtmlTable(String headerLine, List<String> contentRows) {
+    // Parse header and rows with improved sanitization
+    final List<String> headers = _parseTableRow(headerLine);
+    final List<List<String>> rows =
+        contentRows.map((row) => _parseTableRow(row)).toList();
+
+    debugPrint('TABLE HEADERS (SANITIZED): $headers');
+    if (rows.isNotEmpty) {
+      debugPrint('FIRST ROW (SANITIZED): ${rows[0]}');
+    }
+
+    StringBuffer html = StringBuffer();
+
+    // Create a fully self-contained table with inline styles
+    html.write('''
+    <!DOCTYPE html>
+    <div style="width:100%; overflow-x:auto; margin:16px 0px;">
+      <table style="width:100%; border-collapse:collapse; border:1px solid #ddd; margin-bottom:16px; table-layout:fixed;">
+        <thead>
+          <tr style="background-color:#edf6ff;">
+    ''');
+
+    // Add header cells
+    for (String header in headers) {
+      html.write(
+          '<th style="padding:12px; text-align:center; border:1px solid #ddd; font-weight:bold;">$header</th>');
+    }
+
+    html.write('''
+          </tr>
+        </thead>
+        <tbody>
+    ''');
+
+    // Add data rows
+    for (int i = 0; i < rows.length; i++) {
+      String bgColor = i % 2 == 0 ? '#ffffff' : '#f8f9fa';
+      html.write('<tr style="background-color:$bgColor;">');
+
+      for (int j = 0; j < rows[i].length && j < headers.length; j++) {
+        html.write(
+            '<td style="padding:10px; text-align:center; border:1px solid #ddd;">${rows[i][j]}</td>');
+      }
+
+      // Fill in any missing cells if row is short
+      for (int j = rows[i].length; j < headers.length; j++) {
+        html.write(
+            '<td style="padding:10px; text-align:center; border:1px solid #ddd;"></td>');
+      }
+
+      html.write('</tr>');
+    }
+
+    html.write('''
+        </tbody>
+      </table>
+    </div>
+    ''');
+
+    final result = html.toString();
+    debugPrint(
+        'GENERATED COMPLETELY SANITIZED HTML TABLE (FIRST 100 CHARS): ${result.substring(0, result.length > 100 ? 100 : result.length)}...');
+
+    return result;
   }
 
   // Get default style sheet for markdown

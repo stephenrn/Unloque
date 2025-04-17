@@ -117,15 +117,33 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
     });
 
     try {
+      debugPrint('GeneralBottomSheet: Generating data summary');
+      debugPrint('Population data items: ${widget.rawPopulationData!.length}');
+      debugPrint('Total population: ${widget.totalPopulation}');
+
+      // Create a deep copy of the raw population data to ensure it's mutable
+      final populationData =
+          Map<String, dynamic>.from(widget.rawPopulationData!);
+
+      // Explicitly add the total population to ensure it's available
+      if (widget.totalPopulation != null) {
+        populationData['Total Population'] = widget.totalPopulation;
+        debugPrint(
+            'Added Total Population key with value: ${widget.totalPopulation}');
+      } else {
+        debugPrint('WARNING: Total population is null');
+      }
+
       // Prepare category totals map
       Map<String, int?> categoryTotals = {
+        'Total Population': widget.totalPopulation,
         'Healthcare': widget.healthcareTotalBeneficiaries,
         'Social': widget.socialTotalBeneficiaries,
         'Educational': widget.educationTotalBeneficiaries,
       };
 
       final summary = await AIInsightsService.generateDataSummary(
-        populationData: Map<String, dynamic>.from(widget.rawPopulationData!),
+        populationData: populationData,
         categoryData: widget.categoryData!,
         totalPopulation: widget.totalPopulation,
         categoryTotals: categoryTotals,
@@ -136,6 +154,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
         _isLoadingDataSummary = false;
       });
     } catch (e) {
+      debugPrint('Error generating data summary: $e');
       setState(() {
         _dataSummaryError =
             'Failed to generate data summary. Please try again.';
@@ -161,15 +180,33 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
     });
 
     try {
+      debugPrint('GeneralBottomSheet: Generating insights');
+      debugPrint('Population data items: ${widget.rawPopulationData!.length}');
+      debugPrint('Total population: ${widget.totalPopulation}');
+
+      // Create a deep copy of the raw population data to ensure it's mutable
+      final populationData =
+          Map<String, dynamic>.from(widget.rawPopulationData!);
+
+      // Explicitly add the total population to ensure it's available
+      if (widget.totalPopulation != null) {
+        populationData['Total Population'] = widget.totalPopulation;
+        debugPrint(
+            'Added Total Population key with value: ${widget.totalPopulation}');
+      } else {
+        debugPrint('WARNING: Total population is null');
+      }
+
       // Prepare category totals map
       Map<String, int?> categoryTotals = {
+        'Total Population': widget.totalPopulation,
         'Healthcare': widget.healthcareTotalBeneficiaries,
         'Social': widget.socialTotalBeneficiaries,
         'Educational': widget.educationTotalBeneficiaries,
       };
 
       final insights = await AIInsightsService.generateInsights(
-        populationData: Map<String, dynamic>.from(widget.rawPopulationData!),
+        populationData: populationData,
         categoryData: widget.categoryData!,
         totalPopulation: widget.totalPopulation,
         categoryTotals: categoryTotals,
@@ -180,6 +217,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
         _isLoadingInsights = false;
       });
     } catch (e) {
+      debugPrint('Error generating insights: $e');
       setState(() {
         _insightsError = 'Failed to generate insights. Please try again.';
         _isLoadingInsights = false;
