@@ -351,17 +351,14 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Drag handle
-              _buildDragHandle(),
+              // Modern dark header with drag handle
+              _buildHeader(),
 
-              // Location header with name and population
-              _buildLocationHeader(),
+              // Tab bar when expanded
+              if (widget.isExpanded) _buildTabBar(),
 
-              if (widget.isExpanded) ...[
-                // Tab bar
-                _buildTabBar(),
-
-                // Tab content
+              // Tab content or collapsed content
+              if (widget.isExpanded)
                 Expanded(
                   child: TabBarView(
                     controller: widget.tabController,
@@ -371,8 +368,9 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
                       _buildInsightsTab(),
                     ],
                   ),
-                ),
-              ],
+                )
+              else
+                _buildCollapsedContent(),
             ],
           ),
         ),
@@ -380,223 +378,507 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
     );
   }
 
-  Widget _buildDragHandle() {
-    return GestureDetector(
-      onTap: widget.onToggleExpansion,
-      child: Container(
-        width: double.infinity,
-        height: 16,
-        alignment: Alignment.center,
-        child: Container(
-          width: 50,
-          height: 5,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade400,
-            borderRadius: BorderRadius.circular(2.5),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationHeader() {
+  Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      height: 50, // Fixed height for header area
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      decoration: BoxDecoration(
+        color: Colors.grey[850],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // Enhanced drag handle
+          Container(
+            width: double.infinity,
+            height: 24,
+            alignment: Alignment.center,
+            child: Container(
+              width: 50,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Location header with name and population
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  widget.location.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Icon(
+                  Icons.location_on,
+                  color: Colors.white,
+                  size: 20,
                 ),
-                if (widget.totalPopulation != null)
-                  Text(
-                    'Population: ${_formatNumber(widget.totalPopulation!)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.location.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (widget.totalPopulation != null)
+                        Text(
+                          'Population: ${_formatNumber(widget.totalPopulation!)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (widget.isDefaultView == false)
+                  IconButton(
+                    icon:
+                        const Icon(Icons.close, color: Colors.white, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: widget.onClose,
                   ),
               ],
             ),
           ),
-          if (widget.isDefaultView ==
-              false) // Close button only if we are viewing a specific municipality
-            IconButton(
-              icon: const Icon(Icons.close, size: 20),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: widget.onClose,
-            ),
         ],
       ),
     );
   }
 
   Widget _buildTabBar() {
-    return SizedBox(
-      height: 48,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+        ),
+      ),
       child: TabBar(
         controller: widget.tabController,
         labelColor: Colors.blue[700],
         unselectedLabelColor: Colors.grey[600],
         indicatorColor: Colors.blue[700],
         indicatorWeight: 3.0,
-        tabs: const [
-          Tab(text: 'Data Analysis'),
-          Tab(text: 'Data Summary'),
-          Tab(text: 'Insights'),
+        tabs: [
+          Tab(
+            icon: Icon(Icons.analytics, size: 20),
+            text: 'Data Analysis',
+          ),
+          Tab(
+            icon: Icon(Icons.summarize, size: 20),
+            text: 'Data Summary',
+          ),
+          Tab(
+            icon: Icon(Icons.lightbulb_outline, size: 20),
+            text: 'Insights',
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildCollapsedContent() {
+    // Get total beneficiaries
+    int totalBeneficiaries = (widget.healthcareTotalBeneficiaries ?? 0) +
+        (widget.socialTotalBeneficiaries ?? 0) +
+        (widget.educationTotalBeneficiaries ?? 0);
+
+    return Container(
+      height: 40, // Reduced to minimal height
+      color: Colors.grey[100],
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.pie_chart,
+              size: 16,
+              color: Colors.indigo,
+            ),
+            SizedBox(width: 6),
+            Text(
+              'Quezon Province Overview',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(width: 12),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Pop: ${widget.totalPopulation != null ? _formatNumber(widget.totalPopulation!) : "N/A"}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ),
+            SizedBox(width: 6),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.purple[50],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Ben: ${_formatNumber(totalBeneficiaries)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.purple[700],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Update the data analysis tab for better visual design
   Widget _buildDataAnalysisTab() {
-    // Updated to include charts and DataTable
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      color: Colors.grey[100],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Beneficiaries by Category', Icons.pie_chart),
+
+            // Add population data card with bar chart
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Population',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        Container(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[700],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.totalPopulation != null
+                                ? _formatNumber(widget.totalPopulation!)
+                                : 'Loading...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Population Chart - Top 5 Municipalities
+                    _buildTopMunicipalitiesChart(),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        'Top 5 Municipalities by Population',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            _buildSectionHeader(
+                'Welfare Program Distribution', Icons.donut_large),
+
+            // Category breakdown pie chart
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 200,
+                      child: _buildCategoryPieChart(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Legend for the chart
+                    _buildChartLegend(),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            _buildSectionHeader('Welfare Summary', Icons.summarize),
+
+            // Beneficiary DataTable
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildBeneficiaryDataTable(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
         children: [
-          const Text(
-            'Beneficiaries by Category',
+          Icon(icon, size: 24, color: Colors.grey[800]),
+          SizedBox(width: 10),
+          Text(
+            title,
             style: TextStyle(
+              fontSize: 18,
               fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Add population data card with bar chart
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total Population',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        widget.totalPopulation != null
-                            ? _formatNumber(widget.totalPopulation!)
-                            : 'Loading...',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Population Chart - Top 5 Municipalities
-                  _buildTopMunicipalitiesChart(),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      'Top 5 Municipalities by Population',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Category breakdown pie chart
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welfare Category Distribution',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Program Category Pie Chart
-                  SizedBox(
-                    height: 200,
-                    child: _buildCategoryPieChart(),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Legend for the chart
-                  _buildChartLegend(),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Beneficiary DataTable
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welfare Program Summary',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // DataTable for category totals
-                  _buildBeneficiaryDataTable(),
-                ],
-              ),
+              color: Colors.grey[800],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Redesign the data summary tab
+  Widget _buildDataSummaryTab() {
+    return Container(
+      color: Colors.grey[100],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader('Data Summary', Icons.analytics),
+                Row(
+                  children: [
+                    if (!_isLoadingDataSummary &&
+                        _dataSummaryContent.isNotEmpty)
+                      // Translation button
+                      IconButton(
+                        icon: Icon(
+                          _isTagalogDataSummary
+                              ? Icons.language
+                              : Icons.translate,
+                          color: Colors.blue[700],
+                        ),
+                        onPressed: _isTranslatingDataSummary
+                            ? null
+                            : _translateDataSummary,
+                        tooltip: _isTagalogDataSummary
+                            ? 'Switch to English'
+                            : 'Translate to Tagalog',
+                      ),
+                    if (!_isLoadingDataSummary)
+                      IconButton(
+                        icon: Icon(Icons.refresh, color: Colors.blue[700]),
+                        onPressed: _generateDataSummary,
+                        tooltip: 'Refresh analysis',
+                      ),
+                  ],
+                ),
+              ],
+            ),
+
+            if (_isTranslatingDataSummary)
+              Card(
+                color: Colors.blue[50],
+                margin: EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.blue[700]!),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Translating to Tagalog...',
+                        style: TextStyle(color: Colors.blue[700]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Display AI-powered analysis with translation support
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: MarkdownRenderer(
+                  data: _isTagalogDataSummary
+                      ? _tagalogDataSummaryContent
+                      : _dataSummaryContent,
+                  isLoading: _isLoadingDataSummary,
+                  errorMessage:
+                      _dataSummaryError ?? _translationDataSummaryError,
+                  onRetry: _generateDataSummary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Redesign the insights tab
+  Widget _buildInsightsTab() {
+    return Container(
+      color: Colors.grey[100],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader(
+                    'Strategic Insights', Icons.lightbulb_outline),
+                Row(
+                  children: [
+                    if (!_isLoadingInsights && _insightsContent.isNotEmpty)
+                      IconButton(
+                        icon: Icon(
+                          _isTagalogInsights ? Icons.language : Icons.translate,
+                          color: Colors.blue[700],
+                        ),
+                        onPressed:
+                            _isTranslatingInsights ? null : _translateInsights,
+                        tooltip: _isTagalogInsights
+                            ? 'Switch to English'
+                            : 'Translate to Tagalog',
+                      ),
+                    if (!_isLoadingInsights)
+                      IconButton(
+                        icon: Icon(Icons.refresh, color: Colors.blue[700]),
+                        onPressed: _generateInsights,
+                        tooltip: 'Refresh insights',
+                      ),
+                  ],
+                ),
+              ],
+            ),
+
+            if (_isTranslatingInsights)
+              Card(
+                color: Colors.amber[50],
+                margin: EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.amber[700]!),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Translating to Tagalog...',
+                        style: TextStyle(color: Colors.amber[700]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Display AI-powered insights with translation support
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: MarkdownRenderer(
+                  data: _isTagalogInsights
+                      ? _tagalogInsightsContent
+                      : _insightsContent,
+                  isLoading: _isLoadingInsights,
+                  errorMessage: _insightsError ?? _translationInsightsError,
+                  onRetry: _generateInsights,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -676,24 +958,22 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             color: isTotal ? MaterialStateProperty.all(Colors.grey[100]) : null,
             cells: [
               DataCell(
-                // Fix overflow issue by using a Row with Expanded
-                Flexible(
-                  child: Row(
-                    children: [
-                      Icon(item['icon'], color: item['color'], size: 16),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          item['category'],
-                          style: TextStyle(
-                            fontWeight:
-                                isTotal ? FontWeight.bold : FontWeight.normal,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                // Remove Flexible widget and use Row directly
+                Row(
+                  children: [
+                    Icon(item['icon'], color: item['color'], size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item['category'],
+                        style: TextStyle(
+                          fontWeight:
+                              isTotal ? FontWeight.bold : FontWeight.normal,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               DataCell(
@@ -932,154 +1212,6 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDataSummaryTab() {
-    // Updated to show AI-generated data summary and translation button
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Data Summary',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-              Row(
-                children: [
-                  if (!_isLoadingDataSummary && _dataSummaryContent.isNotEmpty)
-                    // Translation button
-                    IconButton(
-                      icon: Icon(_isTagalogDataSummary
-                          ? Icons.language
-                          : Icons.translate),
-                      onPressed: _isTranslatingDataSummary
-                          ? null
-                          : _translateDataSummary,
-                      tooltip: _isTagalogDataSummary
-                          ? 'Switch to English'
-                          : 'Translate to Tagalog',
-                    ),
-                  if (!_isLoadingDataSummary)
-                    IconButton(
-                      icon: Icon(Icons.refresh),
-                      onPressed: _generateDataSummary,
-                      tooltip: 'Refresh analysis',
-                    ),
-                ],
-              ),
-            ],
-          ),
-          if (_isTranslatingDataSummary)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text('Translating to Tagalog...'),
-                ],
-              ),
-            ),
-          const SizedBox(height: 8),
-
-          // Display AI-powered analysis with translation support
-          MarkdownRenderer(
-            data: _isTagalogDataSummary
-                ? _tagalogDataSummaryContent
-                : _dataSummaryContent,
-            isLoading: _isLoadingDataSummary,
-            errorMessage: _dataSummaryError ?? _translationDataSummaryError,
-            onRetry: _generateDataSummary,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightsTab() {
-    // Updated to show AI-generated insights and translation button
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Strategic Insights',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-              Row(
-                children: [
-                  if (!_isLoadingInsights && _insightsContent.isNotEmpty)
-                    // Translation button
-                    IconButton(
-                      icon: Icon(_isTagalogInsights
-                          ? Icons.language
-                          : Icons.translate),
-                      onPressed:
-                          _isTranslatingInsights ? null : _translateInsights,
-                      tooltip: _isTagalogInsights
-                          ? 'Switch to English'
-                          : 'Translate to Tagalog',
-                    ),
-                  if (!_isLoadingInsights)
-                    IconButton(
-                      icon: Icon(Icons.refresh),
-                      onPressed: _generateInsights,
-                      tooltip: 'Refresh insights',
-                    ),
-                ],
-              ),
-            ],
-          ),
-          if (_isTranslatingInsights)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text('Translating to Tagalog...'),
-                ],
-              ),
-            ),
-          const SizedBox(height: 8),
-
-          // Display AI-powered insights with translation support
-          MarkdownRenderer(
-            data:
-                _isTagalogInsights ? _tagalogInsightsContent : _insightsContent,
-            isLoading: _isLoadingInsights,
-            errorMessage: _insightsError ?? _translationInsightsError,
-            onRetry: _generateInsights,
-          ),
-        ],
       ),
     );
   }

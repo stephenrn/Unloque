@@ -31,7 +31,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Modified bottom sheet variables
   bool _isBottomSheetExpanded = false;
-  double _bottomSheetHeight = 120.0; // Changed back to 120.0 as default
+  double _bottomSheetHeight = 140.0; // Changed from 40.0 to 140.0
   DataModel? _selectedLocation;
 
   // Quezon province default data
@@ -601,7 +601,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         _selectedSublayerIndex = index;
         _selectedLocation = selected;
         _isBottomSheetExpanded = false;
-        _bottomSheetHeight = 120.0;
+        _bottomSheetHeight = 140.0; // Changed from 40.0 to 140.0
         // Preserve current filter instead of resetting to General
         _selectedFilter = currentFilter;
         debugPrint(
@@ -628,9 +628,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   void _toggleBottomSheetExpansion() {
     setState(() {
       _isBottomSheetExpanded = !_isBottomSheetExpanded;
-      _bottomSheetHeight = _isBottomSheetExpanded
-          ? 700.0
-          : 120.0; // Increased expanded height from 350 to 500
+      _bottomSheetHeight =
+          _isBottomSheetExpanded ? 700.0 : 140.0; // Changed from 40.0 to 140.0
     });
   }
 
@@ -651,7 +650,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       _selectedLocation = null;
       _selectedSublayerIndex = -1;
       _isBottomSheetExpanded = false;
-      _bottomSheetHeight = 120.0;
+      _bottomSheetHeight = 140.0; // Changed from 40.0 to 140.0
 
       // Reset map view to Quezon province
       _zoomPanBehavior.focalLatLng =
@@ -666,7 +665,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       _selectedFilter = filter;
       // Reset bottom sheet to collapsed state when changing categories
       _isBottomSheetExpanded = false;
-      _bottomSheetHeight = 120.0;
+      _bottomSheetHeight = 140.0; // Changed from 40.0 to 140.0
 
       // Update shape sources when filter changes to apply correct color mapping
       _updateShapeSources();
@@ -861,7 +860,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             _selectedSublayerIndex = index;
             _selectedLocation = _data[index];
             _isBottomSheetExpanded = false;
-            _bottomSheetHeight = 120.0;
+            _bottomSheetHeight = 140.0; // Changed from 40.0 to 140.0
             // Preserve filter selection instead of resetting to General
             _selectedFilter = currentFilter;
             debugPrint(

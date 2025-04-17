@@ -57,21 +57,15 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Drag handle
-              _buildDragHandle(),
-
-              // Municipality header
-              _buildMunicipalityHeader(),
-
-              // Divider for visual separation
-              Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
+              // Modern dark header with drag handle
+              _buildHeader(),
 
               // Municipality content when expanded
               isExpanded
                   ? Expanded(
                       child: _buildMunicipalityContent(),
                     )
-                  : const SizedBox.shrink(),
+                  : _buildCollapsedContent(),
             ],
           ),
         ),
@@ -79,61 +73,152 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDragHandle() {
+  Widget _buildHeader() {
     return Container(
-      width: double.infinity,
-      height: 16,
-      alignment: Alignment.center,
-      child: Container(
-        width: 50,
-        height: 5,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade400,
-          borderRadius: BorderRadius.circular(2.5),
-        ),
+      decoration: BoxDecoration(
+        color: Colors.grey[850],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-    );
-  }
-
-  Widget _buildMunicipalityHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      height: 50,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // Enhanced drag handle
+          Container(
+            width: double.infinity,
+            height: 24,
+            alignment: Alignment.center,
+            child: Container(
+              width: 50,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Municipality header with name and coordinates
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  location.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(
+                    Icons.location_on,
+                    color: Colors.blue[400],
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Lat: ${location.latitude.toStringAsFixed(4)}, Long: ${location.longitude.toStringAsFixed(4)}',
-                  style: const TextStyle(
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        location.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Lat: ${location.latitude.toStringAsFixed(4)}, Long: ${location.longitude.toStringAsFixed(4)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: onClose,
                 ),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: onClose,
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCollapsedContent() {
+    // Get beneficiary values with null safety
+    int? healthcareBeneficiaries = beneficiaryData['Healthcare'];
+    int? socialBeneficiaries = beneficiaryData['Social'];
+    int? educationalBeneficiaries = beneficiaryData['Educational'];
+
+    // Sum them up
+    int totalBeneficiaries = (healthcareBeneficiaries ?? 0) +
+        (socialBeneficiaries ?? 0) +
+        (educationalBeneficiaries ?? 0);
+
+    return Container(
+      height: 40, // Reduced to minimal height
+      color: Colors.grey[100],
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.location_on,
+              size: 16,
+              color: Colors.blue[700],
+            ),
+            SizedBox(width: 6),
+            Text(
+              location.name,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(width: 12),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Pop: ${municipalityPopulation != null ? _formatNumber(municipalityPopulation!) : "N/A"}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ),
+            SizedBox(width: 6),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Ben: ${_formatNumber(totalBeneficiaries)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.green[700],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -144,146 +229,350 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
     int? socialBeneficiaries = beneficiaryData['Social'];
     int? educationalBeneficiaries = beneficiaryData['Educational'];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      color: Colors.grey[100],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Municipality Overview', Icons.location_city),
+
+            // Municipality population card with modern design
+            _buildInfoCard(
+              'Population',
+              municipalityPopulation != null
+                  ? _formatNumber(municipalityPopulation!)
+                  : 'Data not available',
+              Icons.people,
+              Colors.blue[700]!,
+              isHighlighted: selectedFilter == 'General',
+            ),
+
+            const SizedBox(height: 24),
+
+            _buildSectionHeader('Beneficiary Distribution', Icons.pie_chart),
+
+            // Add a DataTable for beneficiaries with improved styling
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: _buildBeneficiaryDataTable(),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            _buildSectionHeader('Coverage Comparison', Icons.trending_up),
+
+            // Add comparison chart between municipality and provincial averages
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Municipality vs Provincial Average',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 220,
+                      child: _buildComparisonChart(),
+                    ),
+                    const SizedBox(height: 16),
+                    // Enhanced legend with better styling
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildEnhancedLegendItem(
+                            location.name, Colors.grey[800]!, true),
+                        const SizedBox(width: 24),
+                        _buildEnhancedLegendItem(
+                            'Provincial Average', Colors.grey[500]!, false),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            _buildSectionHeader('Provincial Statistics', Icons.analytics),
+
+            // Enhanced provincial statistics with modern cards
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Display provincial totals with percentages
+                    if (municipalityPopulation != null &&
+                        categoryTotals['Healthcare'] != null)
+                      _buildStatisticRow(
+                        'Healthcare Coverage',
+                        healthcareBeneficiaries,
+                        categoryTotals['Healthcare']!,
+                        Colors.red.shade600,
+                      ),
+
+                    if (municipalityPopulation != null &&
+                        categoryTotals['Social'] != null)
+                      _buildStatisticRow(
+                        'Social Welfare Coverage',
+                        socialBeneficiaries,
+                        categoryTotals['Social']!,
+                        Colors.green.shade600,
+                      ),
+
+                    if (municipalityPopulation != null &&
+                        categoryTotals['Educational'] != null)
+                      _buildStatisticRow(
+                        'Educational Coverage',
+                        educationalBeneficiaries,
+                        categoryTotals['Educational']!,
+                        Colors.blue.shade600,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
+      child: Row(
         children: [
-          // Municipality population card
-          _buildInfoCard(
-            'Population',
-            municipalityPopulation != null
-                ? _formatNumber(municipalityPopulation!)
-                : 'Data not available',
-            Icons.people,
-            Colors.grey.shade700,
-            Colors.blue,
-            isHighlighted: selectedFilter == 'General',
-          ),
-
-          const SizedBox(height: 16),
-
-          // Section header for beneficiaries
+          Icon(icon, size: 22, color: Colors.grey[800]),
+          SizedBox(width: 8),
           Text(
-            'Beneficiaries in ${location.name}',
-            style: const TextStyle(
+            title,
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 16),
-
-          // Add a DataTable for beneficiaries
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+  // Enhanced legend item for comparison chart
+  Widget _buildEnhancedLegendItem(
+      String label, Color textColor, bool isDarker) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDarker ? Colors.grey[800]!.withOpacity(0.1) : Colors.grey[200],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color:
+              isDarker ? Colors.grey[800]!.withOpacity(0.3) : Colors.grey[300]!,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.blue[isDarker ? 400 : 200]!,
+                  Colors.green[isDarker ? 400 : 200]!,
+                  Colors.red[isDarker ? 400 : 200]!,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Beneficiary Distribution',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 200,
-                    width: double.infinity,
-                    child: _buildBeneficiaryDataTable(),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isDarker ? FontWeight.bold : FontWeight.normal,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget to build consistent info cards with modern design
+  Widget _buildInfoCard(
+      String title, String value, IconData icon, Color iconColor,
+      {bool isHighlighted = false}) {
+    return Card(
+      elevation: isHighlighted ? 3 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isHighlighted
+            ? BorderSide(color: iconColor.withOpacity(0.5), width: 2)
+            : BorderSide.none,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: iconColor.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 24,
+              ),
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Add comparison chart between municipality and provincial averages
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Coverage Comparison',
+                    title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[800],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 220,
-                    child: _buildComparisonChart(),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Text(
-                      'Municipality vs Provincial Average',
+                      value,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Enhanced statistic row with modern progressbar
+  Widget _buildStatisticRow(
+      String title, int? localValue, int totalValue, Color color) {
+    if (localValue == null) return const SizedBox.shrink();
+
+    double percentage = (localValue / totalValue) * 100;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${percentage.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 16),
-
-          // Provincial statistics section
-          Text(
-            'Quezon Province Statistics',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percentage / 100,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 8,
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Display provincial totals with percentages
-          if (municipalityPopulation != null &&
-              categoryTotals['Healthcare'] != null)
-            _buildStatisticRow(
-              'Healthcare Coverage',
-              healthcareBeneficiaries,
-              categoryTotals['Healthcare']!,
-              Colors.red.shade600,
-            ),
-
-          if (municipalityPopulation != null &&
-              categoryTotals['Social'] != null)
-            _buildStatisticRow(
-              'Social Welfare Coverage',
-              socialBeneficiaries,
-              categoryTotals['Social']!,
-              Colors.green.shade600,
-            ),
-
-          if (municipalityPopulation != null &&
-              categoryTotals['Educational'] != null)
-            _buildStatisticRow(
-              'Educational Coverage',
-              educationalBeneficiaries,
-              categoryTotals['Educational']!,
-              Colors.blue.shade600,
-            ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_formatNumber(localValue)} local',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '${_formatNumber(totalValue)} provincial',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -583,106 +872,6 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  // Helper widget to build consistent statistic rows with progress indicators
-  Widget _buildStatisticRow(
-      String title, int? localValue, int totalValue, Color color) {
-    if (localValue == null) return const SizedBox.shrink();
-
-    double percentage = (localValue / totalValue) * 100;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(child: Text(title)),
-              Text(
-                '${percentage.toStringAsFixed(1)}% of province',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: percentage / 100,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${_formatNumber(localValue)} of ${_formatNumber(totalValue)} beneficiaries',
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper widget to build consistent info cards
-  Widget _buildInfoCard(
-      String title, String value, IconData icon, Color bgColor, Color iconColor,
-      {bool isHighlighted = false}) {
-    return Card(
-      elevation: isHighlighted ? 3 : 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isHighlighted
-            ? BorderSide(color: iconColor, width: 2)
-            : BorderSide.none,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: bgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 

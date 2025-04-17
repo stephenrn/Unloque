@@ -72,21 +72,594 @@ class CategoryFilterBottomSheet extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Drag handle
-              _buildDragHandle(),
-
-              // Category header with icon and title
+              // Enhanced header with category-specific styling
               _buildCategoryHeader(categoryColor, categoryIcon),
 
-              // Divider for visual separation
-              Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
-
-              // Category programs content when expanded
+              // Content area
               isExpanded
                   ? Expanded(
                       child: _buildCategoryProgramsContent(),
                     )
                   : _buildCollapsedContent(categoryColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryHeader(Color categoryColor, IconData categoryIcon) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[850],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Enhanced drag handle
+          Container(
+            width: double.infinity,
+            height: 24,
+            alignment: Alignment.center,
+            child: Container(
+              width: 50,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: categoryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    categoryIcon,
+                    color: categoryColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$selectedFilter Programs',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Available programs and beneficiary counts',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: onClose,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Enhanced collapsed content with card design
+  Widget _buildCollapsedContent(Color categoryColor) {
+    return Container(
+      height: 40, // Reduced to minimal height
+      color: Colors.grey[100],
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _getCategoryIcon(selectedFilter),
+              size: 16,
+              color: categoryColor,
+            ),
+            SizedBox(width: 6),
+            Text(
+              '${selectedFilter} Programs',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(width: 12),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: categoryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: categoryColor.withOpacity(0.3)),
+              ),
+              child: Text(
+                categoryTotalBeneficiaries != null
+                    ? _formatNumber(categoryTotalBeneficiaries!)
+                    : 'Loading...',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: categoryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build the category programs content with Firestore data
+  Widget _buildCategoryProgramsContent() {
+    return Container(
+      color: Colors.grey[100],
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('mapdata')
+            .where('type', isEqualTo: 'beneficiaries')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _getCategoryColor(selectedFilter),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading beneficiary data...',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (snapshot.hasError) {
+            print('Error in mapdata stream: ${snapshot.error}');
+            return _buildErrorContent(snapshot.error.toString());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            print('No beneficiary data found in mapdata collection');
+            return _buildNoDataContent();
+          }
+
+          // Filter documents by category based on program data
+          return FutureBuilder<List<Map<String, dynamic>>>(
+            future:
+                _filterProgramsByCategory(snapshot.data!.docs, selectedFilter),
+            builder: (context, programsSnapshot) {
+              if (programsSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _getCategoryColor(selectedFilter),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Processing program data...',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              if (programsSnapshot.hasError) {
+                print('Error filtering programs: ${programsSnapshot.error}');
+                return _buildErrorContent(programsSnapshot.error.toString());
+              }
+
+              if (!programsSnapshot.hasData || programsSnapshot.data!.isEmpty) {
+                print(
+                    'No matching programs found for category: $selectedFilter');
+                return _buildNoDataContent();
+              }
+
+              final programs = programsSnapshot.data!;
+              print(
+                  'Found ${programs.length} programs for category: $selectedFilter');
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Total beneficiaries for this category
+                    _buildTotalBeneficiariesCard(selectedFilter),
+
+                    const SizedBox(height: 24),
+
+                    // Distribution chart with improved styling
+                    _buildSectionHeader(
+                        'Municipal Distribution', Icons.bar_chart),
+
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Top Municipalities',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _getCategoryColor(selectedFilter),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              height: 240,
+                              child: _buildMunicipalDistributionChart(programs),
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                'Top 5 Municipalities by Beneficiary Count',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Programs data table with enhanced styling
+                    _buildSectionHeader(
+                        'Program Details', Icons.format_list_bulleted),
+
+                    Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              height: 220,
+                              width: double.infinity,
+                              child: _buildProgramsDataTable(programs),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Program cards with improved design
+                    _buildSectionHeader('${selectedFilter} Programs',
+                        _getCategoryIcon(selectedFilter)),
+
+                    ...programs.map((program) => _buildProgramCard(program)),
+
+                    const SizedBox(height: 24),
+
+                    // Distribution note with improved styling
+                    Card(
+                      elevation: 2,
+                      color: Colors.grey[50],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey[300]!, width: 1),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: _getCategoryColor(selectedFilter)),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Geographic Distribution',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'The map shows the ${selectedFilter.toLowerCase()} beneficiary distribution across Quezon Province municipalities. Darker shades indicate higher beneficiary counts.',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: Colors.grey[800]),
+          SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorContent(String errorMessage) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Colors.red[300],
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Error Loading Data',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[700],
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Please try again later.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: onClose,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[800],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              child: Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Enhance the program card design
+  Widget _buildProgramCard(Map<String, dynamic> programData) {
+    final String programName = programData['programName'] ?? 'Unnamed Program';
+    final int beneficiaryCount = programData['totalBeneficiaries'] ?? 0;
+    final String organizationName =
+        programData['organizationName'] ?? 'Unknown Organization';
+    final String? organizationLogo = programData['organizationLogo'];
+    final Color categoryColor = _getCategoryColor(selectedFilter);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: categoryColor,
+              width: 4,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Program name and organization
+              Row(
+                children: [
+                  // Organization logo with improved styling
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child:
+                        organizationLogo != null && organizationLogo.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  organizationLogo,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(Icons.business,
+                                        color: Colors.grey[400]);
+                                  },
+                                ),
+                              )
+                            : Icon(Icons.business, color: Colors.grey[400]),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          programName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.business,
+                              size: 14,
+                              color: Colors.grey[600],
+                            ),
+                            SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                organizationName,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Beneficiary count indicator with improved styling
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Beneficiaries',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: _calculateProgressValue(beneficiaryCount),
+                            backgroundColor: Colors.grey[200],
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(categoryColor),
+                            minHeight: 8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: categoryColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _formatNumber(beneficiaryCount),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -107,258 +680,6 @@ class CategoryFilterBottomSheet extends StatelessWidget {
           borderRadius: BorderRadius.circular(2.5),
         ),
       ),
-    );
-  }
-
-  Widget _buildCategoryHeader(Color categoryColor, IconData categoryIcon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      height: 50, // Fixed height for header area
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            categoryIcon,
-            color: categoryColor,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$selectedFilter Programs',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: categoryColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Available programs and beneficiary counts',
-                  style: const TextStyle(
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: onClose,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Simple collapsed content showing total beneficiaries
-  Widget _buildCollapsedContent(Color categoryColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Total ${selectedFilter} Beneficiaries:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          Text(
-            categoryTotalBeneficiaries != null
-                ? _formatNumber(categoryTotalBeneficiaries!)
-                : 'Loading...',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: categoryColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Build the category programs content with Firestore data
-  Widget _buildCategoryProgramsContent() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('mapdata')
-          .where('type', isEqualTo: 'beneficiaries')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          print('Error in mapdata stream: ${snapshot.error}');
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          print('No beneficiary data found in mapdata collection');
-          return _buildNoDataContent();
-        }
-
-        // Filter documents by category based on program data
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future:
-              _filterProgramsByCategory(snapshot.data!.docs, selectedFilter),
-          builder: (context, programsSnapshot) {
-            if (programsSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (programsSnapshot.hasError) {
-              print('Error filtering programs: ${programsSnapshot.error}');
-              return Center(child: Text('Error: ${programsSnapshot.error}'));
-            }
-
-            if (!programsSnapshot.hasData || programsSnapshot.data!.isEmpty) {
-              print('No matching programs found for category: $selectedFilter');
-              return _buildNoDataContent();
-            }
-
-            final programs = programsSnapshot.data!;
-            print(
-                'Found ${programs.length} programs for category: $selectedFilter');
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Total beneficiaries for this category
-                  _buildTotalBeneficiariesCard(selectedFilter),
-
-                  const SizedBox(height: 24),
-
-                  // New: Add beneficiaries distribution chart
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Municipal Distribution',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _getCategoryColor(selectedFilter),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            height: 240,
-                            child: _buildMunicipalDistributionChart(programs),
-                          ),
-                          const SizedBox(height: 8),
-                          Center(
-                            child: Text(
-                              'Top 5 Municipalities by Beneficiary Count',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Programs header
-                  Text(
-                    '${selectedFilter} Programs',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // New: Programs DataTable
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Program Details',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 220,
-                            width: double.infinity,
-                            child: _buildProgramsDataTable(programs),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // List of programs
-                  ...programs.map((program) => _buildProgramCard(program)),
-
-                  const SizedBox(height: 24),
-
-                  // Distribution note
-                  Text(
-                    'Geographic Distribution',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    'The map shows the ${selectedFilter.toLowerCase()} beneficiary distribution across Quezon Province municipalities. Darker shades indicate higher beneficiary counts.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
@@ -688,119 +1009,6 @@ class CategoryFilterBottomSheet extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgramCard(Map<String, dynamic> programData) {
-    final String programName = programData['programName'] ?? 'Unnamed Program';
-    final int beneficiaryCount = programData['totalBeneficiaries'] ?? 0;
-    final String organizationName =
-        programData['organizationName'] ?? 'Unknown Organization';
-    final String? organizationLogo = programData['organizationLogo'];
-    final Color categoryColor = _getCategoryColor(selectedFilter);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Program name and organization
-            Row(
-              children: [
-                // Organization logo or placeholder
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: organizationLogo != null && organizationLogo.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            organizationLogo,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(Icons.business,
-                                  color: Colors.grey[400]);
-                            },
-                          ),
-                        )
-                      : Icon(Icons.business, color: Colors.grey[400]),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        programName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'by $organizationName',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Beneficiary count indicator
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Beneficiaries',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      LinearProgressIndicator(
-                        value: _calculateProgressValue(beneficiaryCount),
-                        backgroundColor: Colors.grey[200],
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(categoryColor),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Text(
-                  _formatNumber(beneficiaryCount),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: categoryColor,
-                  ),
-                ),
-              ],
             ),
           ],
         ),
