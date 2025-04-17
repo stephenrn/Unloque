@@ -35,13 +35,20 @@ Format the response in clear sections:
 4. Information about which municipalities have the best coverage
 5. Brief explanation of what these numbers mean for citizens
 
+For municipalities with data, I specifically want to see organized information in a TABLE format.
+Create proper tables with the following format:
+| Municipality | Population | Percentage |
+| --- | --- | --- |
+| Lucena City | 278,924 | 14.3% |
+| Sariaya | 161,868 | 8.3% |
+(And so on for top municipalities)
+
 You may use:
 - Basic headings with # and ##
 - Simple bullet points with *
 - Plain paragraphs
-- Simple tables with | for columns
-- Make tables visually appealing by using **bold** for important values and column headers
-- DO NOT include separator rows with dashes (---) in tables
+- Table format for municipality data (as shown above)
+- **Bold** for important values and headers
 - IMPORTANT: Use plain ASCII characters only - no special quotes, dashes, or symbols
 ''';
 
@@ -85,13 +92,20 @@ Format your response in clear sections:
    - How to advocate for better coverage in underserved areas
 5. Resources and contact information (use placeholder contact info if not provided)
 
+For municipalities with data, I specifically want to see organized information in a TABLE format.
+Create proper tables with the following format:
+| Municipality | Healthcare | Social | Educational |
+| --- | --- | --- | --- |
+| Lucena City | 12,345 | 23,456 | 7,890 |
+| Sariaya | 5,678 | 8,901 | 3,456 |
+(And so on for top municipalities)
+
 You may use:
 - Basic headings with # and ##
 - Simple bullet points with *
-- Plain paragraphs
-- Simple tables with | for columns 
-- Make tables visually appealing by using **bold** for important values and column headers
-- DO NOT include separator rows with dashes (---) in tables
+- Plain paragraphs 
+- Table format for municipality data (as shown above)
+- **Bold** for important values and headers
 - IMPORTANT: Use plain ASCII characters only - no special quotes, dashes, or symbols
 ''';
 
@@ -204,7 +218,7 @@ You may use:
     }
   }
 
-  // Helper to process and clean up markdown - FIXED VERSION
+  // Helper to process and clean up markdown - ENHANCED VERSION
   static String _processMarkdown(String markdown) {
     // Replace complex markdown elements with simpler ones if necessary
     String processed = markdown;
@@ -220,25 +234,39 @@ You may use:
         .replaceAll('Â', "") // Non-breaking space
         .replaceAll('\u00A0', " "); // Another non-breaking space
 
-    // Remove table separator rows (lines containing only |, -, and spaces)
-    final lines = processed.split('\n');
-    final processedLines = <String>[];
+    // CRITICAL: Completely disable table conversion to maintain table structure
+    // processed = _convertMarkdownTablesToLists(processed);
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-
-      // Check if this is a separator row in a table
-      if (line.trim().isNotEmpty &&
-          line.contains('|') &&
-          RegExp(r'^[\|\s\-]+$').hasMatch(line)) {
-        // This is a separator row - skip it
-        continue;
+    // Log the first table found for debugging
+    if (processed.contains('|')) {
+      final tableLines =
+          processed.split('\n').where((line) => line.contains('|')).take(5);
+      if (tableLines.isNotEmpty) {
+        debugPrint('MARKDOWN CONTAINS TABLES. First 5 lines of first table:');
+        for (var line in tableLines) {
+          debugPrint('TABLE LINE: $line');
+        }
       }
-
-      // Add non-separator lines
-      processedLines.add(line);
     }
 
-    return processedLines.join('\n');
+    return processed;
+  }
+
+  // Comment out this entire method to ensure it's never used accidentally
+  /*
+  static String _convertMarkdownTablesToLists(String markdown) {
+    // This method is completely disabled to preserve tables
+    return markdown;
+  }
+  */
+
+  // Helper to parse a table row into cells
+  static List<String> _parseTableRow(String line) {
+    final cells = line
+        .split('|')
+        .where((cell) => cell.isNotEmpty) // Remove empty cells from start/end
+        .map((cell) => cell.trim()) // Trim whitespace
+        .toList();
+    return cells;
   }
 }

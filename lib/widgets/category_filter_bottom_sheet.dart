@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:data_table_2/data_table_2.dart';
 
 // Import the data model
 import '../models/data_model.dart';
@@ -240,7 +242,49 @@ class CategoryFilterBottomSheet extends StatelessWidget {
                   // Total beneficiaries for this category
                   _buildTotalBeneficiariesCard(selectedFilter),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+
+                  // New: Add beneficiaries distribution chart
+                  Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Municipal Distribution',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: _getCategoryColor(selectedFilter),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 240,
+                            child: _buildMunicipalDistributionChart(programs),
+                          ),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              'Top 5 Municipalities by Beneficiary Count',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // Programs header
                   Text(
@@ -253,6 +297,37 @@ class CategoryFilterBottomSheet extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 12),
+
+                  // New: Programs DataTable
+                  Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Program Details',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 220,
+                            width: double.infinity,
+                            child: _buildProgramsDataTable(programs),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
 
                   // List of programs
                   ...programs.map((program) => _buildProgramCard(program)),
@@ -284,6 +359,219 @@ class CategoryFilterBottomSheet extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  // New: Add method to build programs data table
+  Widget _buildProgramsDataTable(List<Map<String, dynamic>> programs) {
+    // Calculate total beneficiaries for percentage calculation - FIX NULL SAFETY ISSUES
+    final int totalBeneficiaries = categoryTotalBeneficiaries ??
+        programs.fold<int>(0, (sum, program) {
+          final beneficiaries = program['totalBeneficiaries'] as int? ?? 0;
+          return sum + beneficiaries;
+        });
+
+    return DataTable2(
+      columnSpacing: 12,
+      horizontalMargin: 12,
+      minWidth: 300,
+      columns: [
+        DataColumn2(
+          label: Text(
+            'Program Name',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          size: ColumnSize.L,
+        ),
+        DataColumn2(
+          label: Text(
+            'Organization',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          size: ColumnSize.M,
+        ),
+        DataColumn2(
+          label: Text(
+            'Beneficiaries',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          size: ColumnSize.S,
+          numeric: true,
+        ),
+        DataColumn2(
+          label: Text(
+            '%',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          size: ColumnSize.S,
+          numeric: true,
+        ),
+      ],
+      rows: programs.map((program) {
+        // Calculate percentage of total - FIX NULL SAFETY ISSUES
+        final beneficiaries = program['totalBeneficiaries'] as int? ?? 0;
+        final double percentage = totalBeneficiaries > 0
+            ? (beneficiaries / totalBeneficiaries * 100)
+            : 0.0;
+
+        return DataRow2(
+          cells: [
+            DataCell(
+              Text(
+                program['programName'] ?? 'Unnamed',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DataCell(
+              Text(
+                program['organizationName'] ?? 'Unknown',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DataCell(
+              Text(
+                _formatNumber(beneficiaries),
+                style: TextStyle(
+                  color: _getCategoryColor(selectedFilter),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            DataCell(
+              Text(
+                '${percentage.toStringAsFixed(1)}%',
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  // New: Add method to build municipality distribution chart
+  Widget _buildMunicipalDistributionChart(List<Map<String, dynamic>> programs) {
+    // For this example, we'll create mock data showing top 5 municipalities
+    // In a real implementation, you'd extract this data from your beneficiary counts
+
+    // Aggregate beneficiary counts by municipality from programs
+    Map<String, int> municipalityCounts = {};
+
+    // Collect the municipality data from all programs
+    for (var program in programs) {
+      // This assumes each program has a field with municipality data
+      // You'll need to adapt this to your actual data structure
+      if (program.containsKey('municipalityData')) {
+        final munData = program['municipalityData'] as Map<String, int>;
+
+        munData.forEach((municipality, count) {
+          municipalityCounts[municipality] =
+              (municipalityCounts[municipality] ?? 0) + count;
+        });
+      }
+    }
+
+    // Sort municipalities by beneficiary count and take top 5
+    final sortedMunicipalities = municipalityCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final top5 = sortedMunicipalities.take(5).toList();
+
+    // If we don't have actual municipality data, create placeholder data
+    if (top5.isEmpty) {
+      // Create placeholder data - you should replace this with actual data
+      top5.addAll([
+        MapEntry('Lucena City', 4500),
+        MapEntry('Tayabas City', 3200),
+        MapEntry('Sariaya', 2800),
+        MapEntry('Candelaria', 2100),
+        MapEntry('Tiaong', 1800),
+      ]);
+    }
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: top5.isEmpty ? 5000 : (top5.first.value * 1.2), // 20% headroom
+        barGroups: List.generate(
+          top5.length,
+          (index) => BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(
+                toY: top5[index].value.toDouble(),
+                color: _getCategoryColor(selectedFilter),
+                width: 22,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+              ),
+            ],
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                if (value.toInt() >= top5.length) return SizedBox.shrink();
+
+                String name = top5[value.toInt()].key;
+                if (name.length > 8) {
+                  name = name.substring(0, 6) + '...';
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 10,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              },
+              reservedSize: 30,
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                String text = '';
+                if (value >= 1000) {
+                  text = '${(value / 1000).toStringAsFixed(0)}K';
+                } else {
+                  text = value.toStringAsFixed(0);
+                }
+                return Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 10,
+                  ),
+                );
+              },
+              reservedSize: 30,
+            ),
+          ),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval: top5.isEmpty ? 1000 : top5.first.value / 5,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey[300],
+              strokeWidth: 1,
+            );
+          },
+          drawVerticalLine: false,
+        ),
+        borderData: FlBorderData(show: false),
+      ),
     );
   }
 

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:data_table_2/data_table_2.dart';
 
 // Import the data model and other necessary classes
 import '../models/data_model.dart';
@@ -323,7 +325,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
   }
 
   Widget _buildDataAnalysisTab() {
-    // Updated to show category totals
+    // Updated to include charts and DataTable
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -338,7 +340,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
           ),
           const SizedBox(height: 16),
 
-          // Total Population card
+          // Add population data card with bar chart
           Card(
             elevation: 3,
             shape: RoundedRectangleBorder(
@@ -347,38 +349,43 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.people,
-                    size: 48,
-                    color: Colors.blue,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total Population',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        widget.totalPopulation != null
+                            ? _formatNumber(widget.totalPopulation!)
+                            : 'Loading...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Total Population',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  const SizedBox(height: 20),
+
+                  // Population Chart - Top 5 Municipalities
+                  _buildTopMunicipalitiesChart(),
                   const SizedBox(height: 8),
-                  Text(
-                    widget.totalPopulation != null
-                        ? _formatNumber(widget.totalPopulation!)
-                        : 'Loading...',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Quezon Province',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
+                  Center(
+                    child: Text(
+                      'Top 5 Municipalities by Population',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ],
@@ -386,9 +393,9 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          // Healthcare Beneficiaries Card
+          // Category breakdown pie chart
           Card(
             elevation: 3,
             shape: RoundedRectangleBorder(
@@ -397,40 +404,35 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.local_hospital,
-                    size: 48,
-                    color: Colors.red[600],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Healthcare Beneficiaries',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    widget.healthcareTotalBeneficiaries != null
-                        ? _formatNumber(widget.healthcareTotalBeneficiaries!)
-                        : 'Loading...',
+                    'Welfare Category Distribution',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.red[600],
                     ),
                   ),
+                  const SizedBox(height: 20),
+
+                  // Program Category Pie Chart
+                  SizedBox(
+                    height: 200,
+                    child: _buildCategoryPieChart(),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Legend for the chart
+                  _buildChartLegend(),
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          // Social Beneficiaries Card
+          // Beneficiary DataTable
           Card(
             elevation: 3,
             shape: RoundedRectangleBorder(
@@ -439,79 +441,359 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.people,
-                    size: 48,
-                    color: Colors.green[600],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Social Beneficiaries',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    widget.socialTotalBeneficiaries != null
-                        ? _formatNumber(widget.socialTotalBeneficiaries!)
-                        : 'Loading...',
+                    'Welfare Program Summary',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green[600],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                  const SizedBox(height: 16),
 
-          const SizedBox(height: 16),
-
-          // Education Beneficiaries Card
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.school,
-                    size: 48,
-                    color: Colors.blue[600],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Educational Beneficiaries', // Changed from 'Education Beneficiaries' to 'Educational Beneficiaries'
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.educationTotalBeneficiaries != null
-                        ? _formatNumber(widget.educationTotalBeneficiaries!)
-                        : 'Loading...',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[600],
-                    ),
-                  ),
+                  // DataTable for category totals
+                  _buildBeneficiaryDataTable(),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // New method to build beneficiary DataTable
+  Widget _buildBeneficiaryDataTable() {
+    final List<Map<String, dynamic>> data = [
+      {
+        'category': 'Healthcare',
+        'beneficiaries': widget.healthcareTotalBeneficiaries ?? 0,
+        'color': Colors.red[600],
+        'icon': Icons.local_hospital,
+      },
+      {
+        'category': 'Social',
+        'beneficiaries': widget.socialTotalBeneficiaries ?? 0,
+        'color': Colors.green[600],
+        'icon': Icons.people,
+      },
+      {
+        'category': 'Educational',
+        'beneficiaries': widget.educationTotalBeneficiaries ?? 0,
+        'color': Colors.blue[600],
+        'icon': Icons.school,
+      },
+      {
+        'category': 'Total Beneficiaries',
+        'beneficiaries': (widget.healthcareTotalBeneficiaries ?? 0) +
+            (widget.socialTotalBeneficiaries ?? 0) +
+            (widget.educationTotalBeneficiaries ?? 0),
+        'color': Colors.purple[600],
+        'icon': Icons.pie_chart,
+      },
+    ];
+
+    return Container(
+      height: 220,
+      child: DataTable2(
+        columnSpacing: 12,
+        horizontalMargin: 12,
+        minWidth: 300,
+        columns: [
+          DataColumn2(
+            label: Text(
+              'Category',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            size: ColumnSize.L,
+          ),
+          DataColumn2(
+            label: Text(
+              'Beneficiaries',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            size: ColumnSize.M,
+            numeric: true,
+          ),
+          DataColumn2(
+            label: Text(
+              'Ratio',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            size: ColumnSize.S,
+            numeric: true,
+          ),
+        ],
+        rows: data.map((item) {
+          // Calculate ratio based on total population
+          double ratio = 0;
+          if (widget.totalPopulation != null && widget.totalPopulation! > 0) {
+            ratio = (item['beneficiaries'] / widget.totalPopulation!) * 100;
+          }
+
+          bool isTotal = item['category'] == 'Total Beneficiaries';
+
+          return DataRow2(
+            color: isTotal ? MaterialStateProperty.all(Colors.grey[100]) : null,
+            cells: [
+              DataCell(
+                // Fix overflow issue by using a Row with Expanded
+                Flexible(
+                  child: Row(
+                    children: [
+                      Icon(item['icon'], color: item['color'], size: 16),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item['category'],
+                          style: TextStyle(
+                            fontWeight:
+                                isTotal ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              DataCell(
+                Text(
+                  _formatNumber(item['beneficiaries']),
+                  style: TextStyle(
+                    fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                    color: item['color'],
+                  ),
+                ),
+              ),
+              DataCell(
+                Text(
+                  '${ratio.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // New method to build category pie chart
+  Widget _buildCategoryPieChart() {
+    // Get total for each category
+    final double healthcare =
+        widget.healthcareTotalBeneficiaries?.toDouble() ?? 0;
+    final double social = widget.socialTotalBeneficiaries?.toDouble() ?? 0;
+    final double education =
+        widget.educationTotalBeneficiaries?.toDouble() ?? 0;
+
+    // Calculate total for percentage
+    final double total = healthcare + social + education;
+
+    // Handle case where we have no data
+    if (total <= 0) {
+      return Center(
+        child: Text('No beneficiary data available'),
+      );
+    }
+
+    return PieChart(
+      PieChartData(
+        sections: [
+          PieChartSectionData(
+            color: Colors.red[400]!,
+            value: healthcare,
+            title: '${(healthcare / total * 100).toStringAsFixed(1)}%',
+            radius: 60,
+            titleStyle: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          PieChartSectionData(
+            color: Colors.green[400]!,
+            value: social,
+            title: '${(social / total * 100).toStringAsFixed(1)}%',
+            radius: 60,
+            titleStyle: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          PieChartSectionData(
+            color: Colors.blue[400]!,
+            value: education,
+            title: '${(education / total * 100).toStringAsFixed(1)}%',
+            radius: 60,
+            titleStyle: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+        sectionsSpace: 2,
+        centerSpaceRadius: 40,
+        startDegreeOffset: 180,
+      ),
+    );
+  }
+
+  // Legend for the pie chart
+  Widget _buildChartLegend() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _legendItem('Healthcare', Colors.red[400]!),
+        const SizedBox(width: 24),
+        _legendItem('Social', Colors.green[400]!),
+        const SizedBox(width: 24),
+        _legendItem('Educational', Colors.blue[400]!),
+      ],
+    );
+  }
+
+  // Helper for legend items
+  Widget _legendItem(String text, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(text, style: TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+
+  // New method to build top municipalities chart
+  Widget _buildTopMunicipalitiesChart() {
+    // Extract and sort municipalities by population
+    List<MapEntry<String, int>> sortedMunicipalities = [];
+
+    if (widget.rawPopulationData != null) {
+      sortedMunicipalities = widget.rawPopulationData!.entries
+          .where((entry) => entry.key != 'Total Population') // exclude total
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value)); // sort descending
+
+      // Only take top 5
+      if (sortedMunicipalities.length > 5) {
+        sortedMunicipalities = sortedMunicipalities.sublist(0, 5);
+      }
+    }
+
+    if (sortedMunicipalities.isEmpty) {
+      return Center(
+        child: Text('Population data not available'),
+      );
+    }
+
+    return SizedBox(
+      height: 200,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: sortedMunicipalities.first.value * 1.2,
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  if (value < 0 || value >= sortedMunicipalities.length) {
+                    return const Text('');
+                  }
+                  // Abbreviate municipality names
+                  String name = sortedMunicipalities[value.toInt()].key;
+                  if (name.length > 8) {
+                    name = name.substring(0, 6) + '...';
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 10,
+                      ),
+                    ),
+                  );
+                },
+                reservedSize: 30,
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  String text = '';
+                  if (value >= 1000) {
+                    text = '${(value / 1000).toStringAsFixed(0)}K';
+                  } else {
+                    text = value.toStringAsFixed(0);
+                  }
+                  return Text(
+                    text,
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 10,
+                    ),
+                  );
+                },
+                reservedSize: 30,
+              ),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            horizontalInterval: sortedMunicipalities.first.value / 5,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: Colors.grey[300],
+                strokeWidth: 1,
+              );
+            },
+          ),
+          borderData: FlBorderData(
+            show: false,
+          ),
+          barGroups: List.generate(
+            sortedMunicipalities.length,
+            (index) => BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: sortedMunicipalities[index].value.toDouble(),
+                  color: Colors.blue[400],
+                  width: 16,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
