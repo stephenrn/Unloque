@@ -13,12 +13,22 @@ class AIInsightsService {
     Map<String, int?>? categoryTotals,
   }) async {
     try {
+      // Validate input data
+      if (populationData.isEmpty || categoryData.isEmpty) {
+        debugPrint('Warning: Empty data provided to generateDataSummary');
+        return 'Insufficient data available for analysis.';
+      }
+
       // Format population data
       final formattedPopData = _formatPopulationData(populationData);
+      debugPrint(
+          'Population data formatted successfully. Length: ${formattedPopData.length}');
 
       // Format category data
       final formattedCategoryData =
           _formatCategoryData(categoryData, categoryTotals);
+      debugPrint(
+          'Category data formatted successfully. Length: ${formattedCategoryData.length}');
 
       // Build the data prompt
       final dataPrompt = '''
@@ -35,18 +45,27 @@ Please provide a clear, informative summary of this data in markdown format. Inc
 2. Insights on program coverage across municipalities
 3. Highlight areas with high/low coverage
 4. Show relevant data in tables for clarity
+5. Explain how this data is important for citizens and how it affects their daily lives and access to services
 
 DO NOT include any contact information, email addresses, phone numbers, or specific points of contact.
 Do not make up or suggest any contact details, as these would be inaccurate.
 Keep the analysis factual and data-driven. Format tables properly with clear headers and alignment.
 ''';
 
-      // Make the API call
+      // Check prompt length to avoid token limits
+      if (dataPrompt.length > 4000) {
+        debugPrint(
+            'Warning: Prompt length exceeds 4000 chars: ${dataPrompt.length}');
+        // Truncate data if necessary while preserving structure
+        return _makeAPIRequestWithDataSafeguards(dataPrompt);
+      }
+
+      // Make the API call with improved error handling
       final response = await _makeAPIRequest(dataPrompt);
       return _processMarkdown(response);
     } catch (e) {
       debugPrint('Error generating data summary: $e');
-      return 'Error generating data summary. Please try again later.';
+      return 'Error generating data summary: ${e.toString()}. Please check your data and try again.';
     }
   }
 
@@ -58,12 +77,22 @@ Keep the analysis factual and data-driven. Format tables properly with clear hea
     Map<String, int?>? categoryTotals,
   }) async {
     try {
+      // Validate input data
+      if (populationData.isEmpty || categoryData.isEmpty) {
+        debugPrint('Warning: Empty data provided to generateInsights');
+        return 'Insufficient data available for analysis.';
+      }
+
       // Format population data
       final formattedPopData = _formatPopulationData(populationData);
+      debugPrint(
+          'Population data formatted successfully. Length: ${formattedPopData.length}');
 
       // Format category data
       final formattedCategoryData =
           _formatCategoryData(categoryData, categoryTotals);
+      debugPrint(
+          'Category data formatted successfully. Length: ${formattedCategoryData.length}');
 
       // Build the insights prompt
       final insightsPrompt = '''
@@ -80,155 +109,252 @@ Based on this data, provide strategic insights in markdown format:
 2. Suggest program types that could be expanded based on coverage gaps
 3. Highlight successful distribution patterns
 4. Identify opportunities for better resource allocation
+5. Explain specific actions citizens can take to improve their access to programs, advocate for better services, or help their communities based on this data
 
 DO NOT include any contact information, email addresses, phone numbers, or personal recommendations.
 Do not suggest contacting specific offices, as contact details would be inaccurate.
 Keep your response factual and objective. Format tables properly with clear headers and alignment.
 ''';
 
-      // Make the API call
+      // Check prompt length to avoid token limits
+      if (insightsPrompt.length > 4000) {
+        debugPrint(
+            'Warning: Prompt length exceeds 4000 chars: ${insightsPrompt.length}');
+        // Truncate data if necessary while preserving structure
+        return _makeAPIRequestWithDataSafeguards(insightsPrompt);
+      }
+
+      // Make the API call with improved error handling
       final response = await _makeAPIRequest(insightsPrompt);
       return _processMarkdown(response);
     } catch (e) {
       debugPrint('Error generating insights: $e');
-      return 'Error generating insights. Please try again later.';
+      return 'Error generating insights: ${e.toString()}. Please check your data and try again.';
     }
   }
 
-  // Helper to format population data
+  // Helper function to safely make API requests with large data
+  static Future<String> _makeAPIRequestWithDataSafeguards(String prompt) async {
+    // Create a simplified version of the prompt by reducing the data samples
+    final lines = prompt.split('\n');
+    final simplifiedLines = <String>[];
+    bool inTable = false;
+    int tableRows = 0;
+    final int maxTableRows = 8; // Max rows to keep per table
+
+    for (final line in lines) {
+      // Detect table start/end
+      if (line.contains('|') && line.contains('---')) {
+        inTable = true;
+        tableRows = 0;
+        simplifiedLines.add(line);
+      } else if (inTable && line.contains('|')) {
+        tableRows++;
+        if (tableRows <= maxTableRows) {
+          simplifiedLines.add(line);
+        }
+      } else if (inTable && !line.contains('|')) {
+        // Table ended
+        inTable = false;
+        if (tableRows > maxTableRows) {
+          simplifiedLines.add("| ... (additional rows omitted) |");
+        }
+        simplifiedLines.add(line);
+      } else {
+        simplifiedLines.add(line);
+      }
+    }
+
+    final simplifiedPrompt = simplifiedLines.join('\n');
+    debugPrint(
+        'Created simplified prompt with length: ${simplifiedPrompt.length}');
+
+    // Make API call with simplified data
+    return await _makeAPIRequest(simplifiedPrompt);
+  }
+
+  // Helper to format population data with better error checking
   static String _formatPopulationData(Map<String, dynamic> populationData) {
     StringBuffer buffer = StringBuffer();
 
-    // Debug the incoming data
-    debugPrint('Formatting population data:');
-    debugPrint(
-        '- Total Population key exists: ${populationData.containsKey('Total Population')}');
-    if (populationData.containsKey('Total Population')) {
+    try {
+      // Debug the incoming data
+      debugPrint('Formatting population data:');
       debugPrint(
-          '- Total Population value: ${populationData['Total Population']}');
-    } else {
-      debugPrint(
-          '- Keys in population data: ${populationData.keys.join(', ')}');
-    }
+          '- Total Population key exists: ${populationData.containsKey('Total Population')}');
 
-    // Make sure total population is included at the top
-    int? totalPop = populationData['Total Population'] as int?;
-    if (totalPop != null) {
-      buffer.writeln("Total Province Population: ${_formatNumber(totalPop)}");
-    } else {
-      // If not available, sum all municipalities
-      int sum = 0;
-      populationData.forEach((key, value) {
-        if (key != 'Total Population' && value is num) {
-          sum += value.toInt();
+      // Make sure we're working with valid data
+      if (populationData.isEmpty) {
+        return "No population data available.";
+      }
+
+      // Make sure total population is included at the top
+      int? totalPop = populationData['Total Population'] is num
+          ? (populationData['Total Population'] as num).toInt()
+          : null;
+
+      if (totalPop != null) {
+        buffer.writeln("Total Province Population: ${_formatNumber(totalPop)}");
+      } else {
+        // If not available, sum all municipalities
+        int sum = 0;
+        populationData.forEach((key, value) {
+          if (key != 'Total Population' && value is num) {
+            sum += value.toInt();
+          }
+        });
+
+        if (sum > 0) {
+          buffer.writeln(
+              "Estimated Total Province Population: ${_formatNumber(sum)}");
+          totalPop = sum; // Use this as the total for percentage calculations
+        } else {
+          buffer.writeln("Population data available but cannot be summed.");
+          return buffer.toString();
         }
-      });
-      buffer.writeln(
-          "Estimated Total Province Population: ${_formatNumber(sum)}");
-      totalPop = sum; // Use this as the total for percentage calculations
-    }
-    buffer.writeln("");
+      }
+      buffer.writeln("");
 
-    buffer.writeln("| Municipality | Population | Percentage |");
-    buffer.writeln("| --- | --- | --- |");
+      buffer.writeln("| Municipality | Population | Percentage |");
+      buffer.writeln("| --- | --- | --- |");
 
-    // Calculate percentages and sort by population
-    List<MapEntry<String, dynamic>> sortedEntries = populationData.entries
-        .where((e) => e.key != 'Total Population' && e.value is num)
-        .toList()
-      ..sort((a, b) => (b.value as num).compareTo(a.value as num));
+      // Calculate percentages and sort by population
+      List<MapEntry<String, dynamic>> sortedEntries = populationData.entries
+          .where((e) => e.key != 'Total Population' && e.value is num)
+          .toList();
 
-    // Take top municipalities by population
-    final topEntries = sortedEntries.take(15);
+      if (sortedEntries.isEmpty) {
+        buffer.writeln("| No municipality data available | N/A | N/A |");
+        return buffer.toString();
+      }
 
-    for (var entry in topEntries) {
-      final percentage = totalPop > 0
-          ? ((entry.value / totalPop) * 100).toStringAsFixed(1) + '%'
-          : 'N/A';
+      sortedEntries.sort((a, b) => (b.value as num).compareTo(a.value as num));
 
-      buffer.writeln(
-          "| ${entry.key} | ${_formatNumber(entry.value)} | $percentage |");
+      // Take top municipalities by population (limit to prevent token issues)
+      final topEntries = sortedEntries.take(10);
+
+      for (var entry in topEntries) {
+        final percentage = totalPop > 0
+            ? ((entry.value / totalPop) * 100).toStringAsFixed(1) + '%'
+            : 'N/A';
+
+        buffer.writeln(
+            "| ${entry.key} | ${_formatNumber(entry.value)} | $percentage |");
+      }
+
+      // If there are more entries, indicate that they're omitted
+      if (sortedEntries.length > 10) {
+        buffer.writeln("| ... (remaining municipalities omitted) | | |");
+      }
+    } catch (e) {
+      debugPrint('Error formatting population data: $e');
+      buffer.writeln("| Error formatting population data | N/A | N/A |");
     }
 
     return buffer.toString();
   }
 
-  // Helper to format category data
+  // Helper to format category data with better error checking
   static String _formatCategoryData(Map<String, Map<String, int>> categoryData,
       Map<String, int?>? categoryTotals) {
     StringBuffer buffer = StringBuffer();
 
-    // Debug the incoming data
-    debugPrint('Formatting category data:');
-    debugPrint('- Categories: ${categoryData.keys.join(', ')}');
-    if (categoryTotals != null) {
-      debugPrint(
-          '- Category totals provided: ${categoryTotals.keys.join(', ')}');
-    }
+    try {
+      // Debug the incoming data
+      debugPrint('Formatting category data:');
+      debugPrint('- Categories: ${categoryData.keys.join(', ')}');
 
-    // First write a summary of the category totals
-    if (categoryTotals != null) {
-      buffer.writeln("### Program Category Totals");
-      buffer.writeln("| Category | Beneficiaries |");
-      buffer.writeln("| --- | --- |");
+      if (categoryData.isEmpty) {
+        return "No category data available.";
+      }
 
-      categoryTotals.forEach((category, total) {
-        if (total != null && category != 'Total Population') {
-          buffer.writeln("| $category | ${_formatNumber(total)} |");
-        }
-      });
-      buffer.writeln("");
-    }
+      // First write a summary of the category totals
+      if (categoryTotals != null && categoryTotals.isNotEmpty) {
+        buffer.writeln("### Program Category Totals");
+        buffer.writeln("| Category | Beneficiaries |");
+        buffer.writeln("| --- | --- |");
 
-    // Now create a consolidated table for top municipalities
-    buffer.writeln("### Welfare Program Coverage by Municipality");
-    buffer.writeln("| Municipality | Healthcare | Social | Educational |");
-    buffer.writeln("| -------------- | ---------- | ------ | ----------- |");
+        categoryTotals.forEach((category, total) {
+          if (total != null && category != 'Total Population') {
+            buffer.writeln("| $category | ${_formatNumber(total)} |");
+          }
+        });
+        buffer.writeln("");
+      }
 
-    // Find municipalities with highest total beneficiaries
-    Map<String, int> municipalityTotals = {};
-
-    // First get all municipality names
-    Set<String> allMunicipalities = {};
-    categoryData.forEach((category, data) {
-      allMunicipalities.addAll(data.keys);
-    });
-
-    debugPrint('- Found ${allMunicipalities.length} unique municipalities');
-
-    // Calculate totals
-    for (String municipality in allMunicipalities) {
-      int total = 0;
+      // Check if we have actual program data
+      bool hasData = false;
       categoryData.forEach((category, data) {
-        total += data[municipality] ?? 0;
+        if (data.isNotEmpty) hasData = true;
       });
-      municipalityTotals[municipality] = total;
-    }
 
-    // Sort municipalities by total beneficiaries
-    List<String> sortedMunicipalities = municipalityTotals.keys.toList()
-      ..sort(
-          (a, b) => municipalityTotals[b]!.compareTo(municipalityTotals[a]!));
+      if (!hasData) {
+        buffer.writeln(
+            "No detailed welfare program data available by municipality.");
+        return buffer.toString();
+      }
 
-    // Take top municipalities
-    final topMunicipalities = sortedMunicipalities.take(15);
+      // Now create a consolidated table for top municipalities
+      buffer.writeln("### Welfare Program Coverage by Municipality");
+      buffer.writeln("| Municipality | Healthcare | Social | Educational |");
+      buffer.writeln("| -------------- | ---------- | ------ | ----------- |");
 
-    // Build the table
-    for (String municipality in topMunicipalities) {
-      final healthcare = categoryData['Healthcare']?[municipality] != null
-          ? _formatNumber(categoryData['Healthcare']![municipality]!)
-          : 'N/A';
+      // Find municipalities with highest total beneficiaries
+      Map<String, int> municipalityTotals = {};
 
-      final social = categoryData['Social']?[municipality] != null
-          ? _formatNumber(categoryData['Social']![municipality]!)
-          : 'N/A';
+      // First get all municipality names
+      Set<String> allMunicipalities = {};
+      categoryData.forEach((category, data) {
+        allMunicipalities.addAll(data.keys);
+      });
 
-      final educational = categoryData['Educational']?[municipality] != null
-          ? _formatNumber(categoryData['Educational']![municipality]!)
-          : 'N/A';
+      if (allMunicipalities.isEmpty) {
+        buffer.writeln("| No municipality data available | N/A | N/A | N/A |");
+        return buffer.toString();
+      }
 
-      buffer
-          .writeln("| $municipality | $healthcare | $social | $educational |");
+      // Calculate totals
+      for (String municipality in allMunicipalities) {
+        int total = 0;
+        categoryData.forEach((category, data) {
+          total += data[municipality] ?? 0;
+        });
+        municipalityTotals[municipality] = total;
+      }
+
+      // Sort municipalities by total beneficiaries
+      List<String> sortedMunicipalities = municipalityTotals.keys.toList()
+        ..sort(
+            (a, b) => municipalityTotals[b]!.compareTo(municipalityTotals[a]!));
+
+      // Take top municipalities (limit to prevent token issues)
+      final topMunicipalities = sortedMunicipalities.take(10);
+
+      // Build the table
+      for (String municipality in topMunicipalities) {
+        final healthcare = categoryData['Healthcare']?[municipality] != null
+            ? _formatNumber(categoryData['Healthcare']![municipality]!)
+            : 'N/A';
+
+        final social = categoryData['Social']?[municipality] != null
+            ? _formatNumber(categoryData['Social']![municipality]!)
+            : 'N/A';
+
+        final educational = categoryData['Educational']?[municipality] != null
+            ? _formatNumber(categoryData['Educational']![municipality]!)
+            : 'N/A';
+
+        buffer.writeln(
+            "| $municipality | $healthcare | $social | $educational |");
+      }
+
+      // If there are more entries, indicate that they're omitted
+      if (sortedMunicipalities.length > 10) {
+        buffer.writeln("| ... (remaining municipalities omitted) | | | |");
+      }
+    } catch (e) {
+      debugPrint('Error formatting category data: $e');
+      buffer.writeln("| Error formatting category data | N/A | N/A | N/A |");
     }
 
     return buffer.toString();
@@ -238,55 +364,78 @@ Keep your response factual and objective. Format tables properly with clear head
   static String _formatNumber(dynamic number) {
     if (number == null) return 'N/A';
 
-    final int numValue = number is int ? number : number.toInt();
-    return numValue.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+    try {
+      final int numValue = number is int ? number : number.toInt();
+      return numValue.toString().replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+            (Match m) => '${m[1]},',
+          );
+    } catch (e) {
+      debugPrint('Error formatting number: $e');
+      return number.toString();
+    }
   }
 
-  // Helper to make API requests to OpenAI
+  // Helper to make API requests to OpenAI with improved error handling
   static Future<String> _makeAPIRequest(String prompt) async {
-    // Debug length
-    debugPrint(
-        'Making API request to OpenAI with prompt length: ${prompt.length}');
-
-    final apiKey = APIKeys.getOpenAIKey();
-    final response = await http.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
-      body: jsonEncode({
-        'model': 'gpt-3.5-turbo',
-        'messages': [
-          {
-            'role': 'system',
-            'content': 'You are a data analyst specializing in population statistics and welfare program distribution. '
-                'Provide clear, concise, and factual analysis with properly formatted markdown tables. '
-                'DO NOT include any contact information, email addresses, phone numbers, or personal references as these would be inaccurate. '
-                'Focus solely on data analysis and objective insights.'
-          },
-          {
-            'role': 'user',
-            'content': prompt,
-          }
-        ],
-        'temperature': 0.5,
-        'max_tokens': 1000,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      Map<String, dynamic> data = json.decode(response.body);
-      String content = data['choices'][0]['message']['content'];
+    try {
+      // Debug length
       debugPrint(
-          'Successfully received API response with content length: ${content.length}');
-      return content;
-    } else {
-      throw Exception(
-          'Failed to get response: ${response.statusCode} ${response.body}');
+          'Making API request to OpenAI with prompt length: ${prompt.length}');
+
+      final apiKey = APIKeys.getOpenAIKey();
+
+      if (apiKey.isEmpty) {
+        throw Exception('API key is empty or invalid');
+      }
+
+      final response = await http.post(
+        Uri.parse('https://api.openai.com/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-3.5-turbo',
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are a data analyst specializing in population statistics and welfare program distribution. '
+                  'Provide clear, concise, and factual analysis with properly formatted markdown tables. '
+                  'DO NOT include any contact information, email addresses, phone numbers, or personal references as these would be inaccurate. '
+                  'Focus solely on data analysis and objective insights.'
+            },
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ],
+          'temperature': 0.5,
+          'max_tokens': 1000,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> data = json.decode(response.body);
+
+        if (!data.containsKey('choices') ||
+            data['choices'].isEmpty ||
+            !data['choices'][0].containsKey('message') ||
+            !data['choices'][0]['message'].containsKey('content')) {
+          throw Exception('Unexpected response format from API');
+        }
+
+        String content = data['choices'][0]['message']['content'];
+        debugPrint(
+            'Successfully received API response with content length: ${content.length}');
+        return content;
+      } else {
+        throw Exception(
+            'API request failed with status code ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Error in API request: $e');
+      return 'Error communicating with AI service: ${e.toString()}';
     }
   }
 
