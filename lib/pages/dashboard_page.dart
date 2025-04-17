@@ -6,7 +6,8 @@ import 'package:unloque/components/categories_section.dart';
 import 'package:unloque/pages/admin/developer_options_page.dart';
 import '../components/news-slider.dart';
 import '../models/slider_item.dart';
-import '../data/available_applications_data.dart'; // Add this import
+import '../data/available_applications_data.dart';
+import '../pages/program_search_results_page.dart'; // Add this import
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -18,16 +19,25 @@ class DashboardPage extends StatefulWidget {
 class DashboardPageState extends State<DashboardPage> {
   final GlobalKey<ApplicationProgressSectionState> _progressSectionKey =
       GlobalKey();
-  // Use the correct public class name
   final GlobalKey<AutoImageSliderState> _newsSliderKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _categoriesSectionKey = GlobalKey();
+  // Add a controller for search
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     // Clear cache when dashboard loads to ensure fresh data
     AvailableApplicationsData.clearCache();
+  }
+
+  @override
+  void dispose() {
+    // Dispose the search controller
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void refreshProgressSection() {
@@ -45,6 +55,60 @@ class DashboardPageState extends State<DashboardPage> {
       _newsSliderKey.currentState?.refreshNews();
       print('Dashboard refreshed from DeveloperOptionsPage');
     });
+  }
+
+  // Add a method to handle search
+  void _handleSearch() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    // Show a loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 10),
+            Text('Searching programs...'),
+          ],
+        ),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      // Search for programs
+      final results = await AvailableApplicationsData.searchPrograms(query);
+
+      if (!mounted) return;
+
+      // Navigate to search results page
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProgramSearchResultsPage(
+            searchQuery: query,
+            searchResults: results,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error searching programs: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Navigate to a page and refresh when returning with a refresh flag
@@ -214,6 +278,7 @@ class DashboardPageState extends State<DashboardPage> {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: TextField(
+                        controller: _searchController,
                         style: TextStyle(
                             color: Colors.grey[800] ??
                                 Colors.black), // Provide fallback color
@@ -228,13 +293,21 @@ class DashboardPageState extends State<DashboardPage> {
                           prefixIcon: Icon(Icons.search_outlined,
                               color: Colors.grey[800] ?? Colors.black,
                               size: 22), // Provide fallback color
-                          suffixIcon: Icon(Icons.tune_outlined,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.arrow_forward,
                               color: Colors.grey[800] ?? Colors.black,
-                              size: 22), // Provide fallback color
+                              size: 22,
+                            ),
+                            onPressed: _handleSearch,
+                            tooltip: 'Search',
+                          ),
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(
                               horizontal: 15, vertical: 10),
                         ),
+                        onSubmitted: (_) => _handleSearch(),
+                        textInputAction: TextInputAction.search,
                       ),
                     ),
                   ),

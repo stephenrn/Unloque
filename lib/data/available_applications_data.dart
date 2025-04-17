@@ -156,6 +156,45 @@ class AvailableApplicationsData {
     }
   }
 
+  // Add this new static method to search programs
+  static Future<List<Map<String, dynamic>>> searchPrograms(String query) async {
+    // Clear any existing cache first to get fresh data
+    clearCache();
+
+    // Normalize the search query
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) return [];
+
+    try {
+      final List<Map<String, dynamic>> allPrograms = await getAllApplications();
+
+      // Filter the programs based on the search query
+      return allPrograms.where((program) {
+        // Check program name
+        final name = (program['programName'] ?? '').toString().toLowerCase();
+        if (name.contains(normalizedQuery)) return true;
+
+        // Check organization name
+        final orgName =
+            (program['organizationName'] ?? '').toString().toLowerCase();
+        if (orgName.contains(normalizedQuery)) return true;
+
+        // Check category
+        final category = (program['category'] ?? '').toString().toLowerCase();
+        if (category.contains(normalizedQuery)) return true;
+
+        // Check deadline (date search)
+        final deadline = (program['deadline'] ?? '').toString().toLowerCase();
+        if (deadline.contains(normalizedQuery)) return true;
+
+        return false;
+      }).toList();
+    } catch (e) {
+      print('Error searching programs: $e');
+      throw e;
+    }
+  }
+
   // Helper method to convert Firestore data to application format
   static Map<String, dynamic> _convertToApplicationFormat(
     Map<String, dynamic> programData,
