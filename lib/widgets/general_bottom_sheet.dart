@@ -697,7 +697,8 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
     return Container(
       color: Colors.grey[100],
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 8.0, vertical: 16.0), // Reduced horizontal padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -768,11 +769,12 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             // Display AI-powered analysis with translation support
             Card(
               elevation: 2,
+              margin: EdgeInsets.zero, // Remove default card margin
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(10.0), // Reduced padding
                 child: MarkdownRenderer(
                   data: _isTagalogDataSummary
                       ? _tagalogDataSummaryContent
@@ -795,7 +797,8 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
     return Container(
       color: Colors.grey[100],
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 8.0, vertical: 16.0), // Reduced horizontal padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -862,11 +865,12 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
             // Display AI-powered insights with translation support
             Card(
               elevation: 2,
+              margin: EdgeInsets.zero, // Remove default card margin
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(10.0), // Reduced padding
                 child: MarkdownRenderer(
                   data: _isTagalogInsights
                       ? _tagalogInsightsContent

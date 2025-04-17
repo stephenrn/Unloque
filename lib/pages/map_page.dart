@@ -629,7 +629,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     setState(() {
       _isBottomSheetExpanded = !_isBottomSheetExpanded;
       _bottomSheetHeight =
-          _isBottomSheetExpanded ? 700.0 : 140.0; // Changed from 40.0 to 140.0
+          _isBottomSheetExpanded ? 670.0 : 140.0; // Changed from 700.0 to 670.0
     });
   }
 
@@ -1335,15 +1335,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             onSubmitted: _handleSearch,
             textInputAction: TextInputAction.search,
             transition: CircularFloatingSearchBarTransition(),
-            actions: [
-              FloatingSearchBarAction(
-                showIfOpened: false,
-                child: CircularButton(
-                  icon: const Icon(Icons.place),
-                  onPressed: () {},
-                ),
-              ),
-            ],
+            // Removed the location button that was previously here
+            actions: [], // Empty list instead of the location button
             builder: (context, transition) {
               final filteredList = _getFilteredList();
               return ClipRRect(
