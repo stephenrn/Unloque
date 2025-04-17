@@ -751,11 +751,17 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     final displayLocation = _selectedLocation ?? _quezonProvince;
     final bool isDefaultView = _selectedLocation == null;
 
-    // Get the municipality population and beneficiary data if selected
-    int? municipalityPopulation;
-    Map<String, int> beneficiaryData = {};
+    // Debug print to help track what's happening with filters
+    debugPrint(
+        'Building bottom sheet: filter=$_selectedFilter, location=${displayLocation.name}, default=$isDefaultView');
 
+    // If a municipality is selected, always show the municipality-specific bottom sheet
+    // regardless of the selected filter
     if (!isDefaultView) {
+      // Get municipality data
+      int? municipalityPopulation;
+      Map<String, int> beneficiaryData = {};
+
       // Get population data for this municipality
       if (_rawPopulationData.containsKey(_selectedLocation!.name)) {
         municipalityPopulation = _rawPopulationData[_selectedLocation!.name];
@@ -768,10 +774,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
               _categoryData[category]![_selectedLocation!.name]!;
         }
       }
-    }
 
-    // Only show municipality-specific bottom sheet when a municipality is selected
-    if (!isDefaultView) {
       return SelectedMunicipalityBottomSheet(
         location: displayLocation,
         isExpanded: _isBottomSheetExpanded,
@@ -785,12 +788,33 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           'Social': _socialTotalBeneficiaries,
           'Educational': _educationTotalBeneficiaries,
         },
-        selectedFilter:
-            _selectedFilter, // Pass the selected filter for highlighting relevant data
+        selectedFilter: _selectedFilter,
       );
     }
 
-    // Default to general bottom sheet for province view
+    // If in province view (no municipality selected), switch based on filter
+    if (_selectedFilter != 'General') {
+      // For category filters, show the category filter bottom sheet
+      int? categoryTotal;
+      if (_selectedFilter == 'Healthcare') {
+        categoryTotal = _healthcareTotalBeneficiaries;
+      } else if (_selectedFilter == 'Social') {
+        categoryTotal = _socialTotalBeneficiaries;
+      } else if (_selectedFilter == 'Educational') {
+        categoryTotal = _educationTotalBeneficiaries;
+      }
+
+      return CategoryFilterBottomSheet(
+        selectedFilter: _selectedFilter,
+        isExpanded: _isBottomSheetExpanded,
+        sheetHeight: _bottomSheetHeight,
+        onClose: () => _onFilterSelected('General'),
+        onDragUpdate: _handleDragUpdate,
+        categoryTotalBeneficiaries: categoryTotal,
+      );
+    }
+
+    // Default to general bottom sheet for province view with General filter
     return GeneralBottomSheet(
       location: displayLocation,
       isDefaultView: isDefaultView,
