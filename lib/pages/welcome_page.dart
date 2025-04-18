@@ -385,6 +385,101 @@ class _WelcomePageState extends State<WelcomePage>
     }
   }
 
+  // Add method to handle tester sign-in
+  Future<void> handleTesterSignIn() async {
+    if (_isLoading) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Signing in as tester...'),
+          ],
+        ),
+        backgroundColor: Colors.grey[800]!.withOpacity(0.9),
+        duration: Duration(seconds: 10),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+
+    try {
+      // Sign in with hardcoded tester credentials
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: 'devtester@example.com',
+        password: 'devpassword123',
+      );
+
+      if (userCredential.user != null && mounted) {
+        // Hide loading indicator
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Check if user exists in Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .get();
+
+        // Create user profile if it doesn't exist
+        if (!userDoc.exists) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+            'uid': userCredential.user!.uid,
+            'email': 'devtester@example.com',
+            'username': 'Tester',
+            'createdAt': Timestamp.now(),
+          });
+        }
+
+        // Navigate to home page
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => HomePage()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // Hide loading indicator
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to sign in: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -690,7 +785,7 @@ class _WelcomePageState extends State<WelcomePage>
                     // Terms and conditions text - Updated to use RichText with clickable terms
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
+                        padding: const EdgeInsets.only(bottom: 5.0),
                         child: RichText(
                           textAlign: TextAlign.center,
                           text: TextSpan(
@@ -725,10 +820,35 @@ class _WelcomePageState extends State<WelcomePage>
                       ),
                     ),
 
+                    // Add Tester button above Google sign-in button
+                    Container(
+                      width: double.infinity,
+                      margin: EdgeInsets.only(bottom: 10),
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : handleTesterSignIn,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[800], // Dark button
+                          foregroundColor: Colors.white, // White text
+                          padding: EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'I am a tester',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
                     // Sign-in Button (inverted colors)
                     Container(
                       width: double.infinity,
-                      margin: EdgeInsets.only(bottom: 16),
+                      margin: EdgeInsets.only(bottom: 1),
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : handleGoogleSignIn,
                         style: ElevatedButton.styleFrom(
@@ -764,7 +884,7 @@ class _WelcomePageState extends State<WelcomePage>
                     // Version info
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
+                        padding: const EdgeInsets.only(bottom: 1.0),
                         child: Text(
                           'Unloque v1.0.0',
                           style: TextStyle(
