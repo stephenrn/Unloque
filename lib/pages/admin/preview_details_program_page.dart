@@ -277,28 +277,34 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
                                             ),
                                     ),
                                     SizedBox(width: 16),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          programName,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey[800],
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            programName,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[800],
+                                            ),
+                                            softWrap: true,
+                                            overflow: TextOverflow.visible,
                                           ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          _organizationData['name'] ??
-                                              'Organization',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[600],
+                                          SizedBox(height: 4),
+                                          Text(
+                                            _organizationData['name'] ??
+                                                'Organization',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                            softWrap: true,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),

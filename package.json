@@ -5,8 +5,8 @@
   "description": "Unloque Flutter Web App",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "echo 'Building with Flutter'"
+    "start": "node check-environment.js && node server.js",
+    "build": "flutter pub get && flutter build web --release && cp -r build/web/* public/"
   },
   "engines": {
     "node": "18.x"

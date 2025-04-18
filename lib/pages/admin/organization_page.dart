@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/pages/admin/program_beneficiaries_editor.dart';
 // Add import for the new page
 import 'package:unloque/pages/admin/program_details_form_page.dart';
 // Add import for ApplicationManagerPage at the top
@@ -48,19 +49,64 @@ class _OrganizationPageState extends State<OrganizationPage>
     final organizationWebsite = widget.organization['website'] ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[850],
       appBar: AppBar(
-        backgroundColor: Colors.grey[850],
-        title: Text(
-          organizationName,
-          style: const TextStyle(color: Colors.white),
+        toolbarHeight: 100,
+        title: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            organizationName,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[200],
+            ),
+          ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        backgroundColor: Colors.grey[850],
+        automaticallyImplyLeading: false,
+        leading: Container(
+          margin: EdgeInsets.only(left: 16),
+          child: Container(
+            height: 28,
+            width: 28,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.pop(context),
+              icon: Transform.rotate(
+                angle: 4.71239,
+                child: Icon(
+                  Icons.arrow_outward_rounded,
+                  color: Colors.grey[900],
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.grey[400],
-          indicatorColor: Colors.blue,
+          labelStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          unselectedLabelColor: Colors.grey[600],
+          labelColor: Colors.grey[200],
+          dividerColor: Colors.transparent,
+          indicator: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey[200]!,
+                width: 2.0,
+              ),
+            ),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
           tabs: const [
             Tab(text: 'Programs'),
             Tab(text: 'News'),
@@ -68,71 +114,133 @@ class _OrganizationPageState extends State<OrganizationPage>
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Organization header
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  color: Colors.grey[200],
-                  child: organizationLogo != null &&
-                          organizationLogo.toString().isNotEmpty
-                      ? Image.network(
-                          organizationLogo,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.business, size: 40);
-                          },
-                        )
-                      : const Icon(Icons.business, size: 40),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        organizationName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (organizationWebsite.isNotEmpty)
+      body: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Organization header - redesigned for better aesthetics
+            Container(
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: organizationLogo != null &&
+                              organizationLogo.toString().isNotEmpty
+                          ? Image.network(
+                              organizationLogo,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.business,
+                                  size: 40,
+                                  color: Colors.grey[600],
+                                );
+                              },
+                            )
+                          : Icon(
+                              Icons.business,
+                              size: 40,
+                              color: Colors.grey[600],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          organizationWebsite,
+                          organizationName,
                           style: TextStyle(
-                            color: Colors.blue[700],
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
                           ),
                         ),
-                    ],
+                        SizedBox(height: 4),
+                        if (organizationWebsite.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              // You can add url_launcher functionality here
+                            },
+                            child: Row(
+                              children: [
+                                Icon(Icons.language,
+                                    size: 16, color: Colors.blue[700]),
+                                SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    organizationWebsite,
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (organizationWebsite.isEmpty)
+                          Text(
+                            'No website provided',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Programs Tab
-                _ProgramsTab(organizationId: widget.organization['id']),
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Programs Tab
+                  _ProgramsTab(organizationId: widget.organization['id']),
 
-                // News Tab
-                _NewsTab(organizationId: widget.organization['id']),
+                  // News Tab
+                  _NewsTab(organizationId: widget.organization['id']),
 
-                // Map Data Tab
-                _MapDataTab(organizationId: widget.organization['id']),
-              ],
+                  // Map Data Tab
+                  _MapDataTab(organizationId: widget.organization['id']),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -166,7 +274,7 @@ class _ProgramsTab extends StatelessWidget {
       Colors.cyan[100]!,
     ];
 
-    // List of available categories
+    // List of available categories - make sure this matches how data is stored in Firebase
     final categories = ['Educational', 'Social', 'Healthcare'];
 
     showDialog(
@@ -935,7 +1043,7 @@ class _NewsTabState extends State<_NewsTab> {
           backgroundColor: Colors.transparent,
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddNewsDialog(context),
-            backgroundColor: Colors.blue,
+            backgroundColor: Colors.grey[300], // Changed from blue to grey[300]
             child: const Icon(Icons.add),
           ),
           body: StreamBuilder<QuerySnapshot>(
@@ -1173,13 +1281,19 @@ class _NewsSliderStyleCard extends StatelessWidget {
                                     height: 24,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
-                                      return Icon(Icons.business,
-                                          size: 16, color: Colors.grey[600]);
+                                      return Icon(
+                                        Icons.business,
+                                        size: 16,
+                                        color: Colors.grey[600],
+                                      );
                                     },
                                   ),
                                 )
-                              : Icon(Icons.business,
-                                  size: 16, color: Colors.grey[600]),
+                              : Icon(
+                                  Icons.business,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
                         ),
                         SizedBox(width: 4),
                         // Handle long organization names with Expanded and ellipsis
@@ -1232,15 +1346,16 @@ class _NewsSliderStyleCard extends StatelessWidget {
                 right: 8,
                 child: Row(
                   children: [
-                    // Edit button
+                    // Edit button - Changed background and icon colors
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.grey[300]?.withOpacity(
+                            0.8), // Changed from white.withOpacity(0.8)
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: IconButton(
                         icon: Icon(Icons.edit, size: 20),
-                        color: Colors.blue[800],
+                        color: Colors.grey[700], // Changed from blue[800]
                         padding: EdgeInsets.all(4),
                         constraints: BoxConstraints(),
                         onPressed: onTapEdit,
@@ -1248,15 +1363,16 @@ class _NewsSliderStyleCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 8),
-                    // Delete button
+                    // Delete button - Changed background and kept red icon slightly muted
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.grey[300]?.withOpacity(
+                            0.8), // Changed from white.withOpacity(0.8)
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: IconButton(
                         icon: Icon(Icons.delete, size: 20),
-                        color: Colors.red[800],
+                        color: Colors.red[600], // Slightly muted red
                         padding: EdgeInsets.all(4),
                         constraints: BoxConstraints(),
                         onPressed: onTapDelete,
@@ -1279,25 +1395,141 @@ class _MapDataTab extends StatelessWidget {
 
   const _MapDataTab({required this.organizationId});
 
+  // Add this method to show program selection dialog
+  void _showProgramSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Program'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('organizations')
+                .doc(organizationId)
+                .collection('programs')
+                .orderBy('name')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(
+                  child: Text(
+                      'No programs available. Please create a program first.'),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final program =
+                      snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                  final colorValue = program['color'] as int?;
+                  final programColor = colorValue != null
+                      ? Color(colorValue)
+                      : Colors.blue[100]!;
+
+                  return ListTile(
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: programColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey),
+                      ),
+                    ),
+                    title: Text(program['name'] ?? 'Unnamed Program'),
+                    subtitle: Text(program['category'] ?? 'No Category'),
+                    onTap: () {
+                      Navigator.pop(context); // Close dialog
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBeneficiariesEditor(
+                            programId: program['id'],
+                            programName: program['name'] ?? 'Unnamed Program',
+                            organizationId: organizationId,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add method to delete map data
+  void _deleteMapData(BuildContext context, String docId, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Map Data'),
+        content: Text('Are you sure you want to delete "$title"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('mapdata')
+                    .doc(docId)
+                    .delete();
+
+                Navigator.pop(context); // Close dialog
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Map data deleted successfully')),
+                );
+              } catch (e) {
+                Navigator.pop(context); // Close dialog on error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting map data: $e')),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement add map data functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content:
-                    Text('Add map data functionality not implemented yet')),
-          );
-        },
-        backgroundColor: Colors.blue,
+        onPressed: () => _showProgramSelectionDialog(context),
+        backgroundColor: Colors.grey[300], // Changed from blue to grey[300]
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('mapData')
+            .collection('mapdata')
             .where('organizationId', isEqualTo: organizationId)
             .snapshots(),
         builder: (context, snapshot) {
@@ -1347,6 +1579,66 @@ class _MapDataTab extends StatelessWidget {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
 
+              // Different card for beneficiaries type
+              if (data['type'] == 'beneficiaries') {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: ListTile(
+                    leading: const Icon(Icons.people, color: Colors.green),
+                    title: Text(data['title'] ?? 'Program Beneficiaries'),
+                    subtitle: Text(
+                      'Total: ${data['Total Beneficiaries']?.toString() ?? 'Not specified'}',
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit,
+                              color: Colors.grey[600]), // Fixed: removed const
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ProgramBeneficiariesEditor(
+                                  programId: data['programId'],
+                                  programName: data['programName'] ?? 'Program',
+                                  organizationId: organizationId,
+                                ),
+                              ),
+                            );
+                          },
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete,
+                              color: Colors.grey[600]), // Fixed: removed const
+                          onPressed: () {
+                            _deleteMapData(context, doc.id,
+                                data['title'] ?? 'Program Beneficiaries');
+                          },
+                          tooltip: 'Delete',
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      // Navigate to edit the beneficiaries
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBeneficiariesEditor(
+                            programId: data['programId'],
+                            programName: data['programName'] ?? 'Program',
+                            organizationId: organizationId,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+
+              // Original card for other map data types
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 child: ListTile(
@@ -1357,9 +1649,11 @@ class _MapDataTab extends StatelessWidget {
                     'Lng: ${data['longitude']?.toStringAsFixed(4) ?? 'N/A'}',
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: Icon(Icons.delete,
+                        color: Colors.grey[600]), // Fixed: removed const
                     onPressed: () {
-                      // TODO: Implement delete map data functionality
+                      _deleteMapData(context, doc.id,
+                          data['locationName'] ?? 'Unnamed Location');
                     },
                   ),
                   onTap: () {

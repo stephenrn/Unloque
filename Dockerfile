@@ -2,11 +2,14 @@ FROM node:18-slim
 
 WORKDIR /app
 
-# Copy package.json and server.js
-COPY package.json server.js ./
+# Copy package.json, server.js and environment check script
+COPY package.json server.js check-environment.js ./
 
 # Copy the Flutter web build output
 COPY build/web ./build/web
+
+# Also copy the public directory for Firebase Hosting
+COPY public ./public
 
 # Install dependencies
 RUN npm install --production

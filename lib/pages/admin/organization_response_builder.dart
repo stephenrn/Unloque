@@ -326,6 +326,25 @@ class _OrganizationResponseBuilderPageState
         'status': 'Completed',
       });
 
+      // Add a notification for the user
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+        'title': 'Response Received',
+        'message':
+            'Organization $_orgName has responded to your application for $_programName',
+        'type': 'response',
+        'programId': widget.application['programId'] ?? appId,
+        'programName': _programName,
+        'organizationId': orgId,
+        'organizationName': _orgName,
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(),
+        'applicationId': appId,
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
