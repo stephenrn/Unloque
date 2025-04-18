@@ -30,7 +30,8 @@ class _ProfilePageState extends State<ProfilePage> {
       await signOut(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting account: $e')),
+        SnackBar(
+            content: Text('Please log in again before trying this request')),
       );
     }
   }
@@ -256,12 +257,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 _buildDivider(),
                 _buildListTile(
-                  icon: Icons.info_outline,
-                  title: 'About Us',
-                  onTap: () {},
-                ),
-                _buildDivider(),
-                _buildListTile(
                   icon: Icons.description_outlined,
                   title: 'Terms & Conditions',
                   onTap: () {
@@ -288,12 +283,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 _buildDivider(),
                 _buildSectionTitle('Account'),
-                _buildListTile(
-                  icon: Icons.lock_outline,
-                  title: 'Change Password',
-                  onTap: () {},
-                ),
-                _buildDivider(),
                 _buildListTile(
                   icon: Icons.exit_to_app_outlined,
                   title: 'Log Out',
