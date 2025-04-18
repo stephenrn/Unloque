@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/pages/admin/program_beneficiaries_editor.dart';
 // Add import for the new page
 import 'package:unloque/pages/admin/program_details_form_page.dart';
+// Add import for ApplicationManagerPage at the top
+import 'package:unloque/pages/admin/application_manager_page.dart';
+// Add these imports:
+import 'package:unloque/constants/category_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
+// Update the import for web_viewer.dart - add this at the top with other imports
+import '../../utils/web_viewer.dart';
 
 class OrganizationPage extends StatefulWidget {
   final Map<String, dynamic> organization;
@@ -39,19 +49,64 @@ class _OrganizationPageState extends State<OrganizationPage>
     final organizationWebsite = widget.organization['website'] ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[850],
       appBar: AppBar(
-        backgroundColor: Colors.grey[850],
-        title: Text(
-          organizationName,
-          style: const TextStyle(color: Colors.white),
+        toolbarHeight: 100,
+        title: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            organizationName,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[200],
+            ),
+          ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        backgroundColor: Colors.grey[850],
+        automaticallyImplyLeading: false,
+        leading: Container(
+          margin: EdgeInsets.only(left: 16),
+          child: Container(
+            height: 28,
+            width: 28,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.pop(context),
+              icon: Transform.rotate(
+                angle: 4.71239,
+                child: Icon(
+                  Icons.arrow_outward_rounded,
+                  color: Colors.grey[900],
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.grey[400],
-          indicatorColor: Colors.blue,
+          labelStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          unselectedLabelColor: Colors.grey[600],
+          labelColor: Colors.grey[200],
+          dividerColor: Colors.transparent,
+          indicator: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey[200]!,
+                width: 2.0,
+              ),
+            ),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
           tabs: const [
             Tab(text: 'Programs'),
             Tab(text: 'News'),
@@ -59,71 +114,133 @@ class _OrganizationPageState extends State<OrganizationPage>
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Organization header
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  color: Colors.grey[200],
-                  child: organizationLogo != null &&
-                          organizationLogo.toString().isNotEmpty
-                      ? Image.network(
-                          organizationLogo,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.business, size: 40);
-                          },
-                        )
-                      : const Icon(Icons.business, size: 40),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        organizationName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (organizationWebsite.isNotEmpty)
+      body: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Organization header - redesigned for better aesthetics
+            Container(
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: organizationLogo != null &&
+                              organizationLogo.toString().isNotEmpty
+                          ? Image.network(
+                              organizationLogo,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.business,
+                                  size: 40,
+                                  color: Colors.grey[600],
+                                );
+                              },
+                            )
+                          : Icon(
+                              Icons.business,
+                              size: 40,
+                              color: Colors.grey[600],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          organizationWebsite,
+                          organizationName,
                           style: TextStyle(
-                            color: Colors.blue[700],
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
                           ),
                         ),
-                    ],
+                        SizedBox(height: 4),
+                        if (organizationWebsite.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              // You can add url_launcher functionality here
+                            },
+                            child: Row(
+                              children: [
+                                Icon(Icons.language,
+                                    size: 16, color: Colors.blue[700]),
+                                SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    organizationWebsite,
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (organizationWebsite.isEmpty)
+                          Text(
+                            'No website provided',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Programs Tab
-                _ProgramsTab(organizationId: widget.organization['id']),
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Programs Tab
+                  _ProgramsTab(organizationId: widget.organization['id']),
 
-                // News Tab
-                _NewsTab(organizationId: widget.organization['id']),
+                  // News Tab
+                  _NewsTab(organizationId: widget.organization['id']),
 
-                // Map Data Tab
-                _MapDataTab(organizationId: widget.organization['id']),
-              ],
+                  // Map Data Tab
+                  _MapDataTab(organizationId: widget.organization['id']),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -157,7 +274,7 @@ class _ProgramsTab extends StatelessWidget {
       Colors.cyan[100]!,
     ];
 
-    // List of available categories
+    // List of available categories - make sure this matches how data is stored in Firebase
     final categories = ['Educational', 'Social', 'Healthcare'];
 
     showDialog(
@@ -472,206 +589,223 @@ class _ProgramsTab extends StatelessWidget {
                     orgName = orgData?['name'] as String? ?? "Organization";
                   }
 
-                  // Removed GestureDetector and its onTap property
+                  // Make the program card pressable to navigate to ApplicationManagerPage
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: programColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border:
-                            Border.all(color: Colors.grey[800]!, width: 0.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top section with program name and action buttons
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Replace CircleAvatar with a rounded rectangle Container
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(
-                                        8), // Slightly rounded corners
-                                  ),
-                                  child: logoUrl != null && logoUrl.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                              8), // Match container's border radius
-                                          child: Image.network(
-                                            logoUrl,
-                                            width: 40,
-                                            height: 40,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return Icon(
-                                                Icons.folder_special,
-                                                color: Colors.grey[800],
-                                              );
-                                            },
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ApplicationManagerPage(
+                              organizationId: organizationId,
+                              programId: data['id'],
+                              programName: data['name'] ?? '',
+                              categoryColor: programColor,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: programColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border:
+                              Border.all(color: Colors.grey[800]!, width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top section with program name and action buttons
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  // Replace CircleAvatar with a rounded rectangle Container
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(
+                                          8), // Slightly rounded corners
+                                    ),
+                                    child: logoUrl != null && logoUrl.isNotEmpty
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                                8), // Match container's border radius
+                                            child: Image.network(
+                                              logoUrl,
+                                              width: 40,
+                                              height: 40,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Icon(
+                                                  Icons.folder_special,
+                                                  color: Colors.grey[800],
+                                                );
+                                              },
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.folder_special,
+                                            color: Colors.grey[800],
                                           ),
-                                        )
-                                      : Icon(
-                                          Icons.folder_special,
-                                          color: Colors.grey[800],
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          data['name'] ?? 'Unnamed Program',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[800],
+                                          ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          orgName,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Add edit button
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.edit,
+                                      color: Colors.grey[600],
+                                    ),
+                                    onPressed: () {
+                                      // Navigate to program details form page
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ProgramDetailsFormPage(
+                                            program: data,
+                                            organizationId: organizationId,
+                                            organizationName: orgName,
+                                            organizationLogoUrl: logoUrl,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Edit Program',
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color: Colors.grey[600],
+                                    ),
+                                    onPressed: () {
+                                      _deleteProgram(context, doc.id,
+                                          data['name'] ?? 'Unnamed Program');
+                                    },
+                                    tooltip: 'Delete Program',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Bottom section with deadline and category
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(15),
+                                  bottomRight: Radius.circular(15),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
                                     children: [
-                                      Text(
-                                        data['name'] ?? 'Unnamed Program',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
+                                      Icon(Icons.calendar_today,
+                                          color: Colors.grey[800], size: 16),
+                                      const SizedBox(width: 8),
+                                      RichText(
+                                        text: TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: 'Due: ',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text: data['deadline'] ??
+                                                  'No Deadline',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        orgName,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
+                                      const SizedBox(width: 12),
+                                      // Status indicator now inline with due date
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: (data['programStatus'] ??
+                                                      "Closed") ==
+                                                  "Open"
+                                              ? Colors.green[100]
+                                              : Colors.red[100],
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: (data['programStatus'] ??
+                                                        "Closed") ==
+                                                    "Open"
+                                                ? Colors.green
+                                                : Colors.red,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          data['programStatus'] ?? "Closed",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: (data['programStatus'] ??
+                                                        "Closed") ==
+                                                    "Open"
+                                                ? Colors.green[800]
+                                                : Colors.red[800],
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                // Add edit button
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.edit,
-                                    color: Colors.grey[600],
+                                  Text(
+                                    data['category'] ?? 'No Category',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[800],
+                                    ),
                                   ),
-                                  onPressed: () {
-                                    // Navigate to program details form page
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            ProgramDetailsFormPage(
-                                          program: data,
-                                          organizationId: organizationId,
-                                          organizationName: orgName,
-                                          organizationLogoUrl: logoUrl,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  tooltip: 'Edit Program',
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: Colors.grey[600],
-                                  ),
-                                  onPressed: () {
-                                    _deleteProgram(context, doc.id,
-                                        data['name'] ?? 'Unnamed Program');
-                                  },
-                                  tooltip: 'Delete Program',
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Bottom section with deadline and category
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(15),
-                                bottomRight: Radius.circular(15),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.calendar_today,
-                                        color: Colors.grey[800], size: 16),
-                                    const SizedBox(width: 8),
-                                    RichText(
-                                      text: TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: 'Due: ',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                          TextSpan(
-                                            text: data['deadline'] ??
-                                                'No Deadline',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // Status indicator now inline with due date
-                                    Container(
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: (data['programStatus'] ??
-                                                    "Closed") ==
-                                                "Open"
-                                            ? Colors.green[100]
-                                            : Colors.red[100],
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: (data['programStatus'] ??
-                                                      "Closed") ==
-                                                  "Open"
-                                              ? Colors.green
-                                              : Colors.red,
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        data['programStatus'] ?? "Closed",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: (data['programStatus'] ??
-                                                      "Closed") ==
-                                                  "Open"
-                                              ? Colors.green[800]
-                                              : Colors.red[800],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  data['category'] ?? 'No Category',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -685,117 +819,572 @@ class _ProgramsTab extends StatelessWidget {
   }
 }
 
-class _NewsTab extends StatelessWidget {
+class _NewsTab extends StatefulWidget {
   final String organizationId;
 
   const _NewsTab({required this.organizationId});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement add news functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Add news functionality not implemented yet')),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.add),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('news')
-            .where('organizationId', isEqualTo: organizationId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+  State<_NewsTab> createState() => _NewsTabState();
+}
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+class _NewsTabState extends State<_NewsTab> {
+  Future<void> _showAddNewsDialog(BuildContext context,
+      {DocumentSnapshot? doc, Map<String, dynamic>? initialData}) async {
+    final formKey = GlobalKey<FormState>();
+    final headlineController =
+        TextEditingController(text: initialData?['headline'] ?? '');
+    String? selectedCategory = initialData?['category'];
+    final dateController =
+        TextEditingController(text: initialData?['date'] ?? '');
+    final imageUrlController =
+        TextEditingController(text: initialData?['imageUrl'] ?? '');
+    final newsUrlController =
+        TextEditingController(text: initialData?['newsUrl'] ?? '');
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.newspaper,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No news articles found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
+    final categories = ['Social', 'Healthcare', 'Education'];
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(doc == null ? 'Add News Article' : 'Edit News Article'),
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: headlineController,
+                      decoration: InputDecoration(
+                        labelText: 'Headline',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter headline'
+                          : null,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap the + button to add a news article',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
+                    SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: selectedCategory,
+                      items: categories
+                          .map((cat) => DropdownMenuItem(
+                                value: cat,
+                                child: Text(cat),
+                              ))
+                          .toList(),
+                      onChanged: (val) => selectedCategory = val,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Select category'
+                          : null,
                     ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  leading: data['imageUrl'] != null &&
-                          data['imageUrl'].toString().isNotEmpty
-                      ? SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: Image.network(
-                            data['imageUrl'],
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.image);
-                            },
-                          ),
-                        )
-                      : const SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: Icon(Icons.image),
-                        ),
-                  title: Text(data['title'] ?? 'Untitled'),
-                  subtitle: Text(data['date'] != null
-                      ? data['date'].toString().split(' ')[0]
-                      : 'No date'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      // TODO: Implement delete news functionality
-                    },
-                  ),
-                  onTap: () {
-                    // TODO: Implement view/edit news functionality
-                  },
+                    SizedBox(height: 12),
+                    TextFormField(
+                      controller: dateController,
+                      decoration: InputDecoration(
+                        labelText: 'Date',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          dateController.text =
+                              "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                        }
+                      },
+                      validator: (value) =>
+                          value == null || value.isEmpty ? 'Select date' : null,
+                    ),
+                    SizedBox(height: 12),
+                    TextFormField(
+                      controller: imageUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'Image URL',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter image URL'
+                          : null,
+                    ),
+                    SizedBox(height: 12),
+                    TextFormField(
+                      controller: newsUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'News URL',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter news URL'
+                          : null,
+                    ),
+                  ],
                 ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  try {
+                    final data = {
+                      'headline': headlineController.text.trim(),
+                      'category': selectedCategory,
+                      'date': dateController.text.trim(),
+                      'imageUrl': imageUrlController.text.trim(),
+                      'newsUrl': newsUrlController.text.trim(),
+                      'createdAt': FieldValue.serverTimestamp(),
+                    };
+                    if (doc == null) {
+                      await FirebaseFirestore.instance
+                          .collection('organizations')
+                          .doc(widget.organizationId)
+                          .collection('news')
+                          .add(data);
+                    } else {
+                      await doc.reference.update(data);
+                    }
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(doc == null
+                              ? 'News article added!'
+                              : 'News article updated!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+              child: Text(doc == null ? 'Add News' : 'Save Changes'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Add this method to delete a news article
+  void _deleteNewsArticle(DocumentSnapshot doc) {
+    final headline =
+        (doc.data() as Map<String, dynamic>)['headline'] ?? 'this article';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete News Article'),
+        content: Text('Are you sure you want to delete "$headline"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await doc.reference.delete();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('News article deleted!')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting article: $e')),
+                );
+              }
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // First, get the organization data to pass to news cards
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(widget.organizationId)
+          .get(),
+      builder: (context, orgSnapshot) {
+        String organizationName = "Organization";
+        String? logoUrl;
+
+        if (orgSnapshot.hasData && orgSnapshot.data != null) {
+          final orgData = orgSnapshot.data!.data() as Map<String, dynamic>?;
+          organizationName = orgData?['name'] as String? ?? "Organization";
+          logoUrl = orgData?['logoUrl'] as String?;
+        }
+
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showAddNewsDialog(context),
+            backgroundColor: Colors.grey[300], // Changed from blue to grey[300]
+            child: const Icon(Icons.add),
+          ),
+          body: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('organizations')
+                .doc(widget.organizationId)
+                .collection('news')
+                .orderBy('date', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              // Fixed null check - Added proper null data handling
+              if (!snapshot.hasData ||
+                  snapshot.data == null ||
+                  snapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.newspaper,
+                        size: 80,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No news articles found',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap the + button to add a news article',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Only proceed if we have data
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final doc = snapshot.data!.docs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Column(
+                      children: [
+                        _NewsSliderStyleCard(
+                          headline: data['headline'] ?? '',
+                          category: data['category'] ?? '',
+                          date: data['date'] ?? '',
+                          imageUrl: data['imageUrl'] ?? '',
+                          newsUrl: data['newsUrl'] ?? '',
+                          organizationName: organizationName,
+                          logoUrl: logoUrl ?? '',
+                          onTapEdit: () => _showAddNewsDialog(context,
+                              doc: doc, initialData: data),
+                          onTapDelete: () => _deleteNewsArticle(doc),
+                        ),
+                        // ...existing code...
+                      ],
+                    ),
+                  );
+                },
               );
             },
+          ),
+        );
+      },
+    );
+  }
+}
+
+// News card styled like the slider, but for list view
+class _NewsSliderStyleCard extends StatelessWidget {
+  final String headline;
+  final String category;
+  final String date;
+  final String imageUrl;
+  final String newsUrl;
+  final String organizationName;
+  final String logoUrl;
+  final VoidCallback? onTapEdit;
+  final VoidCallback? onTapDelete; // Add this property
+
+  const _NewsSliderStyleCard({
+    Key? key,
+    required this.headline,
+    required this.category,
+    required this.date,
+    required this.imageUrl,
+    required this.newsUrl,
+    required this.organizationName,
+    this.logoUrl = '',
+    this.onTapEdit,
+    this.onTapDelete, // Add this parameter
+  }) : super(key: key);
+
+  // Updated colors to even lighter variants
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'healthcare':
+        return Colors.red[300]!; // Even lighter red
+      case 'education':
+        return Colors.blue[300]!; // Even lighter blue
+      case 'social':
+        return Colors.green[300]!; // Even lighter green
+      default:
+        return Colors.grey[300]!; // Even lighter grey
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Replace with a complete implementation
+    return GestureDetector(
+      onTap: () async {
+        if (newsUrl.isNotEmpty) {
+          showDialog(
+            context: context,
+            builder: (context) => NewsViewerDialog(
+              headline: headline,
+              category: category,
+              date: date,
+              imageUrl: imageUrl,
+              newsUrl: newsUrl,
+              organizationName: organizationName,
+              organizationLogo: logoUrl,
+            ),
           );
-        },
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No news content available.')),
+          );
+        }
+      },
+      child: Container(
+        height: 180, // Fixed height to prevent layout issues
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.13),
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background Image
+              imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(color: Colors.grey[300]);
+                      },
+                    )
+                  : Container(color: Colors.grey[300]),
+              // Gradient Overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.8),
+                    ],
+                  ),
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category Badge
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getCategoryColor(category),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        category.toUpperCase(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Spacer(),
+                    // Source and Date
+                    Row(
+                      children: [
+                        Container(
+                          width: 24, // Bigger container
+                          height: 24, // Bigger container
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(
+                                5), // Rounded box instead of circle
+                          ),
+                          child: logoUrl.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                      5), // Match container's border radius
+                                  child: Image.network(
+                                    logoUrl,
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        Icons.business,
+                                        size: 16,
+                                        color: Colors.grey[600],
+                                      );
+                                    },
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.business,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                        ),
+                        SizedBox(width: 4),
+                        // Handle long organization names with Expanded and ellipsis
+                        Expanded(
+                          child: Text(
+                            organizationName,
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        // Ensure date always shows by using a non-flexible container
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_today,
+                                color: Colors.white70, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              date,
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    // Headline - Add this section that was missing
+                    Text(
+                      headline,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // Admin action buttons - Add these to the top right
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Row(
+                  children: [
+                    // Edit button - Changed background and icon colors
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300]?.withOpacity(
+                            0.8), // Changed from white.withOpacity(0.8)
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.edit, size: 20),
+                        color: Colors.grey[700], // Changed from blue[800]
+                        padding: EdgeInsets.all(4),
+                        constraints: BoxConstraints(),
+                        onPressed: onTapEdit,
+                        tooltip: 'Edit',
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    // Delete button - Changed background and kept red icon slightly muted
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300]?.withOpacity(
+                            0.8), // Changed from white.withOpacity(0.8)
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.delete, size: 20),
+                        color: Colors.red[600], // Slightly muted red
+                        padding: EdgeInsets.all(4),
+                        constraints: BoxConstraints(),
+                        onPressed: onTapDelete,
+                        tooltip: 'Delete',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -806,25 +1395,141 @@ class _MapDataTab extends StatelessWidget {
 
   const _MapDataTab({required this.organizationId});
 
+  // Add this method to show program selection dialog
+  void _showProgramSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Program'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('organizations')
+                .doc(organizationId)
+                .collection('programs')
+                .orderBy('name')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(
+                  child: Text(
+                      'No programs available. Please create a program first.'),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final program =
+                      snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                  final colorValue = program['color'] as int?;
+                  final programColor = colorValue != null
+                      ? Color(colorValue)
+                      : Colors.blue[100]!;
+
+                  return ListTile(
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: programColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey),
+                      ),
+                    ),
+                    title: Text(program['name'] ?? 'Unnamed Program'),
+                    subtitle: Text(program['category'] ?? 'No Category'),
+                    onTap: () {
+                      Navigator.pop(context); // Close dialog
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBeneficiariesEditor(
+                            programId: program['id'],
+                            programName: program['name'] ?? 'Unnamed Program',
+                            organizationId: organizationId,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add method to delete map data
+  void _deleteMapData(BuildContext context, String docId, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Map Data'),
+        content: Text('Are you sure you want to delete "$title"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('mapdata')
+                    .doc(docId)
+                    .delete();
+
+                Navigator.pop(context); // Close dialog
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Map data deleted successfully')),
+                );
+              } catch (e) {
+                Navigator.pop(context); // Close dialog on error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting map data: $e')),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement add map data functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content:
-                    Text('Add map data functionality not implemented yet')),
-          );
-        },
-        backgroundColor: Colors.blue,
+        onPressed: () => _showProgramSelectionDialog(context),
+        backgroundColor: Colors.grey[300], // Changed from blue to grey[300]
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('mapData')
+            .collection('mapdata')
             .where('organizationId', isEqualTo: organizationId)
             .snapshots(),
         builder: (context, snapshot) {
@@ -874,6 +1579,66 @@ class _MapDataTab extends StatelessWidget {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
 
+              // Different card for beneficiaries type
+              if (data['type'] == 'beneficiaries') {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: ListTile(
+                    leading: const Icon(Icons.people, color: Colors.green),
+                    title: Text(data['title'] ?? 'Program Beneficiaries'),
+                    subtitle: Text(
+                      'Total: ${data['Total Beneficiaries']?.toString() ?? 'Not specified'}',
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit,
+                              color: Colors.grey[600]), // Fixed: removed const
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ProgramBeneficiariesEditor(
+                                  programId: data['programId'],
+                                  programName: data['programName'] ?? 'Program',
+                                  organizationId: organizationId,
+                                ),
+                              ),
+                            );
+                          },
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete,
+                              color: Colors.grey[600]), // Fixed: removed const
+                          onPressed: () {
+                            _deleteMapData(context, doc.id,
+                                data['title'] ?? 'Program Beneficiaries');
+                          },
+                          tooltip: 'Delete',
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      // Navigate to edit the beneficiaries
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBeneficiariesEditor(
+                            programId: data['programId'],
+                            programName: data['programName'] ?? 'Program',
+                            organizationId: organizationId,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+
+              // Original card for other map data types
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 child: ListTile(
@@ -884,9 +1649,11 @@ class _MapDataTab extends StatelessWidget {
                     'Lng: ${data['longitude']?.toStringAsFixed(4) ?? 'N/A'}',
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: Icon(Icons.delete,
+                        color: Colors.grey[600]), // Fixed: removed const
                     onPressed: () {
-                      // TODO: Implement delete map data functionality
+                      _deleteMapData(context, doc.id,
+                          data['locationName'] ?? 'Unnamed Location');
                     },
                   ),
                   onTap: () {
@@ -897,6 +1664,213 @@ class _MapDataTab extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+// Add this new class for a better news viewing experience
+class NewsViewerDialog extends StatelessWidget {
+  final String headline;
+  final String category;
+  final String date;
+  final String imageUrl;
+  final String newsUrl;
+  final String organizationName;
+  final String organizationLogo; // Add logo parameter
+
+  const NewsViewerDialog({
+    Key? key,
+    required this.headline,
+    required this.category,
+    required this.date,
+    required this.imageUrl,
+    required this.newsUrl,
+    required this.organizationName,
+    this.organizationLogo = '', // Default to empty string
+  }) : super(key: key);
+
+  // Updated colors to even lighter variants
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'healthcare':
+        return Colors.red[300]!; // Even lighter red
+      case 'education':
+        return Colors.blue[300]!; // Even lighter blue
+      case 'social':
+        return Colors.green[300]!; // Even lighter green
+      default:
+        return Colors.grey[300]!; // Even lighter grey
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Use actual logo if available with updated styling
+    Widget orgIcon = Container(
+      width: 24, // Bigger container
+      height: 24, // Bigger container
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5), // Rounded box instead of circle
+      ),
+      child: organizationLogo.isNotEmpty
+          ? ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(5), // Match container's border radius
+              child: Image.network(
+                organizationLogo,
+                width: 24,
+                height: 24,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.business,
+                      size: 16, color: Colors.grey[600]);
+                },
+              ),
+            )
+          : Icon(Icons.business, size: 16, color: Colors.grey[600]),
+    );
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header with image
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            child: imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 180,
+                        color: Colors.grey[300],
+                        child: Icon(Icons.image_not_supported,
+                            size: 50, color: Colors.grey),
+                      );
+                    },
+                  )
+                : Container(
+                    height: 180,
+                    color: Colors.grey[300],
+                    child: Icon(Icons.image_not_supported,
+                        size: 50, color: Colors.grey),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Category badge with custom color
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getCategoryColor(category),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    category.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                // News headline
+                Text(
+                  headline,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                // Organization and date with better support for long organization names
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    orgIcon, // Use the custom icon widget
+                    SizedBox(width: 4),
+                    // Wrap the organization name in an Expanded to handle long text
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            organizationName.isNotEmpty
+                                ? organizationName
+                                : 'Organization',
+                            style: TextStyle(color: Colors.grey[700]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4),
+                          // Move date below for cleaner layout when org name is long
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.grey[700]),
+                              SizedBox(width: 4),
+                              Text(
+                                date,
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Divider(height: 24),
+                // Grey button without org icon
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.open_in_browser),
+                    label: Text("View Full Article"),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SafeWebViewer(
+                            url: newsUrl,
+                            title: 'News',
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.grey[800],
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, right: 16),
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('CLOSE'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -4,9 +4,28 @@ import '../models/slider_item.dart';
 import '../constants/category_colors.dart';
 
 class AutoImageSlider extends StatelessWidget {
-  final List<SliderItem> items;
+  // Move the sliderItems list here
+  final List<SliderItem> items = [
+    SliderItem(
+      categoryLabel: 'Education',
+      source: 'Department of Education',
+      date: 'Feb 10, 2024',
+      headline: 'EduPH Opportunity 2.0 Program Launches Nationwide',
+      backgroundImage:
+          'https://www.borgenmagazine.com/wp-content/uploads/2024/08/8644294742_96b35cd70a_k.jpg',
+    ),
+    SliderItem(
+      categoryLabel: 'Scholarship',
+      source: 'DOST-SEI',
+      date: 'Feb 15, 2024',
+      headline:
+          'Applications Open for 2025 DOST-SEI Undergraduate Scholarships',
+      backgroundImage:
+          'https://sa.kapamilya.com/absnews/abscbnnews/media/2022/news/09/12/20220824-florita-cagayan-valley-medical-jc-3516.jpg',
+    ),
+  ];
 
-  const AutoImageSlider({super.key, required this.items});
+  AutoImageSlider({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +70,7 @@ class AutoImageSlider extends StatelessWidget {
         ),
         CarouselSlider(
           options: CarouselOptions(
-            aspectRatio: 16/9,
+            aspectRatio: 16 / 9,
             viewportFraction: 0.80, // Increased from 0.85
             enlargeCenterPage: true,
             enlargeFactor: 0.25, // Added to reduce the enlargement effect
@@ -73,9 +92,16 @@ class NewsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, item.route),
+      onTap: () {
+        // Prevent opening a webview to avoid triggering the channel-error exception.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('News details are not available in this demo.')),
+        );
+      },
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 2.0, vertical: 8.0), // Reduced from horizontal: 5.0
+        margin: EdgeInsets.symmetric(
+            horizontal: 2.0, vertical: 8.0), // Reduced from horizontal: 5.0
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -95,6 +121,20 @@ class NewsCard extends StatelessWidget {
               Image.network(
                 item.backgroundImage,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  assert(() {
+                    // ignore: only_throw_errors, since we're just proxying the error.
+                    throw error; // Ensures the error message is printed to the console.
+                  }());
+                  // Fallback widget for release mode
+                  return Container(
+                    color: Colors.grey[300],
+                    child: Center(
+                      child: Icon(Icons.broken_image,
+                          color: Colors.grey, size: 48),
+                    ),
+                  );
+                },
               ),
               // Gradient Overlay
               Container(
@@ -119,7 +159,8 @@ class NewsCard extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: CategoryColors.colors[item.categoryLabel] ?? Colors.grey,
+                        color: CategoryColors.colors[item.categoryLabel] ??
+                            Colors.grey,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -142,7 +183,8 @@ class NewsCard extends StatelessWidget {
                           style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                         SizedBox(width: 12),
-                        Icon(Icons.calendar_today, color: Colors.white70, size: 14),
+                        Icon(Icons.calendar_today,
+                            color: Colors.white70, size: 14),
                         SizedBox(width: 4),
                         Text(
                           item.date,
@@ -159,9 +201,9 @@ class NewsCard extends StatelessWidget {
                     Text(
                       item.headline,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),

@@ -29,13 +29,13 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
   List<Map<String, dynamic>> _formFields = [];
 
   // Form state variables
-  String? _selectedOption; // For multiple-choice selection
-  Map<String, bool> _checkboxValues = {}; // For checkbox selections
+  Map<String, String?> _selectedOptions = {}; // field label -> selected option
+  Map<String, Map<String, bool>> _checkboxValues =
+      {}; // field label -> option -> bool
   Map<String, DateTime?> _selectedDates = {}; // For date selections
   Map<String, List<Map<String, dynamic>>> _attachedFilesMap =
-      {}; // For attachments with URLs
-  Map<String, TextEditingController> _textControllers =
-      {}; // For short answer and paragraph inputs
+      {}; // field label -> files
+  Map<String, TextEditingController> _textControllers = {};
 
   @override
   void initState() {
@@ -45,7 +45,6 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
 
   @override
   void dispose() {
-    // Clean up text controllers
     for (var controller in _textControllers.values) {
       controller.dispose();
     }
@@ -115,9 +114,12 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
 
       if (type == 'short_answer' || type == 'paragraph') {
         _textControllers[label] = TextEditingController();
+      } else if (type == 'multiple_choice') {
+        _selectedOptions[label] = null;
       } else if (type == 'checkbox' && field['options'] != null) {
+        _checkboxValues[label] = {};
         for (var option in field['options'] as List) {
-          _checkboxValues[option.toString()] = false;
+          _checkboxValues[label]![option.toString()] = false;
         }
       } else if (type == 'date') {
         _selectedDates[label] = null;
@@ -250,29 +252,35 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
                                           ),
                                   ),
                                   SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _programData['name'] ??
-                                            'Program Preview',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _programData['name'] ??
+                                              'Program Preview',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[800],
+                                          ),
+                                          softWrap: true,
+                                          overflow: TextOverflow.visible,
                                         ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        _organizationData['name'] ??
-                                            'Organization',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
+                                        SizedBox(height: 4),
+                                        Text(
+                                          _organizationData['name'] ??
+                                              'Organization',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                          softWrap: true,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -452,20 +460,16 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
                 return RadioListTile<String>(
                   title: Text(option.toString()),
                   value: option.toString(),
-                  groupValue: _selectedOption,
-                  onChanged: (String? value) {
-                    // Do nothing in preview mode
-                  },
+                  groupValue: _selectedOptions[label],
+                  onChanged: null, // Disabled in preview
                 );
               }).toList())
             else if (type == 'checkbox' && field['options'] != null)
               ...((field['options'] as List).map((option) {
                 return CheckboxListTile(
                   title: Text(option.toString()),
-                  value: _checkboxValues[option.toString()] ?? false,
-                  onChanged: (bool? value) {
-                    // Do nothing in preview mode
-                  },
+                  value: _checkboxValues[label]?[option.toString()] ?? false,
+                  onChanged: null, // Disabled in preview
                 );
               }).toList())
             else if (type == 'date')

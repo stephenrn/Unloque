@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unloque/pages/welcome_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/pages/terms_and_conditions_page.dart';
+import 'package:unloque/pages/faqs_page.dart';
+import 'package:unloque/pages/profile_details_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -27,26 +30,28 @@ class _ProfilePageState extends State<ProfilePage> {
       await signOut(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting account: $e')),
+        SnackBar(
+            content: Text('Please log in again before trying this request')),
       );
     }
   }
 
   Widget _buildProfileCard() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         width: double.infinity,
-        margin: EdgeInsets.symmetric(vertical: 12),
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        margin: EdgeInsets.only(top: 20, bottom: 16),
+        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey[600]!,
-              offset: Offset(0, 1),
-              blurRadius: 1.0,
+              color: Colors.black12,
+              offset: Offset(0, 4),
+              blurRadius: 8.0,
+              spreadRadius: 1.0,
             )
           ],
         ),
@@ -59,7 +64,7 @@ class _ProfilePageState extends State<ProfilePage> {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
             }
-            
+
             final username = snapshot.hasData && snapshot.data!.exists
                 ? snapshot.data!['username']
                 : 'User';
@@ -72,43 +77,53 @@ class _ProfilePageState extends State<ProfilePage> {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black12,
-                        spreadRadius: 1,
-                        blurRadius: 3,
+                        spreadRadius: 2,
+                        blurRadius: 6,
                       ),
                     ],
                   ),
                   child: CircleAvatar(
-                    radius: 45,
+                    radius: 55,
                     backgroundColor: Color(0xFF003366),
                     child: CircleAvatar(
-                      radius: 45,  // Changed from 43 to match parent radius
+                      radius: 53,
                       backgroundImage: user?.photoURL != null
                           ? NetworkImage(user!.photoURL!)
                           : null,
                       child: user?.photoURL == null
                           ? Icon(Icons.person_outline,
-                              size: 50, color: Colors.white)
+                              size: 55, color: Colors.white)
                           : null,
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 16),
                 Text(
                   username,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                     fontFamily: 'Poppins',
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 6),
                 Text(
                   user?.email ?? '',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.normal,
                     color: Colors.grey[600],
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'User ID: ${user?.uid?.substring(0, 8) ?? ''}...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.grey[500],
                     fontFamily: 'Poppins',
                   ),
                 ),
@@ -122,13 +137,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       child: Text(
         title,
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.black87,
+          color: Colors.grey[800],
           fontFamily: 'Poppins',
         ),
       ),
@@ -163,11 +178,11 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: EdgeInsets.only(left: 10),  // Add left padding for indentation
+      padding: EdgeInsets.only(left: 10),
       child: ListTile(
         dense: true,
         visualDensity: VisualDensity(vertical: -1),
-        leading: Icon(icon, size: 22),
+        leading: Icon(icon, size: 22, color: Colors.grey[700]),
         title: Text(
           title,
           style: TextStyle(
@@ -195,55 +210,79 @@ class _ProfilePageState extends State<ProfilePage> {
           }
 
           return SingleChildScrollView(
-            physics: NeverScrollableScrollPhysics(),
+            physics:
+                AlwaysScrollableScrollPhysics(), // Make it always scrollable
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: EdgeInsets.only(left: 25, top: 48),  // increased left padding from 16 to 24
-                  child: Text(
-                    'My Profile',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                      fontFamily: 'Poppins',
+                // Profile Header with background
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.only(top: 65, bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[850],
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
                   ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'My Profile',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+
                 Center(child: _buildProfileCard()),
                 _buildSectionTitle('General'),
                 _buildListTile(
                   icon: Icons.person_outline,
                   title: 'Profile Details',
-                  onTap: () {},
-                ),
-                _buildDivider(),
-                _buildListTile(
-                  icon: Icons.info_outline,
-                  title: 'About Us',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfileDetailsPage(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildListTile(
                   icon: Icons.description_outlined,
                   title: 'Terms & Conditions',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TermsAndConditionsPage(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildListTile(
                   icon: Icons.help_outline,
                   title: 'FAQs',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FaqsPage(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildSectionTitle('Account'),
-                _buildListTile(
-                  icon: Icons.lock_outline,
-                  title: 'Change Password',
-                  onTap: () {},
-                ),
-                _buildDivider(),
                 _buildListTile(
                   icon: Icons.exit_to_app_outlined,
                   title: 'Log Out',
@@ -256,6 +295,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: () => deleteAccount(context),
                 ),
                 _buildDivider(),
+                SizedBox(height: 16),
               ],
             ),
           );

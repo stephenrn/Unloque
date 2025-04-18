@@ -116,47 +116,69 @@ class ApplicationProgressSectionState
 
           // Applications section
           if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 12),
+                    Text(
+                      'Loading applications...',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           else if (_errorMessage.isNotEmpty)
-            Center(
-              child: Text(
-                _errorMessage,
-                style: const TextStyle(color: Colors.white),
+            Expanded(
+              child: Center(
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             )
           else if (_applications.isEmpty)
             // Center the empty state content horizontally
-            Container(
-              width: double.infinity, // Take full width
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Center children horizontally
-                children: [
-                  const SizedBox(height: 20),
-                  Icon(
-                    Icons.folder_outlined,
-                    size: 48,
-                    color: Colors.grey[500],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No applications in progress',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[300],
+            Expanded(
+              child: Container(
+                width: double.infinity, // Take full width
+                child: Column(
+                  mainAxisAlignment:
+                      MainAxisAlignment.center, // Center vertically
+                  crossAxisAlignment:
+                      CrossAxisAlignment.center, // Center children horizontally
+                  children: [
+                    Icon(
+                      Icons.folder_outlined,
+                      size: 48,
+                      color: Colors.grey[500],
                     ),
-                  ),
-                  Text(
-                    'Tap Find Programs to get started',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[400],
+                    const SizedBox(height: 8),
+                    Text(
+                      'No applications in progress',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[300],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    Text(
+                      'Tap Find Programs to get started',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[400],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else

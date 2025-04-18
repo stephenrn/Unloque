@@ -1,0 +1,2 @@
+C:/Users/Admin/Documents/raine/cloneunloque/unloque/android/app/.cxx/RelWithDebInfo/2e4k4269/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Admin/Documents/raine/cloneunloque/unloque/android/app/.cxx/RelWithDebInfo/2e4k4269/armeabi-v7a/CMakeFiles/rebuild_cache.dir

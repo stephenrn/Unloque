@@ -22,13 +22,12 @@ class ApplicationFormPage extends StatefulWidget {
 }
 
 class _ApplicationFormPageState extends State<ApplicationFormPage> {
-  String? selectedOption; // For multiple-choice selection
-  Map<String, bool> checkboxValues = {}; // For checkbox selections
-  Map<String, DateTime?> selectedDates = {}; // For date selections
-  Map<String, List<Map<String, dynamic>>> attachedFilesMap =
-      {}; // For attachments with URLs
-  Map<String, TextEditingController> textControllers =
-      {}; // For short answer and paragraph inputs
+  // Use int (field index) as key for all state maps
+  Map<int, String?> selectedOptions = {};
+  Map<int, Map<String, bool>> checkboxValues = {};
+  Map<int, DateTime?> selectedDates = {};
+  Map<int, List<Map<String, dynamic>>> attachedFilesMap = {};
+  Map<int, TextEditingController> textControllers = {};
 
   // Track files being uploaded
   Map<String, bool> uploadingFiles = {};
@@ -48,21 +47,22 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   void initState() {
     super.initState();
     final forms = widget.application['details']['forms'] ?? [];
-    for (var form in forms) {
+    for (int i = 0; i < forms.length; i++) {
+      final form = forms[i];
       if (form['type'] == 'checkbox') {
+        checkboxValues[i] = {};
         for (var option in form['options']) {
-          if (!checkboxValues.containsKey(option)) {
-            checkboxValues[option] = false; // Ensure default value is false
-          }
+          checkboxValues[i]![option] = false;
         }
       } else if (form['type'] == 'date') {
-        selectedDates[form['label']] = null; // Initialize dates as null
+        selectedDates[i] = null;
       } else if (form['type'] == 'attachment') {
-        attachedFilesMap[form['label']] = []; // Ensure non-null list
+        attachedFilesMap[i] = [];
       } else if (form['type'] == 'short_answer' ||
           form['type'] == 'paragraph') {
-        textControllers[form['label']] =
-            TextEditingController(); // Initialize text controllers
+        textControllers[i] = TextEditingController();
+      } else if (form['type'] == 'multiple_choice') {
+        selectedOptions[i] = null;
       }
     }
     loadFormData(); // Load saved form data when the page is initialized
@@ -104,8 +104,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
 
       // Count total files that need uploading
       totalFilesToUpload = 0;
-      for (var label in attachedFilesMap.keys) {
-        for (var fileData in attachedFilesMap[label]!) {
+      for (var key in attachedFilesMap.keys) {
+        for (var fileData in attachedFilesMap[key]!) {
           if (fileData['path'] != null &&
               (fileData['downloadUrl'] == null ||
                   fileData['downloadUrl'].toString().isEmpty)) {
@@ -125,20 +125,29 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       }
 
       // Create a deep copy of the attachedFilesMap to store updated data
-      final updatedAttachedFilesMap = <String, List<Map<String, dynamic>>>{};
-      for (var label in attachedFilesMap.keys) {
-        updatedAttachedFilesMap[label] = [];
+      final updatedAttachedFilesMap = <int, List<Map<String, dynamic>>>{};
+      for (var key in attachedFilesMap.keys) {
+        updatedAttachedFilesMap[key] = [];
       }
 
       // Upload files one by one
-      for (var label in attachedFilesMap.keys) {
-        if (!attachedFilesMap.containsKey(label) ||
-            attachedFilesMap[label] == null) {
+      for (var key in attachedFilesMap.keys) {
+        if (!attachedFilesMap.containsKey(key) ||
+            attachedFilesMap[key] == null) {
           continue; // Skip if no files for this label
         }
 
-        for (int i = 0; i < attachedFilesMap[label]!.length; i++) {
-          final fileData = attachedFilesMap[label]![i];
+        // Get the field label for this key (index)
+        final forms = widget.application['details']['forms'] ?? [];
+        String fieldLabel = '';
+        if (key is int && key < forms.length) {
+          fieldLabel = forms[key]['label'] ?? key.toString();
+        } else {
+          fieldLabel = key.toString();
+        }
+
+        for (int i = 0; i < attachedFilesMap[key]!.length; i++) {
+          final fileData = attachedFilesMap[key]![i];
 
           // Validate file data
           if (fileData == null ||
@@ -151,7 +160,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
           // If this file already has a download URL, just add it to the updated map
           if (fileData['downloadUrl'] != null &&
               fileData['downloadUrl'].toString().isNotEmpty) {
-            updatedAttachedFilesMap[label]!
+            updatedAttachedFilesMap[key]!
                 .add(Map<String, dynamic>.from(fileData));
             continue;
           }
@@ -182,7 +191,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                   '${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
               final storageRef = FirebaseStorage.instance.ref().child(
-                  'users/${user.uid}/applications/${widget.application['id']}/$label/$uniqueFileName');
+                  'users/${user.uid}/applications/${widget.application['id']}/$fieldLabel/$uniqueFileName');
 
               // Upload file with retry logic and timeout
               try {
@@ -208,7 +217,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                 final downloadUrl = await snapshot.ref.getDownloadURL();
 
                 // Add the file to the updated map with the download URL
-                updatedAttachedFilesMap[label]!.add({
+                updatedAttachedFilesMap[key]!.add({
                   'name': fileData['name'],
                   'path': fileData['path'], // Keep local path for cache
                   'downloadUrl': downloadUrl, // Store download URL
@@ -249,9 +258,9 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
 
       // Update originalAttachedFilesMap
       originalAttachedFilesMap = <String, List<Map<String, dynamic>>>{};
-      for (var label in attachedFilesMap.keys) {
-        originalAttachedFilesMap[label] = List<Map<String, dynamic>>.from(
-            attachedFilesMap[label]!
+      for (var key in attachedFilesMap.keys) {
+        originalAttachedFilesMap[key.toString()] =
+            List<Map<String, dynamic>>.from(attachedFilesMap[key]!
                 .map((item) => Map<String, dynamic>.from(item)));
       }
 
@@ -261,42 +270,43 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       // Create the new formFields structure with answers
       final formFields = [];
 
-      for (var form in forms) {
+      for (int i = 0; i < forms.length; i++) {
+        var form = forms[i];
         var formField = Map<String, dynamic>.from(form);
+        final label = form['label'];
 
         // Add answers based on form type
         switch (form['type']) {
           case 'short_answer':
           case 'paragraph':
-            formField['answer'] = textControllers[form['label']]?.text ?? '';
+            formField['answer'] = textControllers[i]?.text ?? '';
             break;
 
           case 'multiple_choice':
-            formField['selectedOption'] = selectedOption;
+            formField['selectedOption'] = selectedOptions[i];
             break;
 
           case 'checkbox':
             // For checkbox, create a list of selected options
             if (form['options'] != null) {
-              final List<String> selectedOptions = [];
+              final List<String> selectedOptionsList = [];
               for (var option in form['options']) {
-                if (checkboxValues[option] == true) {
-                  selectedOptions.add(option);
+                if (checkboxValues[i]?[option] == true) {
+                  selectedOptionsList.add(option);
                 }
               }
-              formField['selectedOptions'] = selectedOptions;
+              formField['selectedOptions'] = selectedOptionsList;
             }
             break;
 
           case 'date':
-            formField['selectedDate'] =
-                selectedDates[form['label']]?.toIso8601String();
+            formField['selectedDate'] = selectedDates[i]?.toIso8601String();
             break;
 
           case 'attachment':
             // For attachments, add the file information
-            if (attachedFilesMap.containsKey(form['label'])) {
-              formField['files'] = attachedFilesMap[form['label']]!
+            if (attachedFilesMap.containsKey(i)) {
+              formField['files'] = attachedFilesMap[i]!
                   .map((file) => {
                         'name': file['name'],
                         'downloadUrl': file['downloadUrl']
@@ -357,29 +367,33 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         final formFields = doc.data()!['formFields'] ?? [];
 
         // Process each form field and populate the UI
-        for (var field in formFields) {
+        for (int i = 0; i < formFields.length; i++) {
+          final field = formFields[i];
           final String fieldType = field['type'] ?? '';
           final String fieldLabel = field['label'] ?? '';
 
           switch (fieldType) {
             case 'short_answer':
             case 'paragraph':
-              if (textControllers.containsKey(fieldLabel)) {
-                textControllers[fieldLabel]!.text = field['answer'] ?? '';
+              if (textControllers.containsKey(i)) {
+                textControllers[i]!.text = field['answer'] ?? '';
               }
               break;
 
             case 'multiple_choice':
               setState(() {
-                selectedOption = field['selectedOption'];
+                selectedOptions[i] = field['selectedOption'];
               });
               break;
 
             case 'checkbox':
               if (field['options'] != null &&
                   field['selectedOptions'] != null) {
+                if (!checkboxValues.containsKey(i)) {
+                  checkboxValues[i] = {};
+                }
                 for (var option in field['options']) {
-                  checkboxValues[option] =
+                  checkboxValues[i]![option] =
                       field['selectedOptions'].contains(option);
                 }
               }
@@ -388,8 +402,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
             case 'date':
               if (field['selectedDate'] != null) {
                 setState(() {
-                  selectedDates[fieldLabel] =
-                      DateTime.parse(field['selectedDate']);
+                  selectedDates[i] = DateTime.parse(field['selectedDate']);
                 });
               }
               break;
@@ -397,8 +410,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
             case 'attachment':
               if (field['files'] != null) {
                 final List<dynamic> files = field['files'];
-                attachedFilesMap[fieldLabel] = [];
-                originalAttachedFilesMap[fieldLabel] = [];
+                attachedFilesMap[i] = [];
+                originalAttachedFilesMap[i.toString()] = [];
 
                 for (var file in files) {
                   final fileMap = {
@@ -406,8 +419,8 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                     'downloadUrl': file['downloadUrl'],
                     'path': null // Local path will be populated when downloaded
                   };
-                  attachedFilesMap[fieldLabel]!.add(fileMap);
-                  originalAttachedFilesMap[fieldLabel]!
+                  attachedFilesMap[i]!.add(fileMap);
+                  originalAttachedFilesMap[i.toString()]!
                       .add(Map<String, dynamic>.from(fileMap));
                 }
               }
@@ -491,22 +504,22 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
     }
   }
 
-  Future<void> _selectDate(BuildContext context, String label) async {
+  Future<void> _selectDate(BuildContext context, int key) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
-    if (picked != null && picked != selectedDates[label]) {
+    if (picked != null && picked != selectedDates[key]) {
       setState(() {
-        selectedDates[label] = picked;
+        selectedDates[key] = picked;
       });
     }
   }
 
   // Method to remove a file
-  void removeFile(String label, Map<String, dynamic> fileData) {
+  void removeFile(int key, Map<String, dynamic> fileData) {
     setState(() {
       // Add the file to the list of files to be deleted if it has a download URL
       if (fileData.containsKey('downloadUrl') &&
@@ -516,7 +529,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       }
 
       // Remove from UI list
-      attachedFilesMap[label]!.remove(fileData);
+      attachedFilesMap[key]!.remove(fileData);
     });
   }
 
@@ -691,6 +704,10 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
             application: {
               ...widget.application,
               'status': 'Pending',
+              'programId':
+                  widget.application['programId'] ?? widget.application['id'],
+              'organizationId': widget.application['organizationId'] ??
+                  widget.application['orgId'],
             },
           ),
           settings: RouteSettings(name: 'pending_${widget.application['id']}'),
@@ -718,15 +735,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   @override
   Widget build(BuildContext context) {
     final forms = widget.application['details']['forms'] ?? [];
-
-    // Pre-initialize all checkbox values before rendering
-    for (var form in forms) {
-      if (form['type'] == 'checkbox') {
-        for (var option in form['options']) {
-          checkboxValues.putIfAbsent(option, () => false);
-        }
-      }
-    }
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -866,29 +874,35 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                           ),
                                   ),
                                   SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        widget.application['programName'],
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          widget.application['programName'],
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[800],
+                                          ),
+                                          softWrap: true,
+                                          overflow: TextOverflow.visible,
                                         ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        widget.application[
-                                                'organizationName'] ??
-                                            'Unknown Organization',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
+                                        SizedBox(height: 4),
+                                        Text(
+                                          widget.application[
+                                                  'organizationName'] ??
+                                              'Unknown Organization',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                          softWrap: true,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -970,7 +984,9 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: forms.map<Widget>((form) {
+                          children: List.generate(forms.length, (i) {
+                            final form = forms[i];
+                            final label = form['label'];
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -978,7 +994,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                 if (form['type'] == 'short_answer' ||
                                     form['type'] == 'paragraph') ...[
                                   Text(
-                                    form['label'],
+                                    label,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -987,7 +1003,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   ),
                                   SizedBox(height: 8),
                                   TextField(
-                                    controller: textControllers[form['label']],
+                                    controller: textControllers[i],
                                     maxLines:
                                         form['type'] == 'paragraph' ? 5 : 1,
                                     decoration: InputDecoration(
@@ -998,7 +1014,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                 ] else if (form['type'] ==
                                     'multiple_choice') ...[
                                   Text(
-                                    form['label'],
+                                    label,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -1009,10 +1025,10 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   ...form['options'].map<Widget>((option) {
                                     return RadioListTile(
                                       value: option,
-                                      groupValue: selectedOption,
+                                      groupValue: selectedOptions[i],
                                       onChanged: (value) {
                                         setState(() {
-                                          selectedOption = value as String?;
+                                          selectedOptions[i] = value as String?;
                                         });
                                       },
                                       title: Text(option),
@@ -1020,7 +1036,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   }).toList(),
                                 ] else if (form['type'] == 'checkbox') ...[
                                   Text(
-                                    form['label'],
+                                    label,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -1031,14 +1047,14 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   ...form['options'].map<Widget>((option) {
                                     // Make sure the value is never null
                                     final bool isChecked =
-                                        checkboxValues[option] ?? false;
+                                        checkboxValues[i]?[option] ?? false;
 
                                     return CheckboxListTile(
                                       value: isChecked,
                                       tristate: false,
                                       onChanged: (value) {
                                         setState(() {
-                                          checkboxValues[option] =
+                                          checkboxValues[i]![option] =
                                               value ?? false;
                                         });
                                       },
@@ -1047,7 +1063,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   }).toList(),
                                 ] else if (form['type'] == 'date') ...[
                                   Text(
-                                    form['label'],
+                                    label,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -1057,20 +1073,18 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   SizedBox(height: 8),
                                   TextField(
                                     decoration: InputDecoration(
-                                      hintText: selectedDates[form['label']] ==
-                                              null
+                                      hintText: selectedDates[i] == null
                                           ? 'Select a date'
-                                          : '${selectedDates[form['label']]!.toLocal()}'
+                                          : '${selectedDates[i]!.toLocal()}'
                                               .split(' ')[0],
                                       border: OutlineInputBorder(),
                                     ),
                                     readOnly: true,
-                                    onTap: () =>
-                                        _selectDate(context, form['label']),
+                                    onTap: () => _selectDate(context, i),
                                   ),
                                 ] else if (form['type'] == 'attachment') ...[
                                   Text(
-                                    form['label'],
+                                    label,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -1100,8 +1114,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                               await localFile.writeAsBytes(
                                                   response.bodyBytes);
                                               setState(() {
-                                                attachedFilesMap[form['label']]!
-                                                    .add({
+                                                attachedFilesMap[i]!.add({
                                                   'name': fileName,
                                                   'path': localFile.path,
                                                   // downloadUrl will be added when saving
@@ -1113,8 +1126,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                                   await File(filePath).copy(
                                                       '${appDir.path}/$fileName');
                                               setState(() {
-                                                attachedFilesMap[form['label']]!
-                                                    .add({
+                                                attachedFilesMap[i]!.add({
                                                   'name': fileName,
                                                   'path': localFile.path,
                                                   // downloadUrl will be added when saving
@@ -1145,15 +1157,14 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                           Colors.grey[800] ?? Colors.black,
                                     ),
                                   ),
-                                  if (attachedFilesMap[form['label']] != null &&
-                                      attachedFilesMap[form['label']]!
-                                          .isNotEmpty) ...[
+                                  if (attachedFilesMap[i] != null &&
+                                      attachedFilesMap[i]!.isNotEmpty) ...[
                                     SizedBox(height: 8),
                                     Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
-                                      children: attachedFilesMap[form['label']]!
-                                          .map((fileData) {
+                                      children:
+                                          attachedFilesMap[i]!.map((fileData) {
                                         final fileName =
                                             fileData['name'] ?? 'Unnamed File';
                                         final isUploading =
@@ -1228,8 +1239,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                             ),
                                             IconButton(
                                               onPressed: () {
-                                                removeFile(
-                                                    form['label'], fileData);
+                                                removeFile(i, fileData);
                                               },
                                               icon: Icon(Icons.close,
                                                   color: Colors.red, size: 20),
@@ -1248,7 +1258,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                         24), // Add spacing between questions
                               ],
                             );
-                          }).toList(),
+                          }),
                         ),
                       ),
                     ),

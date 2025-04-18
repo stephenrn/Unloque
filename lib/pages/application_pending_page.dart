@@ -5,7 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:unloque/pages/application_details_page.dart'; // Add this import
+import 'package:unloque/pages/application_details_page.dart';
+import 'package:unloque/pages/admin/organization_response_builder.dart'; // Add this import
 
 class ApplicationPendingPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -62,6 +63,11 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
     }
   }
 
+  bool get isOrgAdminView {
+    // Heuristic: if application has 'userId' field, it's opened from ApplicationManagerPage
+    return widget.application.containsKey('userId');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,8 +118,8 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
           ),
         ),
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: _loadFormData(),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _fetchHeaderDataAndForm(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
@@ -123,14 +129,22 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
             return Center(child: Text('Error loading application data'));
           }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
+          if (!snapshot.hasData) {
             return Center(child: Text('Application data not found'));
           }
+
+          final header = snapshot.data!;
+          final formDoc = header['formDoc'] as DocumentSnapshot?;
+          final programName = header['programName'] ?? 'Program';
+          final orgName = header['organizationName'] ?? 'Unknown Organization';
+          final logoUrl = header['logoUrl'] ?? '';
+          final deadline = header['deadline'] ?? '';
+          final category = header['category'] ?? '';
 
           // Get the data, ensuring proper type casting
           Map<String, dynamic> data = {};
           try {
-            data = snapshot.data!.data() as Map<String, dynamic>;
+            data = formDoc?.data() as Map<String, dynamic>? ?? {};
           } catch (e) {
             print('Error casting document data: $e');
             return Center(child: Text('Error parsing application data'));
@@ -227,16 +241,12 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                                     color: Colors.grey[200],
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: widget.application['logoUrl'] !=
-                                              null &&
-                                          widget.application['logoUrl']
-                                              .toString()
-                                              .isNotEmpty
+                                  child: logoUrl.isNotEmpty
                                       ? ClipRRect(
                                           borderRadius:
                                               BorderRadius.circular(6),
                                           child: Image.network(
-                                            widget.application['logoUrl'],
+                                            logoUrl,
                                             fit: BoxFit.cover,
                                             errorBuilder:
                                                 (context, error, stackTrace) {
@@ -259,25 +269,27 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        widget.application['programName'],
+                                        programName.toString().isNotEmpty
+                                            ? programName
+                                            : 'Program',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.grey[800],
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        softWrap: true,
+                                        overflow: TextOverflow.visible,
                                       ),
                                       SizedBox(height: 4),
                                       Text(
-                                        widget.application[
-                                                'organizationName'] ??
-                                            'Unknown Organization',
+                                        orgName.toString().isNotEmpty
+                                            ? orgName
+                                            : 'Unknown Organization',
                                         style: TextStyle(
                                           fontSize: 14,
                                           color: Colors.grey[600],
                                         ),
-                                        maxLines: 1,
+                                        softWrap: true,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
@@ -308,16 +320,16 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                                       text: TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: 'Submitted: ',
+                                            text: 'Due: ',
                                             style: TextStyle(
                                               fontSize: 14,
                                               color: Colors.grey[800],
                                             ),
                                           ),
                                           TextSpan(
-                                            text: DateTime.now()
-                                                .toString()
-                                                .split(' ')[0],
+                                            text: deadline.isNotEmpty
+                                                ? deadline
+                                                : 'No Deadline',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
@@ -329,20 +341,14 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber[100],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    'Pending',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.amber[800],
-                                    ),
+                                Text(
+                                  category.isNotEmpty
+                                      ? category
+                                      : 'Unknown Category',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
                                   ),
                                 ),
                               ],
@@ -379,7 +385,115 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
           );
         },
       ),
+      // Add footer button for org admin
+      bottomNavigationBar: isOrgAdminView
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.reply),
+                label: Text('Create Response'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrganizationResponseBuilderPage(
+                        application: widget.application,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            )
+          : null,
     );
+  }
+
+  Future<Map<String, dynamic>> _fetchHeaderDataAndForm() async {
+    // Use correct keys for programId and organizationId
+    final programId =
+        widget.application['programId'] ?? widget.application['id'];
+    final organizationId =
+        widget.application['organizationId'] ?? widget.application['orgId'];
+
+    String programName = '';
+    String orgName = '';
+    String logoUrl = '';
+    String deadline = '';
+    String category = '';
+
+    // Debug: print IDs being used
+    print('Fetching programId: $programId, organizationId: $organizationId');
+
+    // Fetch program info
+    if (organizationId != null && programId != null) {
+      final programDoc = await FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(organizationId)
+          .collection('programs')
+          .doc(programId)
+          .get();
+      if (programDoc.exists) {
+        final data = programDoc.data() ?? {};
+        programName = (data['name'] ?? '').toString();
+        deadline = (data['deadline'] ?? '').toString();
+        category = (data['category'] ?? '').toString();
+        print('Fetched program: $programName, $deadline, $category');
+      }
+
+      // Fetch organization info
+      final orgDoc = await FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(organizationId)
+          .get();
+      if (orgDoc.exists) {
+        final data = orgDoc.data() ?? {};
+        orgName = (data['name'] ?? '').toString();
+        logoUrl = (data['logoUrl'] ?? '').toString();
+        print('Fetched org: $orgName, $logoUrl');
+      }
+    }
+
+    // Fallback to application object if Firestore values are empty
+    if (programName.isEmpty)
+      programName = widget.application['programName'] ?? '';
+    if (orgName.isEmpty) orgName = widget.application['organizationName'] ?? '';
+    if (logoUrl.isEmpty) logoUrl = widget.application['logoUrl'] ?? '';
+    if (deadline.isEmpty) deadline = widget.application['deadline'] ?? '';
+    if (category.isEmpty) category = widget.application['category'] ?? '';
+
+    // Debug: print what will be displayed
+    print(
+        'Display programName: $programName, orgName: $orgName, logoUrl: $logoUrl, deadline: $deadline, category: $category');
+
+    // Fetch the user's application form document
+    final user = FirebaseAuth.instance.currentUser;
+    DocumentSnapshot? formDoc;
+    final appId = widget.application['id'] ?? programId;
+    if (user != null && appId != null) {
+      formDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('users-application')
+          .doc(appId)
+          .get();
+    }
+
+    return {
+      'programName': programName,
+      'organizationName': orgName,
+      'logoUrl': logoUrl,
+      'deadline': deadline,
+      'category': category,
+      'formDoc': formDoc,
+    };
   }
 
   Future<DocumentSnapshot> _loadFormData() async {

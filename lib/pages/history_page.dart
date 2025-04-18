@@ -5,6 +5,7 @@ import '../pages/application_form_page.dart';
 import '../pages/application_pending_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'application_complete_page.dart';
 
 class HistoryPage extends StatelessWidget {
   const HistoryPage({super.key});
@@ -180,6 +181,8 @@ class ApplicationCard extends StatelessWidget {
         Widget destinationPage;
         if (currentStatus == 'Pending') {
           destinationPage = ApplicationPendingPage(application: application);
+        } else if (currentStatus == 'Completed') {
+          destinationPage = ApplicationCompletePage(application: application);
         } else {
           destinationPage = ApplicationFormPage(application: application);
         }
