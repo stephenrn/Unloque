@@ -113,6 +113,10 @@ class _NotificationPageState extends State<NotificationPage> {
     final applicationId = notification['applicationId'];
     if (applicationId == null) return;
 
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -120,6 +124,7 @@ class _NotificationPageState extends State<NotificationPage> {
       // Mark notification as read
       await _markAsRead(notification['id']);
 
+      // Get the user's application document
       final applicationDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -136,16 +141,92 @@ class _NotificationPageState extends State<NotificationPage> {
         return;
       }
 
+      // Extract application data
+      final appData = applicationDoc.data() as Map<String, dynamic>;
+      
+      // Get programId and organizationId - these are critical for loading details
+      final programId = appData['programId'] ?? notification['programId'] ?? applicationId;
+      final orgId = appData['organizationId'] ?? notification['organizationId'] ?? appData['orgId'];
+      
+      // Try to fetch additional program info if we have IDs
+      Map<String, dynamic> completeAppData = {
+        ...appData,
+        'id': applicationId,
+        'programId': programId,
+        'organizationId': orgId,
+      };
+
+      // If we have organization ID, fetch program details for color and other information
+      if (orgId != null && programId != null) {
+        try {
+          // Get program info for color
+          final programDoc = await FirebaseFirestore.instance
+              .collection('organizations')
+              .doc(orgId)
+              .collection('programs')
+              .doc(programId)
+              .get();
+              
+          if (programDoc.exists) {
+            final programData = programDoc.data() as Map<String, dynamic>;
+            
+            // Add program name and color data if not already present
+            if (!completeAppData.containsKey('programName') && programData.containsKey('name')) {
+              completeAppData['programName'] = programData['name'];
+            }
+            
+            // Convert color from int to Color object if needed
+            if (!completeAppData.containsKey('categoryColor') && programData.containsKey('color')) {
+              final colorValue = programData['color'];
+              if (colorValue is int) {
+                completeAppData['categoryColor'] = Color(colorValue);
+              } else {
+                completeAppData['categoryColor'] = Colors.grey; // Default color if invalid
+              }
+            }
+            
+            // Add other missing fields that might be needed
+            if (!completeAppData.containsKey('deadline') && programData.containsKey('deadline')) {
+              completeAppData['deadline'] = programData['deadline'];
+            }
+            
+            if (!completeAppData.containsKey('category') && programData.containsKey('category')) {
+              completeAppData['category'] = programData['category'];
+            }
+          }
+          
+          // Get organization info
+          final orgDoc = await FirebaseFirestore.instance
+              .collection('organizations')
+              .doc(orgId)
+              .get();
+              
+          if (orgDoc.exists) {
+            final orgData = orgDoc.data() as Map<String, dynamic>;
+            
+            if (!completeAppData.containsKey('organizationName') && orgData.containsKey('name')) {
+              completeAppData['organizationName'] = orgData['name'];
+            }
+            
+            if (!completeAppData.containsKey('logoUrl') && orgData.containsKey('logoUrl')) {
+              completeAppData['logoUrl'] = orgData['logoUrl'];
+            }
+          }
+        } catch (e) {
+          print('Error fetching additional program info: $e');
+          // Continue with what we have even if this fails
+        }
+      }
+
       if (mounted) {
-        // Navigate to the application complete page
+        print('Navigating to ApplicationCompletePage with data: $completeAppData');
+        
+        // Navigate to the application complete page with all available data
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ApplicationCompletePage(
-              application: {
-                ...applicationDoc.data() as Map<String, dynamic>,
-                'id': applicationId,
-              },
+              application: completeAppData,
             ),
           ),
         );
@@ -155,6 +236,12 @@ class _NotificationPageState extends State<NotificationPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error opening application: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }

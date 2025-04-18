@@ -348,52 +348,72 @@ class _ApplicationCompletePageState extends State<ApplicationCompletePage> {
   }
 
   Future<Map<String, dynamic>> _fetchHeaderAndResponse() async {
-    final programId =
-        widget.application['programId'] ?? widget.application['id'];
-    final organizationId =
-        widget.application['organizationId'] ?? widget.application['orgId'];
+    print("Fetching data for application: ${widget.application['id']}");
+    
+    final programId = widget.application['programId'] ?? 
+                      widget.application['id'];
+    final organizationId = widget.application['organizationId'] ?? 
+                          widget.application['orgId'];
+    
+    print("Using programId: $programId, organizationId: $organizationId");
 
-    String programName = '';
-    String orgName = '';
-    String logoUrl = '';
-    String deadline = '';
-    String category = '';
+    String programName = widget.application['programName'] ?? '';
+    String orgName = widget.application['organizationName'] ?? '';
+    String logoUrl = widget.application['logoUrl'] ?? '';
+    String deadline = widget.application['deadline'] ?? '';
+    String category = widget.application['category'] ?? '';
     List<Map<String, dynamic>> responseSections = [];
 
-    // Fetch program info
+    // Fetch program info if we have organizationId and programId
     if (organizationId != null && programId != null) {
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .collection('programs')
-          .doc(programId)
-          .get();
-      if (programDoc.exists) {
-        final data = programDoc.data() ?? {};
-        programName = (data['name'] ?? '').toString();
-        deadline = (data['deadline'] ?? '').toString();
-        category = (data['category'] ?? '').toString();
-      }
+      try {
+        final programDoc = await FirebaseFirestore.instance
+            .collection('organizations')
+            .doc(organizationId)
+            .collection('programs')
+            .doc(programId)
+            .get();
+            
+        if (programDoc.exists) {
+          final data = programDoc.data() ?? {};
+          if (programName.isEmpty) programName = (data['name'] ?? '').toString();
+          if (deadline.isEmpty) deadline = (data['deadline'] ?? '').toString();
+          if (category.isEmpty) category = (data['category'] ?? '').toString();
+        } else {
+          print("Program document does not exist for ID: $programId");
+        }
 
-      // Fetch organization info
-      final orgDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .get();
-      if (orgDoc.exists) {
-        final data = orgDoc.data() ?? {};
-        orgName = (data['name'] ?? '').toString();
-        logoUrl = (data['logoUrl'] ?? '').toString();
+        // Fetch organization info
+        final orgDoc = await FirebaseFirestore.instance
+            .collection('organizations')
+            .doc(organizationId)
+            .get();
+            
+        if (orgDoc.exists) {
+          final data = orgDoc.data() ?? {};
+          if (orgName.isEmpty) orgName = (data['name'] ?? '').toString();
+          if (logoUrl.isEmpty) logoUrl = (data['logoUrl'] ?? '').toString();
+        } else {
+          print("Organization document does not exist for ID: $organizationId");
+        }
+      } catch (e) {
+        print("Error fetching program/organization info: $e");
       }
+    } else {
+      print("Missing programId or organizationId");
     }
 
     // Fallback to application object if Firestore values are empty
     if (programName.isEmpty)
       programName = widget.application['programName'] ?? '';
-    if (orgName.isEmpty) orgName = widget.application['organizationName'] ?? '';
-    if (logoUrl.isEmpty) logoUrl = widget.application['logoUrl'] ?? '';
-    if (deadline.isEmpty) deadline = widget.application['deadline'] ?? '';
-    if (category.isEmpty) category = widget.application['category'] ?? '';
+    if (orgName.isEmpty) 
+      orgName = widget.application['organizationName'] ?? '';
+    if (logoUrl.isEmpty) 
+      logoUrl = widget.application['logoUrl'] ?? '';
+    if (deadline.isEmpty) 
+      deadline = widget.application['deadline'] ?? '';
+    if (category.isEmpty) 
+      category = widget.application['category'] ?? '';
 
     // Fetch the user's application form document
     final user = FirebaseAuth.instance.currentUser;
@@ -409,13 +429,22 @@ class _ApplicationCompletePageState extends State<ApplicationCompletePage> {
 
       // Get organization response from the application document
       final data = formDoc.data() as Map<String, dynamic>?;
-      if (data != null && data['organizationResponse'] != null) {
-        final orgResponse = data['organizationResponse'];
-        if (orgResponse is Map && orgResponse['responseSections'] is List) {
-          responseSections =
-              List<Map<String, dynamic>>.from(orgResponse['responseSections']);
+      if (data != null) {
+        print("Application data found: ${data.keys}");
+        if (data['organizationResponse'] != null) {
+          final orgResponse = data['organizationResponse'];
+          print("Organization response found: $orgResponse");
+          if (orgResponse is Map && orgResponse['responseSections'] is List) {
+            responseSections =
+                List<Map<String, dynamic>>.from(orgResponse['responseSections']);
+            print("Response sections count: ${responseSections.length}");
+          }
+        } else {
+          print("No organization response found in application data");
         }
       }
+    } else {
+      print("Unable to fetch application document - user: $user, appId: $appId");
     }
 
     return {
