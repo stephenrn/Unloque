@@ -5,7 +5,7 @@
   "description": "Unloque Flutter Web App",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node check-environment.js && node server.js",
     "build": "echo 'Building with Flutter'"
   },
   "engines": {
