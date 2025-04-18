@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "unloque"
+  },
+  "targets": {
+    "unloque": {
+      "hosting": {
+        "unloque": [
+          "unloque"
+        ]
+      }
+    }
   }
 }

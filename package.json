@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node check-environment.js && node server.js",
-    "build": "echo 'Building with Flutter'"
+    "build": "flutter pub get && flutter build web --release && cp -r build/web/* public/"
   },
   "engines": {
     "node": "18.x"
