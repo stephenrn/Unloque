@@ -24,16 +24,19 @@
   },
   "hosting": {
     "public": "build/web",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "unloque",
+          "region": "asia-east1"
+        }
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
     ]
   }
 }
