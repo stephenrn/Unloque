@@ -1,9 +1,14 @@
 # unloque
 
-Unloque is a mobile application designed to streamline access to government social welfare programs, such as 4Ps and DOST Scholarships. It utilizes a map system to visualize population density and demographic data, enabling targeted resource allocation to areas with the greatest need. This helps analyze and improve education and healthcare access while promoting social inclusion.
+Unloque is a mobile application designed to streamline access to government social welfare programs. It utilizes a map system to visualize population density and the distribution of beneficiaries per program category within Quezon Province. This enables the identification of areas with the greatest need, based on both population and the number of beneficiaries per category and municipality, allowing for targeted resource allocation. This helps improve education and healthcare access while promoting social inclusion.
 
-Filipinos can apply digitally for various programs from agencies like DSWD, DOH, and DOST. An AI-powered feature compares demographic data across regions, identifying underserved areas. This optimizes program targeting, reduces bias, and ensures resources reach those who need them most. The user-friendly interface provides a centralized platform for applying to multiple programs, making social welfare services accessible to all Filipinos. Government agencies benefit from a comprehensive interface for processing applications, enabling balanced resource allocation and efficient program delivery.
+Filipinos can apply digitally for various programs from agencies like DSWD, DOH, and DOST. While some of the data currently in the system is hypothetical (as it has been manually inputted by the development team), and organizations are only sampled for the app at this stage, the app uses verified data from DSWD, which covers the social welfare category. The DSWD data is the only verified source, while other program categories are still being populated with sample data.
 
+An AI-powered feature compares this data across regions, identifying underserved areas by analyzing population size and the number of beneficiaries for each program category. This ensures resources are allocated efficiently to areas with the greatest need, reducing bias in program targeting.
+
+The map currently includes real-time data on the beneficiaries of programs under social healthcare and education within Quezon Province. This beneficiary data is integrated into the app's data summary and insights module, which generates visual insights and analytical reports on the distribution of aid across municipalities. This enables government agencies to monitor trends, assess program effectiveness, and make informed decisions for future planning.
+
+The user-friendly interface provides a centralized platform for applying to multiple programs, making social welfare services accessible to all Filipinos. Meanwhile, government agencies benefit from a comprehensive interface for processing applications, enabling balanced resource allocation and efficient program delivery.
 **Note**: Unloque is currently designed for Android devices and works best on medium-sized phones.
 
 ## Getting Started
