@@ -13,22 +13,21 @@ The user-friendly interface provides a centralized platform for applying to mult
 
 ## Screenshots
 
-
-<div style="display: flex; flex-wrap: wrap; justify-content: center; padding: 30px;">
-  <img src="screenshots/1.jpg" width="22%" style="margin: 10px; padding: 15px;">
-  <img src="screenshots/2.jpg" width="22%" style="margin: 10px; padding: 15px;">
-  <img src="screenshots/3.jpg" width="22%" style="margin: 10px; padding: 15px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px;">
+  <img src="screenshots/1.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
+  <img src="screenshots/2.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
+  <img src="screenshots/3.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
 </div>
 
-<div style="display: flex; flex-wrap: wrap; justify-content: center; padding: 30px;">
-  <img src="screenshots/4.jpg" width="22%" style="margin: 10px; padding: 15px;">
-  <img src="screenshots/5.jpg" width="22%" style="margin: 10px; padding: 15px;">
-  <img src="screenshots/6.jpg" width="22%" style="margin: 10px; padding: 15px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px;">
+  <img src="screenshots/4.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
+  <img src="screenshots/5.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
+  <img src="screenshots/6.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
 </div>
 
-<div style="display: flex; flex-wrap: wrap; justify-content: center; padding: 30px;">
-  <img src="screenshots/7.jpg" width="22%" style="margin: 10px; padding: 15px;">
-  <img src="screenshots/8.jpg" width="22%" style="margin: 10px; padding: 15px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px;">
+  <img src="screenshots/7.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
+  <img src="screenshots/8.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
 </div>
 
 
