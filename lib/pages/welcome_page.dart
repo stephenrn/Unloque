@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:unloque/components/username_dialog.dart';
+import 'package:unloque/pages/terms_and_conditions_page.dart';
 import '../pages/home_page.dart';
+import 'package:flutter/gestures.dart'; // Add this import at the top
 
 class WelcomePage extends StatefulWidget {
   @override
@@ -24,7 +26,7 @@ class _WelcomePageState extends State<WelcomePage>
   final List<Map<String, dynamic>> _availablePrograms = [
     {
       'title': 'Social',
-      'organization': 'DSWD, DOLE, etc.',
+      'organization': 'DSWD, etc.',
       'color': Colors.blue[700]!,
       'icon': Icons.people_alt_outlined,
     },
@@ -35,7 +37,7 @@ class _WelcomePageState extends State<WelcomePage>
       'icon': Icons.local_hospital_outlined,
     },
     {
-      'title': 'Education',
+      'title': 'Educational',
       'organization': 'DepEd, CHED, etc.',
       'color': Colors.green[700]!,
       'icon': Icons.school_outlined,
@@ -685,17 +687,40 @@ class _WelcomePageState extends State<WelcomePage>
 
                     Spacer(),
 
-                    // Terms and conditions text
+                    // Terms and conditions text - Updated to use RichText with clickable terms
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Text(
-                          'By signing up, you agree to our Terms & Conditions',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
+                        child: RichText(
                           textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                            children: [
+                              TextSpan(
+                                  text: 'By signing up, you agree to our '),
+                              TextSpan(
+                                text: 'Terms & Conditions',
+                                style: TextStyle(
+                                  color: Colors.blue[700],
+                                  decoration: TextDecoration.underline,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            TermsAndConditionsPage(),
+                                      ),
+                                    );
+                                  },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
