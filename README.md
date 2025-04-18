@@ -1,4 +1,4 @@
-# unloque
+# Unloque
 
 Unloque is a mobile application designed to streamline access to government social welfare programs. It utilizes a map system to visualize population density and the distribution of beneficiaries per program category within Quezon Province. This enables the identification of areas with the greatest need, based on both population and the number of beneficiaries per category and municipality, allowing for targeted resource allocation. This helps improve education and healthcare access while promoting social inclusion.
 
