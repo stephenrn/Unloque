@@ -16,11 +16,6 @@ The map currently includes real-time data on the beneficiaries of programs under
 The user-friendly interface provides a centralized platform for applying to multiple programs, making social welfare services accessible to all Filipinos. Meanwhile, government agencies benefit from a comprehensive interface for processing applications, enabling balanced resource allocation and efficient program delivery.
 **Note**: Unloque is currently designed for Android devices and works best on medium-sized phones.
 
-![](..PitchDeck/1st.jpg)
-![](..PitchDeck/2nd.jpg)
-![](..PitchDeck/3rd.jpg)
-![](..PitchDeck/4th.jpg)
-
 ### How to Run the Project
 
 Follow these steps to run the project on your local machine:
