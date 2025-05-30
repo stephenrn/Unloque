@@ -1,5 +1,10 @@
 # Unloque
 
+![](..PitchDeck/1st.jpg)
+![](..PitchDeck/2nd.jpg)
+![](..PitchDeck/3rd.jpg)
+![](..PitchDeck/4th.jpg)
+
 Unloque is a mobile application designed to streamline access to government social welfare programs. It utilizes a map system to visualize population density and the distribution of beneficiaries per program category within Quezon Province. This enables the identification of areas with the greatest need, based on both population and the number of beneficiaries per category and municipality, allowing for targeted resource allocation. This helps improve education and healthcare access while promoting social inclusion.
 
 Filipinos can apply digitally for various programs from agencies like DSWD, DOH, and DOST. While some of the data currently in the system is hypothetical (as it has been manually inputted by the development team), and organizations are only sampled for the app at this stage, the app uses verified data from DSWD, which covers the social welfare category. The DSWD data is the only verified source, while other program categories are still being populated with sample data.
@@ -11,25 +16,10 @@ The map currently includes real-time data on the beneficiaries of programs under
 The user-friendly interface provides a centralized platform for applying to multiple programs, making social welfare services accessible to all Filipinos. Meanwhile, government agencies benefit from a comprehensive interface for processing applications, enabling balanced resource allocation and efficient program delivery.
 **Note**: Unloque is currently designed for Android devices and works best on medium-sized phones.
 
-## Screenshots
-
-<div style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px;">
-  <img src="screenshots/1.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-  <img src="screenshots/2.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-  <img src="screenshots/3.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-</div>
-
-<div style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px;">
-  <img src="screenshots/4.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-  <img src="screenshots/5.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-  <img src="screenshots/6.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-</div>
-
-<div style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px;">
-  <img src="screenshots/7.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-  <img src="screenshots/8.jpg" width="30%" style="margin-bottom: 10px; padding: 10px;">
-</div>
-
+![](..PitchDeck/1st.jpg)
+![](..PitchDeck/2nd.jpg)
+![](..PitchDeck/3rd.jpg)
+![](..PitchDeck/4th.jpg)
 
 ### How to Run the Project
 
