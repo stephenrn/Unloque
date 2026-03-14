@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/web_viewer.dart';
+import 'package:unloque/screens/safe_web_viewer_screen.dart';
+import 'package:unloque/services/news/news_service.dart';
+import 'package:unloque/models/news_item.dart';
 
 class AllNewsPage extends StatefulWidget {
   const AllNewsPage({Key? key}) : super(key: key);
@@ -11,7 +12,7 @@ class AllNewsPage extends StatefulWidget {
 
 class _AllNewsPageState extends State<AllNewsPage> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _allNews = [];
+  List<NewsItem> _allNews = [];
 
   @override
   void initState() {
@@ -25,46 +26,7 @@ class _AllNewsPageState extends State<AllNewsPage> {
     });
 
     try {
-      final List<Map<String, dynamic>> allNewsItems = [];
-
-      // Get all organizations
-      final orgsSnapshot =
-          await FirebaseFirestore.instance.collection('organizations').get();
-
-      // For each organization, get its news
-      for (final orgDoc in orgsSnapshot.docs) {
-        final orgId = orgDoc.id;
-        final orgData = orgDoc.data();
-        final orgName = orgData['name'] ?? 'Organization';
-        final logoUrl = orgData['logoUrl'] ?? '';
-
-        // Get news for this organization
-        final newsSnapshot = await FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(orgId)
-            .collection('news')
-            .orderBy('date', descending: true)
-            .get();
-
-        // Add each news item with organization details
-        for (final newsDoc in newsSnapshot.docs) {
-          final newsData = newsDoc.data();
-          allNewsItems.add({
-            'id': newsDoc.id,
-            'headline': newsData['headline'] ?? '',
-            'category': newsData['category'] ?? '',
-            'date': newsData['date'] ?? '',
-            'imageUrl': newsData['imageUrl'] ?? '',
-            'newsUrl': newsData['newsUrl'] ?? '',
-            'organizationName': orgName,
-            'organizationId': orgId,
-            'logoUrl': logoUrl,
-          });
-        }
-      }
-
-      // Sort all news by date, newest first
-      allNewsItems.sort((a, b) => b['date'].compareTo(a['date']));
+      final allNewsItems = await NewsService.fetchAllNews();
 
       setState(() {
         _allNews = allNewsItems;
@@ -189,7 +151,7 @@ class _AllNewsPageState extends State<AllNewsPage> {
 }
 
 class NewsCard extends StatelessWidget {
-  final Map<String, dynamic> news;
+  final NewsItem news;
 
   const NewsCard({
     Key? key,
@@ -213,12 +175,12 @@ class NewsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        if (news['newsUrl'] != null && news['newsUrl'].isNotEmpty) {
+        if (news.newsUrl.isNotEmpty) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => SafeWebViewer(
-                url: news['newsUrl'],
+                url: news.newsUrl,
                 title: 'News',
               ),
             ),
@@ -248,9 +210,9 @@ class NewsCard extends StatelessWidget {
             // News image
             ClipRRect(
               borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-              child: news['imageUrl'] != null && news['imageUrl'].isNotEmpty
+              child: news.imageUrl.isNotEmpty
                   ? Image.network(
-                      news['imageUrl'],
+                      news.imageUrl,
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
@@ -293,11 +255,14 @@ class NewsCard extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getCategoryColor(news['category']),
+                      color: _getCategoryColor(news.category),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      news['category'].toUpperCase(),
+                      (news.category.isNotEmpty
+                              ? news.category
+                              : 'Uncategorized')
+                          .toUpperCase(),
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -309,7 +274,7 @@ class NewsCard extends StatelessWidget {
 
                   // Headline
                   Text(
-                    news['headline'],
+                    news.headline.isNotEmpty ? news.headline : 'No Title',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
@@ -334,10 +299,9 @@ class NewsCard extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(5),
-                          child: news['logoUrl'] != null &&
-                                  news['logoUrl'].toString().isNotEmpty
+                            child: news.logoUrl.toString().isNotEmpty
                               ? Image.network(
-                                  news['logoUrl'],
+                                  news.logoUrl,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Icon(Icons.business,
@@ -353,7 +317,7 @@ class NewsCard extends StatelessWidget {
                       // Organization name (with ellipsis for long names)
                       Expanded(
                         child: Text(
-                          news['organizationName'],
+                          news.organizationName,
                           style: TextStyle(
                             color: Colors.grey[700],
                             fontSize: 13,
@@ -371,7 +335,7 @@ class NewsCard extends StatelessWidget {
                           color: Colors.grey[600], size: 14),
                       SizedBox(width: 4),
                       Text(
-                        news['date'],
+                        news.date,
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,

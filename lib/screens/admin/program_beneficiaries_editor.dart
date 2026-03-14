@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/services/map/program_beneficiaries_service.dart';
+
+import 'package:unloque/models/program_beneficiaries_record.dart';
 
 class ProgramBeneficiariesEditor extends StatefulWidget {
   final String programId;
@@ -102,21 +104,23 @@ class ProgramBeneficiariesEditorState
     });
 
     try {
-      // Check if data exists for this program
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('mapdata')
-          .where('programId', isEqualTo: widget.programId)
-          .where('type', isEqualTo: 'beneficiaries')
-          .get();
+      final entry = await ProgramBeneficiariesService.loadForProgram(
+        programId: widget.programId,
+      );
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final docSnapshot = querySnapshot.docs.first;
-        final data = docSnapshot.data();
-        _existingDocId = docSnapshot.id;
+      if (entry != null) {
+        _existingDocId = entry.$1;
+        final record = entry.$2;
 
-        for (String municipality in municipalities) {
-          if (data.containsKey(municipality)) {
-            _controllers[municipality]!.text = data[municipality].toString();
+        for (final municipality in municipalities) {
+          if (municipality == 'Total Beneficiaries') {
+            _controllers[municipality]!.text = record.totalBeneficiaries.toString();
+            continue;
+          }
+
+          final value = record.municipalityCounts[municipality];
+          if (value != null) {
+            _controllers[municipality]!.text = value.toString();
           }
         }
       }
@@ -147,36 +151,34 @@ class ProgramBeneficiariesEditorState
 
     try {
       // Prepare data for saving
-      Map<String, dynamic> beneficiaryData = {
-        'programId': widget.programId,
-        'programName': widget.programName,
-        'organizationId': widget.organizationId,
-        'type': 'beneficiaries', // Add a type identifier
-        'title':
-            '${widget.programName} Beneficiaries', // Display title for the list
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      final municipalityCounts = <String, int>{};
+      int totalBeneficiaries = 0;
 
       for (String municipality in municipalities) {
         if (_controllers[municipality]!.text.isNotEmpty) {
-          beneficiaryData[municipality] =
-              int.parse(_controllers[municipality]!.text);
+          final parsed = int.parse(_controllers[municipality]!.text);
+          if (municipality == 'Total Beneficiaries') {
+            totalBeneficiaries = parsed;
+          } else {
+            municipalityCounts[municipality] = parsed;
+          }
         }
       }
 
-      // Save to Firestore in the mapdata collection
-      if (_existingDocId != null) {
-        // Update existing document
-        await FirebaseFirestore.instance
-            .collection('mapdata')
-            .doc(_existingDocId)
-            .update(beneficiaryData);
-      } else {
-        // Create new document
-        await FirebaseFirestore.instance
-            .collection('mapdata')
-            .add(beneficiaryData);
-      }
+      final record = ProgramBeneficiariesRecord(
+        programId: widget.programId,
+        programName: widget.programName,
+        organizationId: widget.organizationId,
+        type: ProgramBeneficiariesRecord.typeBeneficiaries,
+        title: '${widget.programName} Beneficiaries',
+        totalBeneficiaries: totalBeneficiaries,
+        municipalityCounts: municipalityCounts,
+      );
+
+      await ProgramBeneficiariesService.save(
+        existingDocId: _existingDocId,
+        record: record,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

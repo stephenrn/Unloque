@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/services/map/quezon_population_service.dart';
 
 class PopulationEditorPage extends StatefulWidget {
   const PopulationEditorPage({super.key});
@@ -90,18 +90,11 @@ class PopulationEditorPageState extends State<PopulationEditorPage> {
     });
 
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('mapdata')
-          .doc('quezon_population')
-          .get();
-
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data() as Map<String, dynamic>;
-        for (String municipality in municipalities) {
-          if (data.containsKey(municipality)) {
-            _controllers[municipality]!.text = data[municipality].toString();
-          }
-        }
+      final data = await QuezonPopulationService.load();
+      for (final municipality in municipalities) {
+        final value = data[municipality];
+        if (value == null) continue;
+        _controllers[municipality]!.text = value.toString();
       }
 
       setState(() {
@@ -130,7 +123,7 @@ class PopulationEditorPageState extends State<PopulationEditorPage> {
 
     try {
       // Prepare data for saving
-      Map<String, dynamic> populationData = {};
+      final Map<String, int> populationData = {};
       for (String municipality in municipalities) {
         if (_controllers[municipality]!.text.isNotEmpty) {
           populationData[municipality] =
@@ -138,11 +131,7 @@ class PopulationEditorPageState extends State<PopulationEditorPage> {
         }
       }
 
-      // Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('mapdata')
-          .doc('quezon_population')
-          .set(populationData, SetOptions(merge: true));
+      await QuezonPopulationService.save(populationData: populationData);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

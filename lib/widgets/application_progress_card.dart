@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:unloque/pages/application_form_page.dart';
-import 'package:unloque/pages/application_pending_page.dart';
-import 'package:unloque/pages/dashboard_page.dart'; // Add this import to access DashboardPageState
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:unloque/pages/application_complete_page.dart';
+import 'package:unloque/screens/application_form_page.dart';
+import 'package:unloque/screens/application_pending_page.dart';
+import 'package:unloque/screens/dashboard_page.dart'; // Add this import to access DashboardPageState
+import 'package:unloque/screens/application_complete_page.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
+import 'package:unloque/services/applications/user_application_service.dart';
 
 class ApplicationProgressCard extends StatelessWidget {
   final String category;
@@ -48,9 +48,8 @@ class ApplicationProgressCard extends StatelessWidget {
             // Use the full application data directly instead of fetching again
             final applicationDetails = fullApplication;
 
-            // Get the current user
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
+            final uid = AuthSessionService.currentUid();
+            if (uid == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(
@@ -59,19 +58,14 @@ class ApplicationProgressCard extends StatelessWidget {
               return;
             }
 
-            // Check the current status in Firestore
-            final applicationDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('users-application')
-                .doc(id)
-                .get();
+            final latestStatus =
+                await UserApplicationService.getUserApplicationStatus(
+              uid: uid,
+              applicationId: id,
+            );
 
-            // Get the current status from Firestore - use the latest status
-            String currentStatus = status;
-            if (applicationDoc.exists) {
-              currentStatus = applicationDoc.data()?['status'] ?? status;
-            }
+            // Use latest status if available
+            final String currentStatus = latestStatus ?? status;
 
             Widget destinationPage;
             if (currentStatus == 'Pending') {

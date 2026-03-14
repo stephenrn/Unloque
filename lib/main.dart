@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:unloque/auth/auth_gate.dart';
-import 'package:unloque/pages/home_page.dart';
+import 'package:provider/provider.dart';
+import 'package:unloque/providers/available_applications_provider.dart';
+import 'package:unloque/providers/user_applications_provider.dart';
+import 'package:unloque/screens/auth/auth_gate.dart';
+import 'package:unloque/screens/home_page.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
@@ -21,16 +24,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Unloque',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AvailableApplicationsProvider()),
+        ChangeNotifierProvider(create: (_) => UserApplicationsProvider()),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Unloque',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: const AuthGate(),
+        routes: {
+          'home': (context) => const HomePage(),
+        },
       ),
-      home: AuthGate(),
-      routes: {
-        'home': (context) => HomePage(),
-      },
     );
   }
 }

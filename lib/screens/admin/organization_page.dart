@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:unloque/pages/admin/program_beneficiaries_editor.dart';
+import 'package:unloque/screens/admin/program_beneficiaries_editor.dart';
+import 'package:unloque/services/admin/organization_programs_service.dart';
+import 'package:unloque/services/admin/organization_news_service.dart';
+import 'package:unloque/services/admin/organization_mapdata_service.dart';
 // Add import for the new page
-import 'package:unloque/pages/admin/program_details_form_page.dart';
+import 'package:unloque/screens/admin/program_details_form_page.dart';
 // Add import for ApplicationManagerPage at the top
-import 'package:unloque/pages/admin/application_manager_page.dart';
+import 'package:unloque/screens/admin/application_manager_page.dart';
 import 'dart:async';
 // Update the import for web_viewer.dart - add this at the top with other imports
-import '../../utils/web_viewer.dart';
+import 'package:unloque/screens/safe_web_viewer_screen.dart';
 
 class OrganizationPage extends StatefulWidget {
   final Map<String, dynamic> organization;
@@ -392,30 +395,14 @@ class _ProgramsTab extends StatelessWidget {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     try {
-                      // Generate a document ID for the program
-                      final programDocRef = FirebaseFirestore.instance
-                          .collection('organizations')
-                          .doc(organizationId)
-                          .collection('programs')
-                          .doc(); // This generates a unique ID
-
-                      final programId = programDocRef.id;
-
-                      // Create program data
-                      final programData = {
-                        'id': programId, // Include the ID in the document
-                        'name': nameController.text.trim(),
-                        'category': selectedCategory,
-                        'deadline': deadlineController.text,
-                        'color': selectedColor.value,
-                        'organizationId': organizationId,
-                        'programStatus':
-                            'Closed', // Set default status to Closed
-                        'createdAt': FieldValue.serverTimestamp(),
-                      };
-
-                      // Save to Firebase using the generated ID
-                      await programDocRef.set(programData);
+                      await OrganizationProgramsService.createProgram(
+                        organizationId: organizationId,
+                        name: nameController.text.trim(),
+                        category: selectedCategory!,
+                        deadline: deadlineController.text,
+                        colorValue: selectedColor.value,
+                        programStatus: 'Closed',
+                      );
 
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -455,30 +442,10 @@ class _ProgramsTab extends StatelessWidget {
           TextButton(
             onPressed: () async {
               try {
-                // Delete the program from Firestore
-                await FirebaseFirestore.instance
-                    .collection('organizations')
-                    .doc(organizationId)
-                    .collection('programs')
-                    .doc(programId)
-                    .delete();
-
-                // Cascade delete from users-application
-                final usersSnapshot =
-                    await FirebaseFirestore.instance.collection('users').get();
-                for (final userDoc in usersSnapshot.docs) {
-                  final userApplicationsRef = FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(userDoc.id)
-                      .collection('users-application');
-
-                  final userApplicationsSnapshot = await userApplicationsRef
-                      .where('id', isEqualTo: programId)
-                      .get();
-                  for (final applicationDoc in userApplicationsSnapshot.docs) {
-                    await applicationDoc.reference.delete();
-                  }
-                }
+                await OrganizationProgramsService.deleteProgramAndCascade(
+                  organizationId: organizationId,
+                  programId: programId,
+                );
 
                 Navigator.pop(context); // Close dialog
 
@@ -510,11 +477,9 @@ class _ProgramsTab extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         // Update the stream to read from the organization's programs subcollection
-        stream: FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(organizationId)
-            .collection('programs')
-            .snapshots(),
+        stream: OrganizationProgramsService.programsStream(
+          organizationId: organizationId,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -568,10 +533,9 @@ class _ProgramsTab extends StatelessWidget {
 
               // Fetch organization logo
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('organizations')
-                    .doc(organizationId)
-                    .get(),
+                future: OrganizationProgramsService.getOrganizationDoc(
+                  organizationId: organizationId,
+                ),
                 builder: (context, orgSnapshot) {
                   String? logoUrl;
                   String orgName = "Organization";
@@ -945,17 +909,13 @@ class _NewsTabState extends State<_NewsTab> {
                       'date': dateController.text.trim(),
                       'imageUrl': imageUrlController.text.trim(),
                       'newsUrl': newsUrlController.text.trim(),
-                      'createdAt': FieldValue.serverTimestamp(),
                     };
-                    if (doc == null) {
-                      await FirebaseFirestore.instance
-                          .collection('organizations')
-                          .doc(widget.organizationId)
-                          .collection('news')
-                          .add(data);
-                    } else {
-                      await doc.reference.update(data);
-                    }
+
+                    await OrganizationNewsService.upsertNews(
+                      organizationId: widget.organizationId,
+                      docId: doc?.id,
+                      data: data,
+                    );
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -996,7 +956,10 @@ class _NewsTabState extends State<_NewsTab> {
           TextButton(
             onPressed: () async {
               try {
-                await doc.reference.delete();
+                await OrganizationNewsService.deleteNews(
+                  organizationId: widget.organizationId,
+                  docId: doc.id,
+                );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('News article deleted!')),
@@ -1019,10 +982,9 @@ class _NewsTabState extends State<_NewsTab> {
   Widget build(BuildContext context) {
     // First, get the organization data to pass to news cards
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .get(),
+      future: OrganizationProgramsService.getOrganizationDoc(
+        organizationId: widget.organizationId,
+      ),
       builder: (context, orgSnapshot) {
         String organizationName = "Organization";
         String? logoUrl;
@@ -1041,12 +1003,9 @@ class _NewsTabState extends State<_NewsTab> {
             child: const Icon(Icons.add),
           ),
           body: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('organizations')
-                .doc(widget.organizationId)
-                .collection('news')
-                .orderBy('date', descending: true)
-                .snapshots(),
+            stream: OrganizationNewsService.newsStream(
+              organizationId: widget.organizationId,
+            ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -1398,12 +1357,9 @@ class _MapDataTab extends StatelessWidget {
         content: SizedBox(
           width: double.maxFinite,
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('organizations')
-                .doc(organizationId)
-                .collection('programs')
-                .orderBy('name')
-                .snapshots(),
+            stream: OrganizationProgramsService.programsStream(
+              organizationId: organizationId,
+            ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -1487,10 +1443,9 @@ class _MapDataTab extends StatelessWidget {
           TextButton(
             onPressed: () async {
               try {
-                await FirebaseFirestore.instance
-                    .collection('mapdata')
-                    .doc(docId)
-                    .delete();
+                await OrganizationMapDataService.deleteMapDataDoc(
+                  docId: docId,
+                );
 
                 Navigator.pop(context); // Close dialog
 
@@ -1522,10 +1477,9 @@ class _MapDataTab extends StatelessWidget {
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('mapdata')
-            .where('organizationId', isEqualTo: organizationId)
-            .snapshots(),
+        stream: OrganizationMapDataService.organizationMapDataStream(
+          organizationId: organizationId,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

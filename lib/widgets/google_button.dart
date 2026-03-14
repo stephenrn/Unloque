@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:unloque/components/username_dialog.dart';
-import 'package:unloque/services/auth_service.dart';
-import '../pages/home_page.dart';
+import 'package:unloque/widgets/username_dialog.dart';
+import 'package:unloque/services/auth/google_sign_in_service.dart';
+import 'package:unloque/services/users/user_profile_service.dart';
+import '../screens/home_page.dart';
 
 class GoogleButton extends StatefulWidget {
   const GoogleButton({super.key});
@@ -12,7 +12,6 @@ class GoogleButton extends StatefulWidget {
 }
 
 class _GoogleButtonState extends State<GoogleButton> {
-  final AuthService _authService = AuthService();
   bool _isLoading = false;
 
   Future<void> handleGoogleSignIn() async {
@@ -23,18 +22,20 @@ class _GoogleButtonState extends State<GoogleButton> {
     });
 
     try {
-      print("Calling AuthService.signInWithGoogle()");
-      final userCredential = await _authService.signInWithGoogle();
+      print("Calling GoogleSignInService.signInWithGoogle()");
+      final userCredential = await GoogleSignInService.signInWithGoogle();
       print("Sign in result: ${userCredential?.user?.email ?? 'null'}");
 
-      if (userCredential != null && mounted) {
-        // Check if user exists in Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
+      if (userCredential == null) return;
 
-        if (!userDoc.exists && mounted) {
+      final user = userCredential.user;
+      if (user == null) {
+        throw Exception('Google sign-in returned no user');
+      }
+
+      if (mounted) {
+        final exists = await UserProfileService.userExists(user.uid);
+        if (!exists && mounted) {
           // Show username dialog for new users
           final username = await showDialog<String>(
             context: context,
@@ -44,27 +45,16 @@ class _GoogleButtonState extends State<GoogleButton> {
 
           if (username != null && mounted) {
             // Create user profile with custom username and userId
-            final userId = userCredential.user!.uid;
+            final userId = user.uid;
             print("Creating user profile with ID: $userId"); // Debug log
 
-            // Create user data map with explicit ID field
-            final userData = {
-              'uid': userId, // Use 'uid' as field name for clarity
-              'email': userCredential.user!.email!,
-              'username': username,
-              'photoUrl': userCredential.user!.photoURL,
-              'createdAt': Timestamp.now(),
-            };
-
-            print("User data to be saved: $userData"); // Debug log
-
             try {
-              // Use set with merge option to ensure all fields are written
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .set(userData, SetOptions(merge: true));
-
+              await UserProfileService.createUserProfile(
+                uid: userId,
+                email: user.email ?? '',
+                username: username,
+                photoUrl: user.photoURL,
+              );
               print("User profile created successfully"); // Debug log
             } catch (e) {
               print("Error creating user profile: ${e.toString()}");
@@ -141,7 +131,7 @@ class _GoogleButtonState extends State<GoogleButton> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'lib/images/google.png',
+                        'assets/images/google.png',
                         height: 24,
                         width: 24,
                       ),

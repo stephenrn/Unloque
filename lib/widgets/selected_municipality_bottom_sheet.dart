@@ -3,10 +3,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:data_table_2/data_table_2.dart';
 
 // Import the data model and other necessary classes
-import '../models/data_model.dart';
+import '../models/map_location.dart';
 
 class SelectedMunicipalityBottomSheet extends StatelessWidget {
-  final DataModel location;
+  final MapLocation location;
   final bool isExpanded;
   final double sheetHeight;
   final Function() onClose;

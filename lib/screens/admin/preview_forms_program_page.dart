@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/services/admin/program_preview_service.dart';
+import 'package:unloque/models/program_form_field.dart';
 
 class PreviewFormsProgramPage extends StatefulWidget {
   final String organizationId;
   final String programId;
-  final List<Map<String, dynamic>>? formFields;
+  final List<ProgramFormField>? formFields;
 
   const PreviewFormsProgramPage({
     Key? key,
@@ -22,7 +23,7 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
   bool _isLoading = true;
   Map<String, dynamic> _programData = {};
   Map<String, dynamic> _organizationData = {};
-  List<Map<String, dynamic>> _formFields = [];
+  List<ProgramFormField> _formFields = [];
 
   // Form state variables
   Map<String, String?> _selectedOptions = {}; // field label -> selected option
@@ -53,42 +54,36 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
     });
 
     try {
-      // Load program data from Firebase first
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .collection('programs')
-          .doc(widget.programId)
-          .get();
+      final programData = await ProgramPreviewService.fetchProgram(
+        organizationId: widget.organizationId,
+        programId: widget.programId,
+      );
 
-      if (programDoc.exists) {
-        _programData = programDoc.data() ?? {};
+      if (programData != null) {
+        _programData = programData;
 
         // Always prioritize form fields from Firebase
         if (_programData['formFields'] != null) {
-          _formFields = List<Map<String, dynamic>>.from(
-            _programData['formFields'] as List<dynamic>,
-          );
+          _formFields =
+              ProgramFormField.listFromDynamic(_programData['formFields']);
         }
         // Use widget.formFields only if Firebase data is empty
         else if (widget.formFields != null && widget.formFields!.isNotEmpty) {
-          _formFields = List<Map<String, dynamic>>.from(widget.formFields!);
+          _formFields = List<ProgramFormField>.from(widget.formFields!);
         }
       } else {
         // If program doesn't exist in Firebase, use provided formFields as fallback
         if (widget.formFields != null && widget.formFields!.isNotEmpty) {
-          _formFields = List<Map<String, dynamic>>.from(widget.formFields!);
+          _formFields = List<ProgramFormField>.from(widget.formFields!);
         }
       }
 
-      // Load organization data
-      final orgDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .get();
+      final orgData = await ProgramPreviewService.fetchOrganization(
+        organizationId: widget.organizationId,
+      );
 
-      if (orgDoc.exists) {
-        _organizationData = orgDoc.data() ?? {};
+      if (orgData != null) {
+        _organizationData = orgData;
       }
 
       // Initialize form state based on loaded form fields
@@ -105,21 +100,22 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
   void _initializeFormState() {
     // Initialize controllers and state variables based on form fields
     for (var field in _formFields) {
-      final type = field['type'];
-      final label = field['label'];
+      final type = field.type;
+      final label = field.label;
 
-      if (type == 'short_answer' || type == 'paragraph') {
+      if (type == ProgramFormFieldType.shortAnswer ||
+          type == ProgramFormFieldType.paragraph) {
         _textControllers[label] = TextEditingController();
-      } else if (type == 'multiple_choice') {
+      } else if (type == ProgramFormFieldType.multipleChoice) {
         _selectedOptions[label] = null;
-      } else if (type == 'checkbox' && field['options'] != null) {
+      } else if (type == ProgramFormFieldType.checkbox) {
         _checkboxValues[label] = {};
-        for (var option in field['options'] as List) {
-          _checkboxValues[label]![option.toString()] = false;
+        for (final option in field.options) {
+          _checkboxValues[label]![option] = false;
         }
-      } else if (type == 'date') {
+      } else if (type == ProgramFormFieldType.date) {
         _selectedDates[label] = null;
-      } else if (type == 'attachment') {
+      } else if (type == ProgramFormFieldType.attachment) {
         _attachedFilesMap[label] = [];
       }
     }
@@ -397,8 +393,8 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
 
     for (int i = 0; i < _formFields.length; i++) {
       final field = _formFields[i];
-      final type = field['type'] as String;
-      final label = field['label'] as String;
+      final type = programFormFieldTypeToString(field.type);
+      final label = field.label;
 
       // Add each form field
       fields.add(
@@ -422,7 +418,7 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
                 controller: _textControllers[label],
                 maxLines: 1,
                 decoration: InputDecoration(
-                  hintText: field['placeholder'] ?? 'Enter your answer',
+                  hintText: field.placeholder ?? 'Enter your answer',
                   border: OutlineInputBorder(),
                 ),
                 readOnly: true, // Preview mode
@@ -432,25 +428,25 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
                 controller: _textControllers[label],
                 maxLines: 5,
                 decoration: InputDecoration(
-                  hintText: field['placeholder'] ?? 'Enter your answer',
+                  hintText: field.placeholder ?? 'Enter your answer',
                   border: OutlineInputBorder(),
                 ),
                 readOnly: true, // Preview mode
               )
-            else if (type == 'multiple_choice' && field['options'] != null)
-              ...((field['options'] as List).map((option) {
+            else if (type == 'multiple_choice')
+              ...(field.options.map((option) {
                 return RadioListTile<String>(
-                  title: Text(option.toString()),
-                  value: option.toString(),
+                  title: Text(option),
+                  value: option,
                   groupValue: _selectedOptions[label],
                   onChanged: null, // Disabled in preview
                 );
               }).toList())
-            else if (type == 'checkbox' && field['options'] != null)
-              ...((field['options'] as List).map((option) {
+            else if (type == 'checkbox')
+              ...(field.options.map((option) {
                 return CheckboxListTile(
-                  title: Text(option.toString()),
-                  value: _checkboxValues[label]?[option.toString()] ?? false,
+                  title: Text(option),
+                  value: _checkboxValues[label]?[option] ?? false,
                   onChanged: null, // Disabled in preview
                 );
               }).toList())

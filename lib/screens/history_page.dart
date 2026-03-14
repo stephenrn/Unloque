@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../data/application_data.dart';
-import '../pages/application_form_page.dart';
-import '../pages/application_pending_page.dart';
+import 'package:unloque/services/applications/application_data_service.dart';
+import '../screens/application_form_page.dart';
+import '../screens/application_pending_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'application_complete_page.dart';
 
@@ -108,7 +108,7 @@ class _ApplicationListState extends State<ApplicationList> {
 
   void _loadApplications() {
     _applicationsFuture =
-        ApplicationData.getApplicationsByStatus(widget.status);
+      ApplicationDataService.getApplicationsByStatus(widget.status);
   }
 
   void refreshList() {

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:unloque/pages/admin/organization_response_builder.dart';
-import 'package:unloque/pages/application_details_page.dart';
+import 'package:unloque/screens/admin/organization_response_builder.dart';
+import 'package:unloque/screens/application_details_page.dart';
+import 'package:unloque/models/application_form_submission_field.dart';
+import 'package:unloque/models/program_form_field.dart';
+import 'package:unloque/services/applications/application_pending_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
 
 class ApplicationPendingPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -421,162 +424,62 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
   }
 
   Future<Map<String, dynamic>> _fetchHeaderDataAndForm() async {
-    // Use correct keys for programId and organizationId
-    final programId =
-        widget.application['programId'] ?? widget.application['id'];
-    final organizationId =
-        widget.application['organizationId'] ?? widget.application['orgId'];
-
-    String programName = '';
-    String orgName = '';
-    String logoUrl = '';
-    String deadline = '';
-    String category = '';
-
-    // Debug: print IDs being used
-    print('Fetching programId: $programId, organizationId: $organizationId');
-
-    // Fetch program info
-    if (organizationId != null && programId != null) {
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .collection('programs')
-          .doc(programId)
-          .get();
-      if (programDoc.exists) {
-        final data = programDoc.data() ?? {};
-        programName = (data['name'] ?? '').toString();
-        deadline = (data['deadline'] ?? '').toString();
-        category = (data['category'] ?? '').toString();
-        print('Fetched program: $programName, $deadline, $category');
-      }
-
-      // Fetch organization info
-      final orgDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .get();
-      if (orgDoc.exists) {
-        final data = orgDoc.data() ?? {};
-        orgName = (data['name'] ?? '').toString();
-        logoUrl = (data['logoUrl'] ?? '').toString();
-        print('Fetched org: $orgName, $logoUrl');
-      }
-    }
-
-    // Fallback to application object if Firestore values are empty
-    if (programName.isEmpty)
-      programName = widget.application['programName'] ?? '';
-    if (orgName.isEmpty) orgName = widget.application['organizationName'] ?? '';
-    if (logoUrl.isEmpty) logoUrl = widget.application['logoUrl'] ?? '';
-    if (deadline.isEmpty) deadline = widget.application['deadline'] ?? '';
-    if (category.isEmpty) category = widget.application['category'] ?? '';
-
-    // Debug: print what will be displayed
-    print(
-        'Display programName: $programName, orgName: $orgName, logoUrl: $logoUrl, deadline: $deadline, category: $category');
-
-    // Fetch the user's application form document
-    final user = FirebaseAuth.instance.currentUser;
-    DocumentSnapshot? formDoc;
-    final appId = widget.application['id'] ?? programId;
-    if (user != null && appId != null) {
-      formDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(appId)
-          .get();
-    }
-
-    return {
-      'programName': programName,
-      'organizationName': orgName,
-      'logoUrl': logoUrl,
-      'deadline': deadline,
-      'category': category,
-      'formDoc': formDoc,
-    };
+    final uid = AuthSessionService.currentUid();
+    return ApplicationPendingService.fetchHeaderDataAndForm(
+      application: widget.application,
+      uid: uid,
+    );
   }
 
   Widget _buildSubmittedFormContent(
       Map<String, dynamic> data, BuildContext context) {
     List<Widget> formItems = [];
 
-    // Get formFields from the new data structure with proper type casting
-    final formFields = data['formFields'];
-    if (formFields == null) {
+    final rawFormFields = data['formFields'];
+    if (rawFormFields == null) {
       return Center(child: Text('No form data submitted'));
     }
 
-    List<Map<String, dynamic>> typedFormFields = [];
+    final submittedFields =
+      ApplicationSubmittedFormField.listFromDynamic(rawFormFields);
 
-    // Convert the dynamic list to properly typed list
-    if (formFields is List) {
-      for (var field in formFields) {
-        if (field is Map) {
-          // Convert each field to a properly typed Map<String, dynamic>
-          typedFormFields.add(Map<String, dynamic>.from(field));
-        }
-      }
-    }
-
-    if (typedFormFields.isEmpty) {
+    if (submittedFields.isEmpty) {
       return Center(child: Text('No form data submitted'));
     }
 
-    // Process each form field with proper typing
-    for (var field in typedFormFields) {
-      final String fieldType = field['type'] ?? '';
-      final String fieldLabel = field['label'] ?? '';
-
-      switch (fieldType) {
-        case 'short_answer':
-        case 'paragraph':
-          final String answer = field['answer'] ?? '';
-          formItems.add(_buildFormItem(fieldLabel, answer));
+    for (final field in submittedFields) {
+      switch (field.type) {
+        case ProgramFormFieldType.shortAnswer:
+        case ProgramFormFieldType.paragraph:
+          formItems.add(_buildFormItem(field.label, field.answer ?? ''));
           break;
 
-        case 'multiple_choice':
-          final selectedOption = field['selectedOption'];
-          if (selectedOption != null && selectedOption.toString().isNotEmpty) {
-            formItems
-                .add(_buildFormItem(fieldLabel, selectedOption.toString()));
+        case ProgramFormFieldType.multipleChoice:
+          final selectedOption = field.selectedOption;
+          if (selectedOption != null && selectedOption.isNotEmpty) {
+            formItems.add(_buildFormItem(field.label, selectedOption));
           }
           break;
 
-        case 'checkbox':
-          final selectedOptions = field['selectedOptions'];
-          if (selectedOptions is List && selectedOptions.isNotEmpty) {
-            formItems
-                .add(_buildFormItem(fieldLabel, selectedOptions.join(', ')));
+        case ProgramFormFieldType.checkbox:
+          if (field.selectedOptions.isNotEmpty) {
+            formItems.add(
+              _buildFormItem(field.label, field.selectedOptions.join(', ')),
+            );
           }
           break;
 
-        case 'date':
-          final selectedDate = field['selectedDate'];
-          if (selectedDate != null) {
-            final date = DateTime.parse(selectedDate.toString())
-                .toString()
-                .split(' ')[0];
-            formItems.add(_buildFormItem(fieldLabel, date));
+        case ProgramFormFieldType.date:
+          if (field.selectedDate != null) {
+            final date =
+                field.selectedDate!.toString().split(' ')[0];
+            formItems.add(_buildFormItem(field.label, date));
           }
           break;
 
-        case 'attachment':
-          final files = field['files'];
-          if (files is List && files.isNotEmpty) {
-            // Convert to properly typed list
-            List<Map<String, dynamic>> typedFiles = [];
-            for (var file in files) {
-              if (file is Map) {
-                typedFiles.add(Map<String, dynamic>.from(file));
-              }
-            }
-            if (typedFiles.isNotEmpty) {
-              formItems.add(_buildAttachmentItem(fieldLabel, typedFiles));
-            }
+        case ProgramFormFieldType.attachment:
+          if (field.files.isNotEmpty) {
+            formItems.add(_buildAttachmentItem(field.label, field.files));
           }
           break;
       }
@@ -653,7 +556,8 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
   }
 
   // Build attachment item to handle the new structure
-  Widget _buildAttachmentItem(String label, List<Map<String, dynamic>> files) {
+  Widget _buildAttachmentItem(
+      String label, List<ApplicationSubmittedAttachment> files) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -679,8 +583,10 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: files.map<Widget>((fileData) {
-                final fileName = fileData['name'] ?? 'Unnamed File';
-                final downloadUrl = fileData['downloadUrl'] as String?;
+                final fileName = fileData.name.isNotEmpty
+                    ? fileData.name
+                    : 'Unnamed File';
+                final downloadUrl = fileData.downloadUrl;
                 final isProcessing = processingFiles[fileName] ?? false;
 
                 return Padding(
@@ -699,18 +605,17 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
                       SizedBox(width: 8),
                       Expanded(
                         child: GestureDetector(
-                          onTap: downloadUrl != null &&
-                                  downloadUrl.toString().isNotEmpty
+                          onTap: downloadUrl.isNotEmpty
                               ? () => downloadAndOpenFile(fileName, downloadUrl)
                               : null,
                           child: Text(
                             fileName,
                             style: TextStyle(
                               fontSize: 14,
-                              color: downloadUrl != null
+                              color: downloadUrl.isNotEmpty
                                   ? Colors.blue
                                   : Colors.grey,
-                              decoration: downloadUrl != null
+                              decoration: downloadUrl.isNotEmpty
                                   ? TextDecoration.underline
                                   : TextDecoration.none,
                             ),

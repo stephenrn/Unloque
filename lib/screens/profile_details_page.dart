@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:unloque/services/auth/auth_user_service.dart';
+import 'package:unloque/services/users/user_profile_image_service.dart';
+import 'package:unloque/services/users/user_profile_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
 
 class ProfileDetailsPage extends StatefulWidget {
   const ProfileDetailsPage({super.key});
@@ -14,7 +16,7 @@ class ProfileDetailsPage extends StatefulWidget {
 
 class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   final _formKey = GlobalKey<FormState>();
-  final User? _user = FirebaseAuth.instance.currentUser;
+  final User? _user = AuthSessionService.currentUser();
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -47,10 +49,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
 
     try {
       if (_user != null) {
-        final userData = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_user.uid)
-            .get();
+        final userData = await UserProfileService.getUserDoc(_user.uid);
 
         if (userData.exists) {
           final data = userData.data() as Map<String, dynamic>;
@@ -183,22 +182,10 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
     });
 
     try {
-      // Create a unique filename
-      final fileName =
-          '${_user!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_images')
-          .child(fileName);
-
-      // Upload file
-      final uploadTask = storageRef.putFile(_imageFile!);
-      final snapshot = await uploadTask;
-
-      // Get download URL
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
+      return await UserProfileImageService.uploadProfileImage(
+        uid: _user!.uid,
+        imageFile: _imageFile!,
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading image: $e')),
@@ -224,21 +211,19 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         String? photoUrl = await _uploadImage();
 
         // Update user profile data
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_user.uid)
-            .update({
-          'username': _usernameController.text.trim(),
-          'phone': _phoneController.text.trim(),
-          'address': _addressController.text.trim(),
-          if (photoUrl != null) 'photoUrl': photoUrl,
-        });
+        await UserProfileService.updateProfile(
+          uid: _user.uid,
+          username: _usernameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          photoUrl: photoUrl,
+        );
 
-        // Update Firebase Auth user profile too
-        await _user.updateDisplayName(_usernameController.text.trim());
-        if (photoUrl != null) {
-          await _user.updatePhotoURL(photoUrl);
-        }
+        await AuthUserService.updateDisplayNameAndPhotoUrl(
+          user: _user,
+          displayName: _usernameController.text.trim(),
+          photoUrl: photoUrl,
+        );
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Profile updated successfully')),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:unloque/components/username_dialog.dart';
-import 'package:unloque/pages/terms_and_conditions_page.dart';
-import '../pages/home_page.dart';
+import 'package:unloque/widgets/username_dialog.dart';
+import 'package:unloque/screens/terms_and_conditions_page.dart';
+import 'package:unloque/screens/home_page.dart';
+import 'package:unloque/services/auth/google_sign_in_service.dart';
+import 'package:unloque/services/users/user_profile_service.dart';
 import 'package:flutter/gestures.dart'; // Add this import at the top
 
 class WelcomePage extends StatefulWidget {
@@ -15,8 +15,6 @@ class WelcomePage extends StatefulWidget {
 class _WelcomePageState extends State<WelcomePage>
     with SingleTickerProviderStateMixin {
   bool _isLoading = false;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   AnimationController? _animationController;
   Animation<double>? _fadeAnimation;
   final PageController _programsController = PageController();
@@ -115,109 +113,100 @@ class _WelcomePageState extends State<WelcomePage>
     });
 
     try {
-      // Start Google sign-in process
-      final GoogleSignInAccount? gUser = await _googleSignIn.signIn();
+      final UserCredential? userCredential =
+          await GoogleSignInService.signInWithGoogle(
+        onStage: (stage) {
+          if (!mounted) return;
+          if (stage == GoogleSignInStage.authenticating) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Authenticating...'),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      },
+                      child: Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.grey[800]!.withOpacity(0.9),
+                duration: Duration(seconds: 60),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          }
 
-      if (gUser == null) {
+          if (stage == GoogleSignInStage.signingIn) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Signing in...'),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      },
+                      child: Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.grey[800]!.withOpacity(0.9),
+                duration: Duration(seconds: 60),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          }
+        },
+      );
+
+      if (userCredential == null) {
         if (!mounted) return;
-        // Clear the SnackBar
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         setState(() {
           _isLoading = false;
         });
         return;
       }
-
-      if (!mounted) return;
-      // Update SnackBar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text('Authenticating...'),
-                ],
-              ),
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                },
-                child: Icon(Icons.close, color: Colors.white),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.grey[800]!.withOpacity(0.9),
-          duration: Duration(seconds: 60),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.all(10),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-
-      // Get authentication details
-      final GoogleSignInAuthentication gAuth = await gUser.authentication;
-
-      // Create credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: gAuth.accessToken,
-        idToken: gAuth.idToken,
-      );
-
-      // Update SnackBar
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text('Signing in...'),
-                ],
-              ),
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                },
-                child: Icon(Icons.close, color: Colors.white),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.grey[800]!.withOpacity(0.9),
-          duration: Duration(seconds: 60),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.all(10),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-
-      // Sign in with Firebase
-      final UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
 
       if (userCredential.user != null && mounted) {
         // Update SnackBar
@@ -252,17 +241,20 @@ class _WelcomePageState extends State<WelcomePage>
           ),
         );
 
+        final uid = userCredential.user!.uid;
+        final email = userCredential.user!.email;
+        if (email == null) {
+          throw Exception('No email returned from Google sign-in');
+        }
+
         // Check if user exists in Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
+        final userExists = await UserProfileService.userExists(uid);
 
         // Always hide current snackbar before showing a new one or navigating
         if (!mounted) return;
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-        if (!userDoc.exists && mounted) {
+        if (!userExists && mounted) {
           // Show snackbar for profile setup
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -312,17 +304,12 @@ class _WelcomePageState extends State<WelcomePage>
             // Hide any remaining snackbars
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-            // Create user profile with custom username
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(userCredential.user!.uid)
-                .set({
-              'uid': userCredential.user!.uid, // Explicitly store the user ID
-              'email': userCredential.user!.email!,
-              'username': username,
-              'photoUrl': userCredential.user!.photoURL,
-              'createdAt': Timestamp.now(),
-            });
+            await UserProfileService.createUserProfile(
+              uid: uid,
+              email: email,
+              username: username,
+              photoUrl: userCredential.user!.photoURL,
+            );
 
             // Add navigation to HomePage after profile creation
             if (mounted) {
@@ -332,14 +319,7 @@ class _WelcomePageState extends State<WelcomePage>
             }
           }
         } else if (mounted) {
-          // User exists but we'll update the uid field to ensure it's stored
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userCredential.user!.uid)
-              .update({
-            'uid': userCredential.user!.uid, // Ensure user ID is stored
-            'lastLogin': Timestamp.now(), // Track login time
-          });
+          await UserProfileService.ensureUidAndTrackLogin(uid);
 
           // Clear any SnackBars before navigation
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -419,32 +399,21 @@ class _WelcomePageState extends State<WelcomePage>
 
     try {
       // Sign in with hardcoded tester credentials
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: 'devtester@example.com',
-        password: 'devpassword123',
-      );
+      final userCredential = await GoogleSignInService.signInWithEmailPassword(
+          email: 'devtester@example.com', password: 'devpassword123');
 
       if (userCredential.user != null && mounted) {
         // Hide loading indicator
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         
-        // Check if user exists in Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
-
-        // Create user profile if it doesn't exist
-        if (!userDoc.exists) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userCredential.user!.uid)
-              .set({
-            'uid': userCredential.user!.uid,
-            'email': 'devtester@example.com',
-            'username': 'Tester',
-            'createdAt': Timestamp.now(),
-          });
+        final uid = userCredential.user!.uid;
+        final exists = await UserProfileService.userExists(uid);
+        if (!exists) {
+          await UserProfileService.createUserProfile(
+            uid: uid,
+            email: 'devtester@example.com',
+            username: 'Tester',
+          );
         }
 
         // Navigate to home page
@@ -506,7 +475,7 @@ class _WelcomePageState extends State<WelcomePage>
                     child: Row(
                       children: [
                         Image.asset(
-                          'lib/images/Logo.png',
+                          'assets/images/Logo.png',
                           height: 40,
                           width: 40,
                         ),
@@ -862,7 +831,7 @@ class _WelcomePageState extends State<WelcomePage>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Image.asset(
-                              'lib/images/google.png',
+                              'assets/images/google.png',
                               height: 22,
                               width: 22,
                             ),

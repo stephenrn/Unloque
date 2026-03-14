@@ -3,12 +3,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:data_table_2/data_table_2.dart';
 
 // Import the data model and other necessary classes
-import '../models/data_model.dart';
+import '../models/map_location.dart';
 import '../services/ai_insights_service.dart';
 import '../widgets/markdown_renderer.dart';
 
 class GeneralBottomSheet extends StatefulWidget {
-  final DataModel location;
+  final MapLocation location;
   final bool isDefaultView;
   final bool isExpanded;
   final double sheetHeight;

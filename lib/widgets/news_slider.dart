@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/web_viewer.dart';
-import '../pages/all_news_page.dart'; // Add this import
+import 'package:unloque/screens/safe_web_viewer_screen.dart';
+import 'package:unloque/services/news/news_service.dart';
+import 'package:unloque/models/news_item.dart';
+import '../screens/all_news_page.dart'; // Add this import
 
 
 class AutoImageSlider extends StatefulWidget {
@@ -13,7 +14,7 @@ class AutoImageSlider extends StatefulWidget {
 }
 
 class AutoImageSliderState extends State<AutoImageSlider> {
-  List<_NewsSliderItem> _newsItems = [];
+  List<NewsItem> _newsItems = [];
   bool _loading = true;
 
   @override
@@ -32,31 +33,7 @@ class AutoImageSliderState extends State<AutoImageSlider> {
       _loading = true;
     });
 
-    final List<_NewsSliderItem> items = [];
-    final orgs =
-        await FirebaseFirestore.instance.collection('organizations').get();
-
-    for (final orgDoc in orgs.docs) {
-      final orgName = orgDoc.data()['name'] ?? 'Organization';
-      final orgLogoUrl =
-          orgDoc.data()['logoUrl'] ?? ''; // Fetch the organization logo URL
-      final newsSnap = await orgDoc.reference
-          .collection('news')
-          .orderBy('date', descending: true)
-          .get();
-      for (final newsDoc in newsSnap.docs) {
-        final news = newsDoc.data();
-        items.add(_NewsSliderItem(
-          headline: news['headline'] ?? '',
-          category: news['category'] ?? '',
-          date: news['date'] ?? '',
-          imageUrl: news['imageUrl'] ?? '',
-          newsUrl: news['newsUrl'] ?? '',
-          organizationName: orgName,
-          logoUrl: orgLogoUrl, // Pass the organization logo URL
-        ));
-      }
-    }
+    final items = await NewsService.fetchAllNews();
 
     setState(() {
       _newsItems = items;
@@ -165,28 +142,8 @@ class AutoImageSliderState extends State<AutoImageSlider> {
   }
 }
 
-class _NewsSliderItem {
-  final String headline;
-  final String category;
-  final String date;
-  final String imageUrl;
-  final String newsUrl;
-  final String organizationName;
-  final String logoUrl; // Add this field for organization logo
-
-  _NewsSliderItem({
-    required this.headline,
-    required this.category,
-    required this.date,
-    required this.imageUrl,
-    required this.newsUrl,
-    required this.organizationName,
-    this.logoUrl = '', // Default to empty string
-  });
-}
-
 class _NewsCard extends StatelessWidget {
-  final _NewsSliderItem item;
+  final NewsItem item;
 
   const _NewsCard({required this.item});
 
@@ -385,7 +342,7 @@ class _NewsCard extends StatelessWidget {
 }
 
 class NewsViewerDialog extends StatelessWidget {
-  final _NewsSliderItem item;
+  final NewsItem item;
 
   const NewsViewerDialog({Key? key, required this.item}) : super(key: key);
 

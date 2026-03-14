@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:unloque/models/organization_response_section.dart';
+import 'package:unloque/widgets/organization_response_sections.dart';
 
 class PreviewResponseProgramPage extends StatelessWidget {
-  final List<Map<String, dynamic>> responseSections;
+  final List<ResponseSection> responseSections;
   final Map<String, dynamic> application; // Add this parameter
 
   const PreviewResponseProgramPage({
@@ -119,7 +121,12 @@ class PreviewResponseProgramPage extends StatelessWidget {
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _renderSections(),
+                          children: [
+                            OrganizationResponseSections(
+                              sections: responseSections,
+                              underlineAllAttachments: true,
+                            ),
+                          ],
                         ),
                 ),
               ),
@@ -131,95 +138,5 @@ class PreviewResponseProgramPage extends StatelessWidget {
     );
   }
 
-  List<Widget> _renderSections() {
-    List<Widget> widgets = [];
-    for (int i = 0; i < responseSections.length; i++) {
-      final section = responseSections[i];
-      final type = section['type'];
-      final label = section['label'];
-      widgets.add(
-        Text(
-          label,
-          style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800]),
-        ),
-      );
-      widgets.add(SizedBox(height: 8));
-      if (type == 'paragraph') {
-        widgets.add(
-          Text(
-            section['content'] ?? '',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-        );
-      } else if (type == 'list') {
-        final items = List<String>.from(section['items'] ?? []);
-        for (var item in items) {
-          widgets.add(
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5, left: 4, right: 8),
-                    child: Icon(Icons.circle, size: 6, color: Colors.blue),
-                  ),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-      } else if (type == 'attachment') {
-        final files = List<Map<String, dynamic>>.from(section['files'] ?? []);
-        if (files.isEmpty) {
-          widgets.add(
-            Text(
-              'No attachments available',
-              style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic),
-            ),
-          );
-        } else {
-          for (var file in files) {
-            final fileName = file['name'] ?? 'Unnamed file';
-            widgets.add(
-              Row(
-                children: [
-                  Icon(Icons.insert_drive_file, size: 20, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      fileName,
-                      style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-        }
-      }
-      if (i < responseSections.length - 1) {
-        widgets.add(SizedBox(height: 16));
-        widgets.add(Divider(color: Colors.grey[300]));
-        widgets.add(SizedBox(height: 16));
-      }
-    }
-    return widgets;
-  }
+  
 }

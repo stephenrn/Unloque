@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:unloque/pages/application_form_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:unloque/data/available_applications_data.dart';
+import 'package:unloque/models/organization_response_section.dart';
+import 'package:unloque/screens/application_form_page.dart';
+import 'package:provider/provider.dart';
+import 'package:unloque/providers/available_applications_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'dart:io';
+import 'package:unloque/services/applications/user_application_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
 
 Color darkenColor(Color color, [double amount = 0.1]) {
   final hsl = HSLColor.fromColor(color);
@@ -59,8 +61,10 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
 
     try {
       // Fetch fresh data from Firebase
-      final fullDetails = await AvailableApplicationsData.getApplicationById(
-          widget.application['id']);
+      final fullDetails =
+          await context.read<AvailableApplicationsProvider>().getApplicationById(
+                widget.application['id'],
+              );
 
       // Debugging: Log the fetched data
       print('Fetched Application Details: $fullDetails');
@@ -424,7 +428,7 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
               padding: const EdgeInsets.all(16),
               child: ElevatedButton(
                 onPressed: () async {
-                  final user = FirebaseAuth.instance.currentUser;
+                  final user = AuthSessionService.currentUser();
                   if (user == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Please sign in to apply')),
@@ -433,14 +437,13 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
                   }
 
                   // Check if application already exists
-                  final applicationDoc = await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user.uid)
-                      .collection('users-application')
-                      .doc(_applicationDetails['id'])
-                      .get();
+                  final applicationId = _applicationDetails['id'].toString();
+                  final exists = await UserApplicationService.userApplicationExists(
+                    uid: user.uid,
+                    applicationId: applicationId,
+                  );
 
-                  if (applicationDoc.exists) {
+                  if (exists) {
                     // Show dialog if application already exists
                     showDialog(
                       context: context,
@@ -462,18 +465,11 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
                   }
 
                   // If application doesn't exist, proceed with adding it
-                  final applicationData = {
-                    'id': _applicationDetails['id'],
-                    'status': 'Ongoing',
-                    'createdAt': FieldValue.serverTimestamp(),
-                  };
-
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user.uid)
-                      .collection('users-application')
-                      .doc(_applicationDetails['id'])
-                      .set(applicationData);
+                  await UserApplicationService.createUserApplication(
+                    uid: user.uid,
+                    applicationId: applicationId,
+                    status: 'Ongoing',
+                  );
 
                   Navigator.push(
                     context,
@@ -527,19 +523,18 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
 
     // If detailSections are found, render them
     if (detailSections != null && detailSections.isNotEmpty) {
-      for (int i = 0; i < detailSections.length; i++) {
-        final section = detailSections[i];
-        if (section == null) continue;
+      final typedSections = detailSections
+          .whereType<Map>()
+          .map((m) => ResponseSection.fromMap(Map<String, dynamic>.from(m)))
+          .toList(growable: false);
 
-        final sectionType = section['type'] as String?;
-        final sectionLabel = section['label'] as String?;
-
-        if (sectionType == null || sectionLabel == null) continue;
+      for (int i = 0; i < typedSections.length; i++) {
+        final section = typedSections[i];
 
         // Add section header
         sections.add(
           Text(
-            sectionLabel,
+            section.label,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -550,19 +545,20 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
         sections.add(SizedBox(height: 8));
 
         // Render content based on section type
-        if (sectionType == 'paragraph') {
+        if (section is ParagraphResponseSection) {
           sections.add(
             Text(
-              section['content'] ?? 'No content available',
+              section.content.isNotEmpty
+                  ? section.content
+                  : 'No content available',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
               ),
             ),
           );
-        } else if (sectionType == 'list') {
-          final items = section['items'] as List<dynamic>? ?? [];
-          for (var item in items) {
+        } else if (section is ListResponseSection) {
+          for (var item in section.items) {
             sections.add(
               Padding(
                 padding: const EdgeInsets.only(bottom: 2),
@@ -575,7 +571,7 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
                     ),
                     Expanded(
                       child: Text(
-                        item.toString(),
+                        item,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -587,9 +583,8 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
               ),
             );
           }
-        } else if (sectionType == 'attachment') {
-          final files = section['files'] as List<dynamic>? ?? [];
-          if (files.isEmpty) {
+        } else if (section is AttachmentResponseSection) {
+          if (section.files.isEmpty) {
             sections.add(
               Text(
                 'No attachments available',
@@ -601,87 +596,84 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
               ),
             );
           } else {
-            for (var fileData in files) {
-              if (fileData is Map<String, dynamic>) {
-                final fileName = fileData['name'] ?? 'Unnamed file';
-                final downloadUrl = fileData['downloadUrl'];
-                final isDownloading = _downloadingFiles[fileName] ?? false;
+            for (final fileData in section.files) {
+              final fileName = fileData.name;
+              final downloadUrl = fileData.downloadUrl;
+              final isDownloading = _downloadingFiles[fileName] ?? false;
 
-                sections.add(
-                  Container(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    margin: EdgeInsets.only(bottom: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.grey[300]!, width: 0.5),
-                    ),
-                    child: Row(
-                      children: [
-                        SizedBox(width: 12),
-                        if (isDownloading)
-                          Container(
-                            width: 24,
-                            height: 24,
-                            padding: EdgeInsets.all(4),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Icon(
-                            Icons.insert_drive_file,
-                            size: 20,
-                            color: Colors.blue,
-                          ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: downloadUrl != null
-                                ? () =>
-                                    _downloadAndOpenFile(downloadUrl, fileName)
-                                : null,
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text(
-                                fileName,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: downloadUrl != null
-                                      ? Colors.blue
-                                      : Colors.grey,
-                                  decoration: downloadUrl != null
-                                      ? TextDecoration.underline
-                                      : null,
-                                ),
+              sections.add(
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  margin: EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey[300]!, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 12),
+                      if (isDownloading)
+                        Container(
+                          width: 24,
+                          height: 24,
+                          padding: EdgeInsets.all(4),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(
+                          Icons.insert_drive_file,
+                          size: 20,
+                          color: Colors.blue,
+                        ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: (downloadUrl != null &&
+                                  downloadUrl.toString().isNotEmpty)
+                              ? () => _downloadAndOpenFile(downloadUrl, fileName)
+                              : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              fileName,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: downloadUrl != null
+                                    ? Colors.blue
+                                    : Colors.grey,
+                                decoration: downloadUrl != null
+                                    ? TextDecoration.underline
+                                    : null,
                               ),
                             ),
                           ),
                         ),
-                        if (downloadUrl != null)
-                          Tooltip(
-                            message: 'View File',
-                            child: IconButton(
-                              icon: Icon(Icons.visibility, size: 18),
-                              onPressed: () =>
-                                  _downloadAndOpenFile(downloadUrl, fileName),
-                              constraints:
-                                  BoxConstraints(minWidth: 32, minHeight: 32),
-                              padding: EdgeInsets.zero,
-                              color: Colors.blue,
-                            ),
+                      ),
+                      if (downloadUrl != null)
+                        Tooltip(
+                          message: 'View File',
+                          child: IconButton(
+                            icon: Icon(Icons.visibility, size: 18),
+                            onPressed: () =>
+                                _downloadAndOpenFile(downloadUrl, fileName),
+                            constraints:
+                                BoxConstraints(minWidth: 32, minHeight: 32),
+                            padding: EdgeInsets.zero,
+                            color: Colors.blue,
                           ),
-                        SizedBox(width: 4),
-                      ],
-                    ),
+                        ),
+                      SizedBox(width: 4),
+                    ],
                   ),
-                );
-              }
+                ),
+              );
             }
           }
         }
 
         // Add divider except after the last section
-        if (i < detailSections.length - 1) {
+        if (i < typedSections.length - 1) {
           sections.add(SizedBox(height: 16));
           sections.add(Divider(color: Colors.grey[300]));
           sections.add(SizedBox(height: 16));

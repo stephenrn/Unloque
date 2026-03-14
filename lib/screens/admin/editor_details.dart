@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'preview_details_program_page.dart';
+import 'package:unloque/services/storage/firebase_storage_file_service.dart';
+import 'package:unloque/models/organization_response_section.dart';
 
 class DetailsEditorTab extends StatefulWidget {
   final String organizationId;
   final String programId;
-  final List<Map<String, dynamic>> detailSections;
-  final Function(List<Map<String, dynamic>>) updateDetailSections;
+  final List<ResponseSection> detailSections;
+  final ValueChanged<List<ResponseSection>> updateDetailSections;
   final bool isLoading;
 
   DetailsEditorTab({
@@ -31,9 +32,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   int _nextDetailId = 0;
   final List<String> _detailTypes = ['paragraph', 'list', 'attachment'];
 
-  // Add a map to store controllers for each list item
-  final Map<String, TextEditingController> _listItemControllers = {};
-
   // Add a map to store controllers for paragraphs and list items to avoid recreation
   final Map<String, TextEditingController> _contentControllers = {};
 
@@ -42,9 +40,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   String _uploadProgressMessage = '';
   int _totalFilesToUpload = 0;
   int _currentFileUploading = 0;
-
-  // Add a map to track pending file uploads that haven't been saved to Firebase yet
-  final Map<String, List<Map<String, dynamic>>> _pendingFileUploads = {};
 
   @override
   void initState() {
@@ -56,17 +51,14 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   // Initialize controllers for existing content
   void _initControllers() {
     for (var section in widget.detailSections) {
-      if (section['type'] == 'paragraph' && section['content'] != null) {
-        final String key = 'paragraph_${section['id']}';
-        _contentControllers[key] =
-            TextEditingController(text: section['content']);
-      }
-      if (section['type'] == 'list' && section['items'] != null) {
-        final items = section['items'] as List<dynamic>;
-        for (int i = 0; i < items.length; i++) {
-          final String key = 'list_${section['id']}_$i';
+      if (section is ParagraphResponseSection) {
+        final String key = 'paragraph_${section.id}';
+        _contentControllers[key] = TextEditingController(text: section.content);
+      } else if (section is ListResponseSection) {
+        for (int i = 0; i < section.items.length; i++) {
+          final String key = 'list_${section.id}_$i';
           _contentControllers[key] =
-              TextEditingController(text: items[i].toString());
+              TextEditingController(text: section.items[i].toString());
         }
       }
     }
@@ -74,12 +66,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
   @override
   void dispose() {
-    // Dispose all list item controllers
-    for (var controller in _listItemControllers.values) {
-      controller.dispose();
-    }
-    _listItemControllers.clear();
-
     // Dispose all controllers
     for (var controller in _contentControllers.values) {
       controller.dispose();
@@ -96,34 +82,37 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   void _initNextDetailId() {
     int highestId = 0;
     for (var section in widget.detailSections) {
-      if (section['id'] != null &&
-          section['id'] is int &&
-          section['id'] > highestId) {
-        highestId = section['id'];
+      final parsed = int.tryParse(section.id);
+      if (parsed != null && parsed > highestId) {
+        highestId = parsed;
       }
     }
     _nextDetailId = highestId + 1;
   }
 
   void _addDetailSection(String type) {
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
-    Map<String, dynamic> newSection = {
-      'id': _nextDetailId++,
-      'type': type,
-      'label': 'New Section',
-    };
+    final id = (_nextDetailId++).toString();
+    const label = 'New Section';
 
-    // Add type-specific fields
+    final ResponseSection newSection;
     if (type == 'paragraph') {
-      newSection['content'] = '';
+      newSection = ParagraphResponseSection(id: id, label: label, content: '');
     } else if (type == 'list') {
-      newSection['items'] = ['Enter an item'];
-    } else if (type == 'attachment') {
-      newSection['files'] = [];
+      newSection = ListResponseSection(
+        id: id,
+        label: label,
+        items: const ['Enter an item'],
+      );
+    } else {
+      newSection = AttachmentResponseSection(
+        id: id,
+        label: label,
+        files: const <ResponseAttachmentFile>[],
+      );
     }
 
-    updatedSections.add(newSection);
+    final updatedSections = List<ResponseSection>.from(widget.detailSections)
+      ..add(newSection);
     widget.updateDetailSections(updatedSections);
   }
 
@@ -132,15 +121,12 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
     final section = widget.detailSections[index];
 
     // Check if this is an attachment section
-    if (section['type'] == 'attachment') {
-      final files = section['files'] as List<dynamic>? ?? [];
-
-      // Count how many files are actually stored in Firebase (have downloadUrl)
-      final firebaseFiles = files
-          .where((file) =>
-              file['downloadUrl'] != null &&
-              file['downloadUrl'].toString().isNotEmpty)
-          .toList();
+    if (section is AttachmentResponseSection) {
+      final firebaseFiles = section.files
+        .where((file) =>
+          file.downloadUrl != null &&
+          file.downloadUrl.toString().isNotEmpty)
+        .toList(growable: false);
 
       // If there are Firebase files, show a confirmation dialog
       if (firebaseFiles.isNotEmpty) {
@@ -175,13 +161,14 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
         try {
           // Only delete files that have a downloadUrl (stored in Firebase)
           for (var fileData in firebaseFiles) {
-            final downloadUrl = fileData['downloadUrl'];
+            final downloadUrl = fileData.downloadUrl;
+            if (downloadUrl == null) continue;
             try {
               await _deleteFile(downloadUrl);
-              print('Deleted file from Firebase: ${fileData['name']}');
+              print('Deleted file from Firebase: ${fileData.name}');
             } catch (e) {
               print(
-                  'Failed to delete file from Firebase: ${fileData['name']} - $e');
+                  'Failed to delete file from Firebase: ${fileData.name} - $e');
             }
           }
         } finally {
@@ -195,40 +182,33 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
     // Proceed with removing the section from state
     // (this will remove any local files that weren't saved to Firebase)
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
-    updatedSections.removeAt(index);
+    final updatedSections = List<ResponseSection>.from(widget.detailSections)
+      ..removeAt(index);
     widget.updateDetailSections(updatedSections);
   }
 
-  void _updateDetailSection(int index, Map<String, dynamic> newData) {
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
-    updatedSections[index] = {
-      ...updatedSections[index],
-      ...newData,
-    };
+  void _updateDetailSection(int index, ResponseSection newSection) {
+    final updatedSections = List<ResponseSection>.from(widget.detailSections);
+    updatedSections[index] = newSection;
     widget.updateDetailSections(updatedSections);
   }
 
   void _addListItem(int sectionIndex) {
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
-    List<String> items =
-        List<String>.from(updatedSections[sectionIndex]['items'] as List);
-    items.add('Enter an item');
-    updatedSections[sectionIndex]['items'] = items;
-    widget.updateDetailSections(updatedSections);
+    final section = widget.detailSections[sectionIndex];
+    if (section is! ListResponseSection) return;
+
+    final items = List<String>.from(section.items)..add('Enter an item');
+    _updateDetailSection(sectionIndex, section.copyWith(items: items));
   }
 
   void _removeListItem(int sectionIndex, int itemIndex) {
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
-    List<String> items =
-        List<String>.from(updatedSections[sectionIndex]['items'] as List);
+    final section = widget.detailSections[sectionIndex];
+    if (section is! ListResponseSection) return;
+
+    final items = List<String>.from(section.items);
 
     // Remove the controller for the item being deleted
-    final key = 'list_${updatedSections[sectionIndex]['id']}_$itemIndex';
+    final key = 'list_${section.id}_$itemIndex';
     if (_contentControllers.containsKey(key)) {
       _contentControllers[key]?.dispose();
       _contentControllers.remove(key);
@@ -236,12 +216,11 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
     // Remove the item
     items.removeAt(itemIndex);
-    updatedSections[sectionIndex]['items'] = items;
 
     // Update controllers for all subsequent items (they shift down)
     for (int i = itemIndex; i < items.length; i++) {
-      final oldKey = 'list_${updatedSections[sectionIndex]['id']}_${i + 1}';
-      final newKey = 'list_${updatedSections[sectionIndex]['id']}_$i';
+      final oldKey = 'list_${section.id}_${i + 1}';
+      final newKey = 'list_${section.id}_$i';
 
       if (_contentControllers.containsKey(oldKey)) {
         _contentControllers[newKey] = _contentControllers[oldKey]!;
@@ -249,17 +228,18 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
       }
     }
 
-    widget.updateDetailSections(updatedSections);
+    _updateDetailSection(sectionIndex, section.copyWith(items: items));
   }
 
   void _updateListItem(int sectionIndex, int itemIndex, String newText) {
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
-    List<String> items =
-        List<String>.from(updatedSections[sectionIndex]['items'] as List);
+    final section = widget.detailSections[sectionIndex];
+    if (section is! ListResponseSection) return;
+
+    final items = List<String>.from(section.items);
+    if (itemIndex < 0 || itemIndex >= items.length) return;
+
     items[itemIndex] = newText;
-    updatedSections[sectionIndex]['items'] = items;
-    widget.updateDetailSections(updatedSections);
+    _updateDetailSection(sectionIndex, section.copyWith(items: items));
   }
 
   // Method to upload file to Firebase Storage
@@ -269,63 +249,27 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
       final uniqueFileName =
           '${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
-      // Reference to the storage location
-      final storageRef = FirebaseStorage.instance.ref().child(
-          'organizations/${widget.organizationId}/programs/${widget.programId}/details/$sectionId/$uniqueFileName');
-
-        // Set metadata for the file
-        final metadata = SettableMetadata(contentType: _getContentType(fileName));
-
-      // Start upload
-        final uploadTask = storageRef.putFile(file, metadata);
-
-      // Monitor upload progress
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        final progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setState(() {
-          _uploadProgressMessage = 'Uploading: ${progress.toStringAsFixed(1)}%';
-        });
-      });
-
-      // Wait for upload to complete
-      final snapshot = await uploadTask;
-
-      // Get download URL
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
+      return await FirebaseStorageFileService.uploadFile(
+        storagePath:
+            'organizations/${widget.organizationId}/programs/${widget.programId}/details/$sectionId/$uniqueFileName',
+        file: file,
+        onProgress: (percent) {
+          setState(() {
+            _uploadProgressMessage =
+                'Uploading: ${percent.toStringAsFixed(1)}%';
+          });
+        },
+      );
     } catch (e) {
       print('Error uploading file: $e');
       return null;
     }
   }
 
-  // Helper method to determine content type
-  String _getContentType(String fileName) {
-    final ext = path.extension(fileName).toLowerCase();
-    switch (ext) {
-      case '.pdf':
-        return 'application/pdf';
-      case '.doc':
-        return 'application/msword';
-      case '.docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case '.jpg':
-      case '.jpeg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
   // Method to delete a file from Firebase Storage
   Future<void> _deleteFile(String downloadUrl) async {
     try {
-      // Get reference from URL and delete
-      final ref = FirebaseStorage.instance.refFromURL(downloadUrl);
-      await ref.delete();
+      await FirebaseStorageFileService.deleteByDownloadUrl(downloadUrl);
     } catch (e) {
       print('Error deleting file from storage: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -336,12 +280,12 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
   void _showEditDetailDialog(int index) {
     final section = widget.detailSections[index];
-    final labelController = TextEditingController(text: section['label']);
-    String selectedType = section['type'];
+    final labelController = TextEditingController(text: section.label);
+    final String selectedType = responseSectionTypeToString(section.type);
 
     // For paragraph type
     final contentController = TextEditingController(
-        text: section['type'] == 'paragraph' ? section['content'] : '');
+      text: section is ParagraphResponseSection ? section.content : '');
 
     showDialog(
       context: context,
@@ -440,13 +384,22 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          Map<String, dynamic> updatedData = {
-                            'label': labelController.text,
-                          };
-                          if (selectedType == 'paragraph') {
-                            updatedData['content'] = contentController.text;
+                          final updatedLabel = labelController.text;
+
+                          if (section is ParagraphResponseSection) {
+                            _updateDetailSection(
+                              index,
+                              section.copyWith(
+                                label: updatedLabel,
+                                content: contentController.text,
+                              ),
+                            );
+                          } else {
+                            _updateDetailSection(
+                              index,
+                              section.copyWith(label: updatedLabel),
+                            );
                           }
-                          _updateDetailSection(index, updatedData);
                           Navigator.of(context).pop();
                         },
                         child: Text('Save'),
@@ -545,8 +498,8 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   void _moveDetailSectionUp(int index) {
     if (index <= 0) return; // Can't move up if it's the first item
 
-    List<Map<String, dynamic>> updatedSections =
-        List.from(widget.detailSections);
+    List<ResponseSection> updatedSections =
+      List.from(widget.detailSections);
     final temp = updatedSections[index];
     updatedSections[index] = updatedSections[index - 1];
     updatedSections[index - 1] = temp;
@@ -558,7 +511,7 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
     if (index >= widget.detailSections.length - 1)
       return; // Can't move down if it's the last item
 
-    List<Map<String, dynamic>> updatedSections =
+    List<ResponseSection> updatedSections =
         List.from(widget.detailSections);
     final temp = updatedSections[index];
     updatedSections[index] = updatedSections[index + 1];
@@ -589,7 +542,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                         builder: (context) => PreviewProgramDetailsPage(
                           organizationId: widget.organizationId,
                           programId: widget.programId,
-                          detailSections: widget.detailSections,
                         ),
                       ),
                     );
@@ -688,9 +640,9 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   }
 
   // Build a detail section card
-  Widget _buildDetailSectionCard(int index, Map<String, dynamic> section) {
-    final type = section['type'] as String;
-    final label = section['label'] as String;
+  Widget _buildDetailSectionCard(int index, ResponseSection section) {
+    final type = responseSectionTypeToString(section.type);
+    final label = section.label;
 
     // Determine if this is the first or last item to disable buttons
     final isFirstItem = index == 0;
@@ -819,27 +771,28 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   }
 
   // Build content for a section based on its type
-  Widget _buildSectionContent(int index, Map<String, dynamic> section) {
-    switch (section['type']) {
-      case 'paragraph':
-        return _buildParagraphContent(index, section);
-      case 'list':
-        return _buildListContent(index, section);
-      case 'attachment':
-        return _buildAttachmentContent(index, section);
-      default:
-        return Text('Unknown section type');
+  Widget _buildSectionContent(int index, ResponseSection section) {
+    if (section is ParagraphResponseSection) {
+      return _buildParagraphContent(index, section);
     }
+    if (section is ListResponseSection) {
+      return _buildListContent(index, section);
+    }
+    if (section is AttachmentResponseSection) {
+      return _buildAttachmentContent(index, section);
+    }
+
+    return const Text('Unknown section type');
   }
 
   // Build paragraph type content
-  Widget _buildParagraphContent(int index, Map<String, dynamic> section) {
-    final String key = 'paragraph_${section['id']}';
+  Widget _buildParagraphContent(int index, ParagraphResponseSection section) {
+    final String key = 'paragraph_${section.id}';
 
     // Create controller if it doesn't exist
     if (!_contentControllers.containsKey(key)) {
       _contentControllers[key] =
-          TextEditingController(text: section['content'] ?? '');
+          TextEditingController(text: section.content);
     }
 
     return TextField(
@@ -850,16 +803,14 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
       ),
       controller: _contentControllers[key],
       onChanged: (value) {
-        _updateDetailSection(index, {'content': value});
+        _updateDetailSection(index, section.copyWith(content: value));
       },
     );
   }
 
   // Build list type content
-  Widget _buildListContent(int index, Map<String, dynamic> section) {
-    // Fix the type casting issue by properly converting dynamic list to string list
-    final rawItems = section['items'] as List<dynamic>? ?? [];
-    final items = rawItems.map((item) => item.toString()).toList();
+  Widget _buildListContent(int index, ListResponseSection section) {
+    final items = section.items;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -869,20 +820,7 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
           final item = entry.value;
 
           // Create a unique key for this list item
-          final String controllerKey =
-              'section_${section['id']}_item_$itemIndex';
-
-          // Create or reuse controller for this item
-          if (!_listItemControllers.containsKey(controllerKey)) {
-            _listItemControllers[controllerKey] =
-                TextEditingController(text: item);
-          } else if (_listItemControllers[controllerKey]!.text != item) {
-            // Update controller text if it's different (without triggering rebuild)
-            _listItemControllers[controllerKey]!.text = item;
-          }
-
-          // Create a unique key for this list item
-          final String key = 'list_${section['id']}_$itemIndex';
+          final String key = 'list_${section.id}_$itemIndex';
 
           // Create controller if it doesn't exist
           if (!_contentControllers.containsKey(key)) {
@@ -929,11 +867,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
         TextButton.icon(
           onPressed: () {
             _addListItem(index);
-            // Make sure to create a controller for the new item
-            final newIndex = (section['items'] as List).length - 1;
-            final key = 'list_${section['id']}_$newIndex';
-            _contentControllers[key] =
-                TextEditingController(text: 'Enter an item');
           },
           icon: Icon(Icons.add, size: 16),
           label: Text('Add Item'),
@@ -948,12 +881,9 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   }
 
   // Build attachment type content
-  Widget _buildAttachmentContent(int index, Map<String, dynamic> section) {
-    final files = section['files'] as List<dynamic>? ?? [];
-    final sectionId = section['id'].toString();
-
-    // Initialize pending uploads list for this section if needed
-    _pendingFileUploads.putIfAbsent(sectionId, () => []);
+  Widget _buildAttachmentContent(
+      int index, AttachmentResponseSection section) {
+    final files = section.files;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,14 +904,7 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                       await FilePicker.platform.pickFiles(allowMultiple: true);
 
                   if (result != null && result.files.isNotEmpty) {
-                    // Create a copy of the current section
-                    List<Map<String, dynamic>> updatedSections =
-                        List.from(widget.detailSections);
-
-                    // Initialize files array if needed
-                    if (updatedSections[index]['files'] == null) {
-                      updatedSections[index]['files'] = [];
-                    }
+                    var updatedSection = section;
 
                     // Process selected files
                     for (var pickedFile in result.files) {
@@ -990,23 +913,22 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                       final fileName = pickedFile.name;
                       final filePath = pickedFile.path!;
 
-                      // Store file in pendingUploads
-                      _pendingFileUploads[sectionId]!.add({
-                        'name': fileName,
-                        'path': filePath,
-                        'sectionId': sectionId,
-                      });
-
-                      // Add a placeholder entry to the UI
-                      (updatedSections[index]['files'] as List).add({
-                        'name': fileName,
-                        'path': filePath,
-                        'isPending': true, // Mark as not uploaded yet
-                      });
+                      updatedSection = updatedSection.copyWith(
+                        files: List<ResponseAttachmentFile>.from(
+                          updatedSection.files,
+                        )
+                          ..add(
+                            ResponseAttachmentFile(
+                              name: fileName,
+                              localPath: filePath,
+                              isPending: true,
+                            ),
+                          ),
+                      );
                     }
 
                     // Update the UI
-                    widget.updateDetailSections(updatedSections);
+                    _updateDetailSection(index, updatedSection);
                   }
                 },
           icon: Icon(Icons.attach_file),
@@ -1030,10 +952,10 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
           SizedBox(height: 8),
           ...files.asMap().entries.map((entry) {
             final fileIndex = entry.key;
-            final fileData = Map<String, dynamic>.from(entry.value as Map);
-            final fileName = fileData['name'] ?? 'Unknown file';
-            final isPending = fileData['isPending'] == true;
-            final downloadUrl = fileData['downloadUrl'];
+            final fileData = entry.value;
+            final fileName = fileData.name;
+            final isPending = fileData.isPending;
+            final downloadUrl = fileData.downloadUrl;
             final isUploading = _uploadingFiles[fileName] ?? false;
 
             return Padding(
@@ -1088,30 +1010,19 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(),
                     onPressed: () async {
-                      // Remove from UI
-                      List<Map<String, dynamic>> updatedSections =
-                          List.from(widget.detailSections);
-                      (updatedSections[index]['files'] as List)
-                          .removeAt(fileIndex);
+                      final updatedFiles =
+                          List<ResponseAttachmentFile>.from(section.files)
+                            ..removeAt(fileIndex);
 
-                      // If it's a pending file, remove from pending uploads
-                      if (isPending) {
-                        // Find and remove from pending uploads
-                        final pendingFiles =
-                            _pendingFileUploads[sectionId] ?? [];
-                        for (int i = 0; i < pendingFiles.length; i++) {
-                          if (pendingFiles[i]['name'] == fileName) {
-                            pendingFiles.removeAt(i);
-                            break;
-                          }
-                        }
-                      }
                       // If already uploaded, delete from Firebase
-                      else if (downloadUrl != null) {
+                      if (!isPending && downloadUrl != null) {
                         await _deleteFile(downloadUrl);
                       }
 
-                      widget.updateDetailSections(updatedSections);
+                      _updateDetailSection(
+                        index,
+                        section.copyWith(files: updatedFiles),
+                      );
                     },
                   ),
                 ],
@@ -1125,44 +1036,46 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
   // Add a method to handle uploading of pending files
   Future<void> uploadPendingFiles() async {
-    // Count total pending files
-    int totalPending = 0;
-    _pendingFileUploads.forEach((sectionId, files) {
-      totalPending += files.length;
-    });
+    final pending = <({
+      int sectionIndex,
+      int fileIndex,
+      String sectionId,
+      ResponseAttachmentFile file,
+    })>[];
 
-    if (totalPending == 0) {
-      return; // Nothing to upload
+    for (int sectionIndex = 0;
+        sectionIndex < widget.detailSections.length;
+        sectionIndex++) {
+      final section = widget.detailSections[sectionIndex];
+      if (section is! AttachmentResponseSection) continue;
+
+      for (int fileIndex = 0; fileIndex < section.files.length; fileIndex++) {
+        final file = section.files[fileIndex];
+        if (!file.isPending) continue;
+        if ((file.localPath ?? '').isEmpty) continue;
+        pending.add((
+          sectionIndex: sectionIndex,
+          fileIndex: fileIndex,
+          sectionId: section.id,
+          file: file,
+        ));
+      }
     }
+
+    if (pending.isEmpty) return;
 
     setState(() {
       _isUploading = true;
-      _totalFilesToUpload = totalPending;
+      _totalFilesToUpload = pending.length;
       _currentFileUploading = 0;
       _uploadProgressMessage = 'Preparing files for upload...';
     });
 
     try {
-      // Process uploads section by section
-      for (var sectionId in _pendingFileUploads.keys) {
-        final sectionFiles = _pendingFileUploads[sectionId]!;
-        if (sectionFiles.isEmpty) continue;
-
-        // Find the section index
-        int? sectionIndex;
-        for (int i = 0; i < widget.detailSections.length; i++) {
-          if (widget.detailSections[i]['id'].toString() == sectionId) {
-            sectionIndex = i;
-            break;
-          }
-        }
-        if (sectionIndex == null) continue; // Section was deleted
-
-        // Upload each file
-        for (int i = 0; i < sectionFiles.length; i++) {
-          final fileData = sectionFiles[i];
-          final fileName = fileData['name'];
-          final filePath = fileData['path'];
+      for (final entry in pending) {
+        final fileName = entry.file.name;
+        final filePath = entry.file.localPath;
+        if (filePath == null) continue;
 
           setState(() {
             _currentFileUploading++;
@@ -1176,32 +1089,30 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
             final file = File(filePath);
 
             // Upload to Firebase Storage
-            final downloadUrl = await _uploadFile(file, 'section_$sectionId');
+            final downloadUrl =
+                await _uploadFile(file, 'section_${entry.sectionId}');
 
             if (downloadUrl != null) {
-              // Update the sections with the download URL
-              List<Map<String, dynamic>> updatedSections =
-                  List.from(widget.detailSections);
-              List<dynamic> files =
-                  List.from(updatedSections[sectionIndex]['files'] ?? []);
+              final section = widget.detailSections[entry.sectionIndex];
+              if (section is AttachmentResponseSection) {
+                final updatedFiles =
+                    List<ResponseAttachmentFile>.from(section.files);
+                if (entry.fileIndex >= 0 &&
+                    entry.fileIndex < updatedFiles.length) {
+                  updatedFiles[entry.fileIndex] =
+                      updatedFiles[entry.fileIndex].copyWith(
+                    downloadUrl: downloadUrl,
+                    uploadedAt: DateTime.now().toIso8601String(),
+                    isPending: false,
+                    localPath: null,
+                  );
 
-              // Find the pending file in the list and update it
-              for (int j = 0; j < files.length; j++) {
-                final currentFile = files[j] as Map<String, dynamic>;
-                if (currentFile['name'] == fileName &&
-                    currentFile['isPending'] == true) {
-                  files[j] = {
-                    'name': fileName,
-                    'downloadUrl': downloadUrl,
-                    'uploadedAt': DateTime.now().toIso8601String(),
-                    // Remove isPending and path properties
-                  };
-                  break;
+                  _updateDetailSection(
+                    entry.sectionIndex,
+                    section.copyWith(files: updatedFiles),
+                  );
                 }
               }
-
-              updatedSections[sectionIndex]['files'] = files;
-              widget.updateDetailSections(updatedSections);
             }
           } catch (e) {
             print('Error uploading file: $e');
@@ -1213,10 +1124,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
               _uploadingFiles[fileName] = false;
             });
           }
-        }
-
-        // Clear processed files
-        _pendingFileUploads[sectionId] = [];
       }
     } finally {
       setState(() {
@@ -1227,7 +1134,7 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
   // **IMPORTANT**: Change this method to use async/await directly
   // so it can be called from the parent component
-  Future<List<Map<String, dynamic>>> saveDetailSections() async {
+  Future<List<ResponseSection>> saveDetailSections() async {
     // First upload any pending files
     await uploadPendingFiles();
 
@@ -1280,53 +1187,24 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
   void didUpdateWidget(DetailsEditorTab oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Clean up controllers for items that no longer exist
-    final Set<String> currentKeys = {};
-
-    // Collect all current keys
-    for (var sectionIndex = 0;
-        sectionIndex < widget.detailSections.length;
-        sectionIndex++) {
-      final section = widget.detailSections[sectionIndex];
-      if (section['type'] == 'list' && section['items'] != null) {
-        final items = section['items'] as List;
-        for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-          final controllerKey = 'section_${section['id']}_item_$itemIndex';
-          currentKeys.add(controllerKey);
-        }
-      }
-    }
-
-    // Remove and dispose controllers that are no longer needed
-    final keysToRemove = _listItemControllers.keys
-        .where((key) => !currentKeys.contains(key))
-        .toList();
-    for (var key in keysToRemove) {
-      _listItemControllers[key]?.dispose();
-      _listItemControllers.remove(key);
-    }
-
     // Update controllers if needed
     for (var section in widget.detailSections) {
-      if (section['type'] == 'paragraph') {
-        final String key = 'paragraph_${section['id']}';
+      if (section is ParagraphResponseSection) {
+        final String key = 'paragraph_${section.id}';
         if (!_contentControllers.containsKey(key)) {
           _contentControllers[key] =
-              TextEditingController(text: section['content'] ?? '');
+              TextEditingController(text: section.content);
         }
-      }
-      if (section['type'] == 'list' && section['items'] != null) {
-        final items = section['items'] as List<dynamic>;
-        for (int i = 0; i < items.length; i++) {
-          final String key = 'list_${section['id']}_$i';
+      } else if (section is ListResponseSection) {
+        for (int i = 0; i < section.items.length; i++) {
+          final String key = 'list_${section.id}_$i';
+          final itemText = section.items[i].toString();
           if (!_contentControllers.containsKey(key)) {
-            _contentControllers[key] =
-                TextEditingController(text: items[i].toString());
+            _contentControllers[key] = TextEditingController(text: itemText);
           } else {
-            // Update controller if text has changed
             final controller = _contentControllers[key]!;
-            if (controller.text != items[i].toString()) {
-              controller.text = items[i].toString();
+            if (controller.text != itemText) {
+              controller.text = itemText;
             }
           }
         }
@@ -1343,13 +1221,11 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
 
     // Collect keys for all current content
     for (var section in widget.detailSections) {
-      if (section['type'] == 'paragraph') {
-        neededKeys.add('paragraph_${section['id']}');
-      }
-      if (section['type'] == 'list' && section['items'] != null) {
-        final items = section['items'] as List<dynamic>;
-        for (int i = 0; i < items.length; i++) {
-          neededKeys.add('list_${section['id']}_$i');
+      if (section is ParagraphResponseSection) {
+        neededKeys.add('paragraph_${section.id}');
+      } else if (section is ListResponseSection) {
+        for (int i = 0; i < section.items.length; i++) {
+          neededKeys.add('list_${section.id}_$i');
         }
       }
     }

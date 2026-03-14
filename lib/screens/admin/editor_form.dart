@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'preview_forms_program_page.dart'; // Add this import
+import 'package:unloque/models/program_form_field.dart';
 
 class FormEditorTab extends StatefulWidget {
-  final List<Map<String, dynamic>> formFields;
-  final Function(List<Map<String, dynamic>>) updateFormFields;
+  final List<ProgramFormField> formFields;
+  final ValueChanged<List<ProgramFormField>> updateFormFields;
   final bool isLoading;
   final String organizationId; // Add this property
   final String programId; // Add this property
@@ -64,10 +65,9 @@ class _FormEditorTabState extends State<FormEditorTab> {
   void _initNextFormId() {
     int highestId = 0;
     for (var field in widget.formFields) {
-      if (field['id'] != null &&
-          field['id'] is int &&
-          field['id'] > highestId) {
-        highestId = field['id'];
+      final parsedId = int.tryParse(field.id);
+      if (parsedId != null && parsedId > highestId) {
+        highestId = parsedId;
       }
     }
     _nextFormId = highestId + 1;
@@ -141,35 +141,33 @@ class _FormEditorTabState extends State<FormEditorTab> {
 
   // Modified to accept field type parameter
   void _addFormField(String fieldType) {
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
-    Map<String, dynamic> newField = {
-      'id': _nextFormId++,
-      'type': fieldType,
-      'label': 'New Field',
-      'required': true,
-    };
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
+    final type = programFormFieldTypeFromString(fieldType);
 
-    // Add type-specific defaults
-    if (fieldType == 'multiple_choice' || fieldType == 'checkbox') {
-      newField['options'] = ['Option 1', 'Option 2', 'Option 3'];
-    }
+    final newField = ProgramFormField(
+      id: (_nextFormId++).toString(),
+      type: type,
+      label: 'New Field',
+      required: true,
+      options: (type == ProgramFormFieldType.multipleChoice ||
+              type == ProgramFormFieldType.checkbox)
+          ? const ['Option 1', 'Option 2', 'Option 3']
+          : const <String>[],
+    );
 
     updatedFields.add(newField);
     widget.updateFormFields(updatedFields);
   }
 
   void _removeFormField(int index) {
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
     updatedFields.removeAt(index);
     widget.updateFormFields(updatedFields);
   }
 
-  void _updateFormField(int index, Map<String, dynamic> newData) {
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
-    updatedFields[index] = {
-      ...updatedFields[index],
-      ...newData,
-    };
+  void _updateFormField(int index, ProgramFormField updatedField) {
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
+    updatedFields[index] = updatedField;
     widget.updateFormFields(updatedFields);
   }
 
@@ -187,16 +185,16 @@ class _FormEditorTabState extends State<FormEditorTab> {
   // Modified dialog method that uses persistent controllers
   void _showEditFieldDialog(int index) {
     final field = widget.formFields[index];
-    final fieldId = field['id'] ?? index.toString();
+    final fieldId = field.id.isNotEmpty ? field.id : index.toString();
 
     // Use persistent controllers instead of local ones
     final labelController =
-        _getOrCreateController('label_$fieldId', field['label'] ?? '');
+      _getOrCreateController('label_$fieldId', field.label);
 
     // Remove placeholderController since it's no longer needed
 
-    String selectedType = field['type'];
-    bool isRequired = field['required'] ?? true;
+    String selectedType = programFormFieldTypeToString(field.type);
+    bool isRequired = field.required;
 
     showDialog(
       context: context,
@@ -316,27 +314,21 @@ class _FormEditorTabState extends State<FormEditorTab> {
                       ElevatedButton(
                         onPressed: () {
                           // Update the form field (but preserve options if they exist)
-                          Map<String, dynamic> updatedField = {
-                            ...widget.formFields[index],
-                            'type': selectedType,
-                            'label': labelController.text,
-                            'required': isRequired,
-                            // Removed placeholder property
-                          };
+                          var updatedField = widget.formFields[index].copyWith(
+                            type: programFormFieldTypeFromString(selectedType),
+                            label: labelController.text,
+                            required: isRequired,
+                          );
 
                           // Remove placeholder handling for short_answer and paragraph types
 
                           // If changing to multiple_choice or checkbox and no options exist, add defaults
                           if ((selectedType == 'multiple_choice' ||
                                   selectedType == 'checkbox') &&
-                              (!updatedField.containsKey('options') ||
-                                  (updatedField['options'] as List?)?.isEmpty ==
-                                      true)) {
-                            updatedField['options'] = [
-                              'Option 1',
-                              'Option 2',
-                              'Option 3'
-                            ];
+                              updatedField.options.isEmpty) {
+                            updatedField = updatedField.copyWith(
+                              options: const ['Option 1', 'Option 2', 'Option 3'],
+                            );
                           }
 
                           _updateFormField(index, updatedField);
@@ -359,7 +351,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
   void _moveFormFieldUp(int index) {
     if (index <= 0) return; // Can't move up if it's the first item
 
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
     final temp = updatedFields[index];
     updatedFields[index] = updatedFields[index - 1];
     updatedFields[index - 1] = temp;
@@ -371,7 +363,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
     if (index >= widget.formFields.length - 1)
       return; // Can't move down if it's the last item
 
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
     final temp = updatedFields[index];
     updatedFields[index] = updatedFields[index + 1];
     updatedFields[index + 1] = temp;
@@ -487,10 +479,10 @@ class _FormEditorTabState extends State<FormEditorTab> {
   }
 
   // Build a form field card with inline option editing
-  Widget _buildFormFieldCard(int index, Map<String, dynamic> field) {
-    final type = field['type'] as String;
-    final label = field['label'] as String;
-    final isRequired = field['required'] ?? true;
+  Widget _buildFormFieldCard(int index, ProgramFormField field) {
+    final type = programFormFieldTypeToString(field.type);
+    final label = field.label;
+    final isRequired = field.required;
 
     // Determine if this is the first or last item to disable buttons
     final isFirstItem = index == 0;
@@ -644,16 +636,17 @@ class _FormEditorTabState extends State<FormEditorTab> {
           // Field content/preview with inline editing for options
           Padding(
             padding: const EdgeInsets.all(16),
-            child: _buildFieldContent(index, field),
+            child: _buildFieldContentTyped(index, field),
           ),
         ],
       ),
     );
   }
 
-  // Helper method to build field content based on type
-  Widget _buildFieldContent(int index, Map<String, dynamic> field) {
-    final type = field['type'] as String;
+  // Typed overload used by _buildFormFieldCard
+  Widget _buildFieldContentTyped(int index, ProgramFormField field) {
+    final type = programFormFieldTypeToString(field.type);
+    final stableFieldId = field.id.isNotEmpty ? field.id : index.toString();
 
     switch (type) {
       case 'short_answer':
@@ -675,25 +668,21 @@ class _FormEditorTabState extends State<FormEditorTab> {
 
       case 'multiple_choice':
       case 'checkbox':
-        // Inline option editing for multiple choice and checkbox
-        List<dynamic> options = field['options'] as List<dynamic>? ?? [''];
+        final options = field.options.isEmpty ? const [''] : field.options;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ...options.asMap().entries.map((entry) {
               final optionIndex = entry.key;
-              final option = entry.value.toString();
+              final option = entry.value;
+              final controllerKey =
+                  'field_${stableFieldId}_option_$optionIndex';
 
-              // Create a unique key for this option's controller
-              final controllerKey = 'field_${field['id']}_option_$optionIndex';
-
-              // Create or reuse controller
               if (!_optionControllers.containsKey(controllerKey)) {
                 _optionControllers[controllerKey] =
                     TextEditingController(text: option);
               } else if (_optionControllers[controllerKey]!.text != option) {
-                // Update controller text if different
                 _optionControllers[controllerKey]!.text = option;
               }
 
@@ -702,7 +691,6 @@ class _FormEditorTabState extends State<FormEditorTab> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Show correct icon based on field type
                     Icon(
                       type == 'multiple_choice'
                           ? Icons.radio_button_unchecked
@@ -736,8 +724,6 @@ class _FormEditorTabState extends State<FormEditorTab> {
                 ),
               );
             }).toList(),
-
-            // Add option button
             TextButton.icon(
               onPressed: () => _addOption(index),
               icon: Icon(Icons.add, size: 16),
@@ -794,62 +780,51 @@ class _FormEditorTabState extends State<FormEditorTab> {
             ),
           ],
         );
-
-      default:
-        return Text('');
     }
+
+    return Text('');
   }
 
   // Method to update an option's text
   void _updateOptionText(int fieldIndex, int optionIndex, String newText) {
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
+    final field = updatedFields[fieldIndex];
 
-    if (updatedFields[fieldIndex]['options'] == null) {
-      updatedFields[fieldIndex]['options'] = [];
-    }
+    final options = List<String>.from(field.options);
+    if (optionIndex >= options.length) return;
 
-    List<dynamic> options = List.from(updatedFields[fieldIndex]['options']);
-
-    if (optionIndex < options.length) {
-      options[optionIndex] = newText;
-      updatedFields[fieldIndex]['options'] = options;
-      widget.updateFormFields(updatedFields);
-    }
+    options[optionIndex] = newText;
+    updatedFields[fieldIndex] = field.copyWith(options: options);
+    widget.updateFormFields(updatedFields);
   }
 
   // Method to add a new option
   void _addOption(int fieldIndex) {
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
-
-    if (updatedFields[fieldIndex]['options'] == null) {
-      updatedFields[fieldIndex]['options'] = [];
-    }
-
-    List<dynamic> options = List.from(updatedFields[fieldIndex]['options']);
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
+    final field = updatedFields[fieldIndex];
+    final options = List<String>.from(field.options);
     options.add('');
-    updatedFields[fieldIndex]['options'] = options;
-
+    updatedFields[fieldIndex] = field.copyWith(options: options);
     widget.updateFormFields(updatedFields);
   }
 
   // Method to remove an option
   void _removeOption(int fieldIndex, int optionIndex) {
-    List<Map<String, dynamic>> updatedFields = List.from(widget.formFields);
-    List<dynamic> options = List.from(updatedFields[fieldIndex]['options']);
+    final updatedFields = List<ProgramFormField>.from(widget.formFields);
+    final field = updatedFields[fieldIndex];
+    final stableFieldId = field.id.isNotEmpty ? field.id : fieldIndex.toString();
+    final options = List<String>.from(field.options);
+    if (optionIndex >= options.length) return;
 
-    if (optionIndex < options.length) {
-      // Find and dispose the controller for this option
-      final controllerKey =
-          'field_${updatedFields[fieldIndex]['id']}_option_$optionIndex';
-      if (_optionControllers.containsKey(controllerKey)) {
-        _optionControllers[controllerKey]?.dispose();
-        _optionControllers.remove(controllerKey);
-      }
-
-      options.removeAt(optionIndex);
-      updatedFields[fieldIndex]['options'] = options;
-      widget.updateFormFields(updatedFields);
+    final controllerKey = 'field_${stableFieldId}_option_$optionIndex';
+    if (_optionControllers.containsKey(controllerKey)) {
+      _optionControllers[controllerKey]?.dispose();
+      _optionControllers.remove(controllerKey);
     }
+
+    options.removeAt(optionIndex);
+    updatedFields[fieldIndex] = field.copyWith(options: options);
+    widget.updateFormFields(updatedFields);
   }
 
   // Clean up controllers for removed field IDs in didUpdateWidget
@@ -865,11 +840,14 @@ class _FormEditorTabState extends State<FormEditorTab> {
         fieldIndex < widget.formFields.length;
         fieldIndex++) {
       final field = widget.formFields[fieldIndex];
-      if ((field['type'] == 'multiple_choice' || field['type'] == 'checkbox') &&
-          field['options'] != null) {
-        final options = field['options'] as List;
-        for (var optionIndex = 0; optionIndex < options.length; optionIndex++) {
-          final controllerKey = 'field_${field['id']}_option_$optionIndex';
+      final stableFieldId =
+          field.id.isNotEmpty ? field.id : fieldIndex.toString();
+
+      if (field.supportsOptions) {
+        for (var optionIndex = 0;
+            optionIndex < field.options.length;
+            optionIndex++) {
+          final controllerKey = 'field_${stableFieldId}_option_$optionIndex';
           currentKeys.add(controllerKey);
         }
       }
@@ -887,7 +865,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
 
     // Clean up controllers for fields that no longer exist
     final existingFieldIds =
-        widget.formFields.map((f) => f['id']?.toString() ?? '').toSet();
+      widget.formFields.map((f) => f.id).toSet();
 
     final keysToRemoveDialog = _dialogControllers.keys.where((key) {
       // Extract the ID part from the controller key (format: type_id)

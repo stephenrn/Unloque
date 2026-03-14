@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert'; // For HTML escaping and Unicode handling
+import 'package:unloque/utils/markdown_content_parser.dart';
 
 class MarkdownRenderer extends StatelessWidget {
   final String data;
@@ -73,7 +74,7 @@ class MarkdownRenderer extends StatelessWidget {
     }
 
     // Parse the content to identify tables and text blocks
-    final segments = _parseContent(data);
+    final segments = MarkdownContentParser.parse(data);
 
     debugPrint('PARSED ${segments.length} CONTENT SEGMENTS');
 
@@ -122,94 +123,10 @@ class MarkdownRenderer extends StatelessWidget {
     );
   }
 
-  // Parse content into text and table segments
-  List<ContentSegment> _parseContent(String content) {
-    final List<ContentSegment> segments = [];
-    final List<String> lines = content.split('\n');
-
-    int currentPos = 0;
-    int i = 0;
-
-    while (i < lines.length) {
-      // Look for the start of a table
-      if (_isTableHeader(lines, i)) {
-        // Add preceding text if any
-        if (currentPos < i) {
-          final textContent = lines.sublist(currentPos, i).join('\n');
-          segments.add(ContentSegment(SegmentType.text, textContent));
-        }
-
-        // Extract the table
-        final tableStart = i;
-        i++; // Skip header line
-
-        // Skip separator line
-        if (i < lines.length && _isTableSeparator(lines[i])) {
-          i++;
-
-          // Read table rows
-          while (i < lines.length &&
-              lines[i].trim().startsWith('|') &&
-              lines[i].trim().endsWith('|')) {
-            i++;
-          }
-
-          // Extract the table content
-          final tableContent = lines.sublist(tableStart, i).join('\n');
-          segments.add(ContentSegment(SegmentType.table, tableContent));
-          currentPos = i;
-        } else {
-          // Not a valid table, continue
-          i++;
-        }
-      } else {
-        // Not a table, continue
-        i++;
-      }
-    }
-
-    // Add remaining text
-    if (currentPos < lines.length) {
-      final textContent = lines.sublist(currentPos).join('\n');
-      segments.add(ContentSegment(SegmentType.text, textContent));
-    }
-
-    return segments;
-  }
-
-  // Check if a line is a valid table header
-  bool _isTableHeader(List<String> lines, int index) {
-    if (index >= lines.length ||
-        !lines[index].trim().startsWith('|') ||
-        !lines[index].trim().endsWith('|')) {
-      return false;
-    }
-
-    // Check if next line is a separator
-    if (index + 1 >= lines.length) {
-      return false;
-    }
-
-    final nextLine = lines[index + 1].trim();
-    return _isTableSeparator(nextLine);
-  }
-
-  // Check if a line is a table separator
-  bool _isTableSeparator(String line) {
-    if (!line.startsWith('|') || !line.endsWith('|')) {
-      return false;
-    }
-
-    // Remove pipes
-    final content = line.substring(1, line.length - 1);
-    // Check if it only contains dashes, colons, and spaces
-    return RegExp(r'^[\s\-:]+$').hasMatch(content) && content.contains('-');
-  }
-
   // Build a native Flutter Table widget
   Widget _buildTableWidget(String tableContent, BuildContext context) {
     debugPrint(
-        'BUILDING NATIVE TABLE WIDGET FOR: ${tableContent.substring(0, min(50, tableContent.length))}...');
+        'BUILDING NATIVE TABLE WIDGET FOR: ${tableContent.substring(0, MarkdownContentParser.minInt(50, tableContent.length))}...');
 
     // Parse table
     final List<String> lines = tableContent.split('\n');
@@ -425,16 +342,3 @@ class MarkdownRenderer extends StatelessWidget {
     );
   }
 }
-
-// Helper class for content segmentation
-enum SegmentType { text, table }
-
-class ContentSegment {
-  final SegmentType type;
-  final String content;
-
-  ContentSegment(this.type, this.content);
-}
-
-// Helper function to get minimum of two numbers
-int min(int a, int b) => a < b ? a : b;

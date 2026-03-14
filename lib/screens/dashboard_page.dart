@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:unloque/components/application_progress_section.dart';
-import 'package:unloque/components/categories_section.dart';
-import 'package:unloque/pages/admin/developer_options_page.dart';
-import 'package:unloque/pages/notification_page.dart';
-import '../components/news-slider.dart';
-import '../data/available_applications_data.dart';
-import '../pages/program_search_results_page.dart';
+import 'package:unloque/widgets/application_progress_section.dart';
+import 'package:unloque/widgets/categories_section.dart';
+import 'package:unloque/screens/admin/developer_options_page.dart';
+import 'package:unloque/screens/notification_page.dart';
+import 'package:provider/provider.dart';
+import 'package:unloque/providers/available_applications_provider.dart';
+import 'package:unloque/services/users/user_profile_service.dart';
+import 'package:unloque/services/notifications/notification_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
+import '../widgets/news_slider.dart';
+import '../screens/program_search_results_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -29,7 +33,7 @@ class DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     // Clear cache when dashboard loads to ensure fresh data
-    AvailableApplicationsData.clearCache();
+    context.read<AvailableApplicationsProvider>().clearCache();
   }
 
   @override
@@ -48,7 +52,7 @@ class DashboardPageState extends State<DashboardPage> {
   void refreshDashboard() {
     setState(() {
       // Clear data cache to force fresh data
-      AvailableApplicationsData.clearCache();
+      context.read<AvailableApplicationsProvider>().clearCache();
       // Refresh the progress section
       refreshProgressSection();
       // Directly call the refresh method on the news slider
@@ -85,7 +89,10 @@ class DashboardPageState extends State<DashboardPage> {
 
     try {
       // Search for programs
-      final results = await AvailableApplicationsData.searchPrograms(query);
+      final results =
+          await context.read<AvailableApplicationsProvider>().searchPrograms(
+                query,
+              );
 
       if (!mounted) return;
 
@@ -136,7 +143,7 @@ class DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
+    User? user = AuthSessionService.currentUser();
 
     return Scaffold(
       appBar: PreferredSize(
@@ -150,10 +157,9 @@ class DashboardPageState extends State<DashboardPage> {
             children: [
               SizedBox(height: 30),
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user?.uid)
-                    .snapshots(),
+                stream: user?.uid == null
+                  ? const Stream.empty()
+                  : UserProfileService.userDocStream(user!.uid),
                 builder: (context, snapshot) {
                   // Get username and photo if available
                   String username = '';
@@ -239,12 +245,11 @@ class DashboardPageState extends State<DashboardPage> {
                       ),
                       // Notification button with badge for unread notifications
                       StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(user?.uid)
-                            .collection('notifications')
-                            .where('isRead', isEqualTo: false)
-                            .snapshots(),
+                        stream: user == null
+                            ? null
+                            : NotificationService.unreadNotificationsStream(
+                                uid: user.uid,
+                              ),
                         builder: (context, snapshot) {
                           int unreadCount = 0;
                           if (snapshot.hasData && !snapshot.hasError) {
@@ -337,7 +342,7 @@ class DashboardPageState extends State<DashboardPage> {
               _newsSliderKey.currentState?.refreshNews();
 
               // Also clear the applications cache
-              AvailableApplicationsData.clearCache();
+              context.read<AvailableApplicationsProvider>().clearCache();
             },
             child: SingleChildScrollView(
               controller: _scrollController,

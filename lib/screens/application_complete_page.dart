@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart'; // <-- Add this import for consolidateHttpClientResponseBytes
+import 'package:unloque/services/applications/application_complete_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
+import 'package:unloque/models/organization_response_section.dart';
+import 'package:unloque/widgets/organization_response_sections.dart';
 
 class ApplicationCompletePage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -87,8 +89,9 @@ class _ApplicationCompletePageState extends State<ApplicationCompletePage> {
           final logoUrl = header['logoUrl'] ?? '';
           final deadline = header['deadline'] ?? '';
           final category = header['category'] ?? '';
-          final responseSections =
-              header['responseSections'] as List<Map<String, dynamic>>?;
+            final responseSections =
+              (header['responseSections'] as List<ResponseSection>?) ??
+                const <ResponseSection>[];
           // formDoc is included in the header for other use-cases; not needed here.
 
           return SingleChildScrollView(
@@ -303,7 +306,7 @@ class _ApplicationCompletePageState extends State<ApplicationCompletePage> {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child:
-                          responseSections == null || responseSections.isEmpty
+                          responseSections.isEmpty
                               ? Center(
                                   child: Padding(
                                     padding: const EdgeInsets.all(24.0),
@@ -344,236 +347,18 @@ class _ApplicationCompletePageState extends State<ApplicationCompletePage> {
   }
 
   Future<Map<String, dynamic>> _fetchHeaderAndResponse() async {
-    print("Fetching data for application: ${widget.application['id']}");
-    
-    final programId = widget.application['programId'] ?? 
-                      widget.application['id'];
-    final organizationId = widget.application['organizationId'] ?? 
-                          widget.application['orgId'];
-    
-    print("Using programId: $programId, organizationId: $organizationId");
-
-    String programName = widget.application['programName'] ?? '';
-    String orgName = widget.application['organizationName'] ?? '';
-    String logoUrl = widget.application['logoUrl'] ?? '';
-    String deadline = widget.application['deadline'] ?? '';
-    String category = widget.application['category'] ?? '';
-    List<Map<String, dynamic>> responseSections = [];
-
-    // Fetch program info if we have organizationId and programId
-    if (organizationId != null && programId != null) {
-      try {
-        final programDoc = await FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(organizationId)
-            .collection('programs')
-            .doc(programId)
-            .get();
-            
-        if (programDoc.exists) {
-          final data = programDoc.data() ?? {};
-          if (programName.isEmpty) programName = (data['name'] ?? '').toString();
-          if (deadline.isEmpty) deadline = (data['deadline'] ?? '').toString();
-          if (category.isEmpty) category = (data['category'] ?? '').toString();
-        } else {
-          print("Program document does not exist for ID: $programId");
-        }
-
-        // Fetch organization info
-        final orgDoc = await FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(organizationId)
-            .get();
-            
-        if (orgDoc.exists) {
-          final data = orgDoc.data() ?? {};
-          if (orgName.isEmpty) orgName = (data['name'] ?? '').toString();
-          if (logoUrl.isEmpty) logoUrl = (data['logoUrl'] ?? '').toString();
-        } else {
-          print("Organization document does not exist for ID: $organizationId");
-        }
-      } catch (e) {
-        print("Error fetching program/organization info: $e");
-      }
-    } else {
-      print("Missing programId or organizationId");
-    }
-
-    // Fallback to application object if Firestore values are empty
-    if (programName.isEmpty)
-      programName = widget.application['programName'] ?? '';
-    if (orgName.isEmpty) 
-      orgName = widget.application['organizationName'] ?? '';
-    if (logoUrl.isEmpty) 
-      logoUrl = widget.application['logoUrl'] ?? '';
-    if (deadline.isEmpty) 
-      deadline = widget.application['deadline'] ?? '';
-    if (category.isEmpty) 
-      category = widget.application['category'] ?? '';
-
-    // Fetch the user's application form document
-    final user = FirebaseAuth.instance.currentUser;
-    DocumentSnapshot? formDoc;
-    final appId = widget.application['id'] ?? programId;
-    if (user != null && appId != null) {
-      formDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(appId)
-          .get();
-
-      // Get organization response from the application document
-      final data = formDoc.data() as Map<String, dynamic>?;
-      if (data != null) {
-        print("Application data found: ${data.keys}");
-        if (data['organizationResponse'] != null) {
-          final orgResponse = data['organizationResponse'];
-          print("Organization response found: $orgResponse");
-          if (orgResponse is Map && orgResponse['responseSections'] is List) {
-            responseSections =
-                List<Map<String, dynamic>>.from(orgResponse['responseSections']);
-            print("Response sections count: ${responseSections.length}");
-          }
-        } else {
-          print("No organization response found in application data");
-        }
-      }
-    } else {
-      print("Unable to fetch application document - user: $user, appId: $appId");
-    }
-
-    return {
-      'programName': programName,
-      'organizationName': orgName,
-      'logoUrl': logoUrl,
-      'deadline': deadline,
-      'category': category,
-      'responseSections': responseSections,
-      'formDoc': formDoc,
-    };
+    final uid = AuthSessionService.currentUid();
+    return ApplicationCompleteService.fetchHeaderAndResponse(
+      application: widget.application,
+      uid: uid,
+    );
   }
 
-  Widget _buildResponseSections(List<Map<String, dynamic>> sections) {
-    List<Widget> widgets = [];
-    for (int i = 0; i < sections.length; i++) {
-      final section = sections[i];
-      final type = section['type'] ?? '';
-      final label = section['label'] ?? '';
-
-      widgets.add(
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
-      );
-      widgets.add(SizedBox(height: 8));
-
-      if (type == 'paragraph') {
-        widgets.add(
-          Text(
-            section['content'] ?? '',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-        );
-      } else if (type == 'list') {
-        final items = List<String>.from(section['items'] ?? []);
-        for (var item in items) {
-          widgets.add(
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5, left: 4, right: 8),
-                    child: Icon(Icons.circle, size: 6, color: Colors.blue),
-                  ),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-      } else if (type == 'attachment') {
-        final files = List<Map<String, dynamic>>.from(section['files'] ?? []);
-        if (files.isEmpty) {
-          widgets.add(
-            Text(
-              'No attachments available',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          );
-        } else {
-          for (var fileData in files) {
-            final fileName = fileData['name'] ?? 'Unnamed file';
-            final downloadUrl = fileData['downloadUrl'];
-            final isDownloading = downloadingFiles[fileName] ?? false;
-
-            widgets.add(
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    if (isDownloading)
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      Icon(Icons.insert_drive_file,
-                          size: 20, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: downloadUrl != null &&
-                                downloadUrl.toString().isNotEmpty
-                            ? () => _downloadAndOpenFile(downloadUrl, fileName)
-                            : null,
-                        child: Text(
-                          fileName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color:
-                                downloadUrl != null ? Colors.blue : Colors.grey,
-                            decoration: downloadUrl != null
-                                ? TextDecoration.underline
-                                : TextDecoration.none,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-        }
-      }
-
-      if (i < sections.length - 1) {
-        widgets.add(SizedBox(height: 16));
-        widgets.add(Divider(color: Colors.grey[300]));
-        widgets.add(SizedBox(height: 16));
-      }
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
+  Widget _buildResponseSections(List<ResponseSection> sections) {
+    return OrganizationResponseSections(
+      sections: sections,
+      downloadingFiles: downloadingFiles,
+      onAttachmentTap: _downloadAndOpenFile,
     );
   }
 

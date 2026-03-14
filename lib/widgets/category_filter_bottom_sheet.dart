@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:data_table_2/data_table_2.dart';
+import 'package:unloque/services/map/map_data_service.dart';
+import 'package:unloque/services/map/program_lookup_service.dart';
+
+import 'package:unloque/models/organization_info.dart';
+import 'package:unloque/models/program_beneficiary_summary.dart';
+import 'package:unloque/models/program_info.dart';
 
 // Import the data model
 
@@ -208,11 +214,8 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   Widget _buildCategoryProgramsContent() {
     return Container(
       color: Colors.grey[100],
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('mapdata')
-            .where('type', isEqualTo: 'beneficiaries')
-            .snapshots(),
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: MapDataService.beneficiaryDocsStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
@@ -245,9 +248,11 @@ class CategoryFilterBottomSheet extends StatelessWidget {
           }
 
           // Filter documents by category based on program data
-          return FutureBuilder<List<Map<String, dynamic>>>(
-            future:
-                _filterProgramsByCategory(snapshot.data!.docs, selectedFilter),
+          return FutureBuilder<List<ProgramBeneficiarySummary>>(
+            future: _filterProgramsByCategory(
+              snapshot.data!.docs,
+              selectedFilter,
+            ),
             builder: (context, programsSnapshot) {
               if (programsSnapshot.connectionState == ConnectionState.waiting) {
                 return Center(
@@ -495,12 +500,11 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   }
 
   // Enhance the program card design
-  Widget _buildProgramCard(Map<String, dynamic> programData) {
-    final String programName = programData['programName'] ?? 'Unnamed Program';
-    final int beneficiaryCount = programData['totalBeneficiaries'] ?? 0;
-    final String organizationName =
-        programData['organizationName'] ?? 'Unknown Organization';
-    final String? organizationLogo = programData['organizationLogo'];
+  Widget _buildProgramCard(ProgramBeneficiarySummary programData) {
+    final String programName = programData.programName;
+    final int beneficiaryCount = programData.totalBeneficiaries;
+    final String organizationName = programData.organizationName;
+    final String organizationLogo = programData.organizationLogoUrl;
     final Color categoryColor = _getCategoryColor(selectedFilter);
 
     return Card(
@@ -542,8 +546,7 @@ class CategoryFilterBottomSheet extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child:
-                        organizationLogo != null && organizationLogo.isNotEmpty
+                    child: organizationLogo.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
@@ -671,12 +674,11 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   }
 
   // New: Add method to build programs data table
-  Widget _buildProgramsDataTable(List<Map<String, dynamic>> programs) {
+  Widget _buildProgramsDataTable(List<ProgramBeneficiarySummary> programs) {
     // Calculate total beneficiaries for percentage calculation - FIX NULL SAFETY ISSUES
     final int totalBeneficiaries = categoryTotalBeneficiaries ??
         programs.fold<int>(0, (sum, program) {
-          final beneficiaries = program['totalBeneficiaries'] as int? ?? 0;
-          return sum + beneficiaries;
+          return sum + program.totalBeneficiaries;
         });
 
     return DataTable2(
@@ -717,7 +719,7 @@ class CategoryFilterBottomSheet extends StatelessWidget {
       ],
       rows: programs.map((program) {
         // Calculate percentage of total - FIX NULL SAFETY ISSUES
-        final beneficiaries = program['totalBeneficiaries'] as int? ?? 0;
+        final beneficiaries = program.totalBeneficiaries;
         final double percentage = totalBeneficiaries > 0
             ? (beneficiaries / totalBeneficiaries * 100)
             : 0.0;
@@ -726,14 +728,16 @@ class CategoryFilterBottomSheet extends StatelessWidget {
           cells: [
             DataCell(
               Text(
-                program['programName'] ?? 'Unnamed',
+                program.programName.isNotEmpty ? program.programName : 'Unnamed',
                 style: const TextStyle(fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             DataCell(
               Text(
-                program['organizationName'] ?? 'Unknown',
+                program.organizationName.isNotEmpty
+                    ? program.organizationName
+                    : 'Unknown',
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -758,32 +762,14 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   }
 
   // New: Add method to build municipality distribution chart
-  Widget _buildMunicipalDistributionChart(List<Map<String, dynamic>> programs) {
+  Widget _buildMunicipalDistributionChart(
+      List<ProgramBeneficiarySummary> programs) {
     // For this example, we'll create mock data showing top 5 municipalities
     // In a real implementation, you'd extract this data from your beneficiary counts
 
-    // Aggregate beneficiary counts by municipality from programs
-    Map<String, int> municipalityCounts = {};
-
-    // Collect the municipality data from all programs
-    for (var program in programs) {
-      // This assumes each program has a field with municipality data
-      // You'll need to adapt this to your actual data structure
-      if (program.containsKey('municipalityData')) {
-        final munData = program['municipalityData'] as Map<String, int>;
-
-        munData.forEach((municipality, count) {
-          municipalityCounts[municipality] =
-              (municipalityCounts[municipality] ?? 0) + count;
-        });
-      }
-    }
-
-    // Sort municipalities by beneficiary count and take top 5
-    final sortedMunicipalities = municipalityCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final top5 = sortedMunicipalities.take(5).toList();
+    // Municipality-level data isn't currently available in the program summaries,
+    // so we fall back to placeholder data.
+    final top5 = <MapEntry<String, int>>[];
 
     // If we don't have actual municipality data, create placeholder data
     if (top5.isEmpty) {
@@ -1011,14 +997,15 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   }
 
   // Helper method to filter programs by category
-  Future<List<Map<String, dynamic>>> _filterProgramsByCategory(
-      List<QueryDocumentSnapshot> docs, String category) async {
-    List<Map<String, dynamic>> result = [];
+  Future<List<ProgramBeneficiarySummary>> _filterProgramsByCategory(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+      String category) async {
+    final List<ProgramBeneficiarySummary> result = [];
     print('Filtering ${docs.length} docs for category: $category');
 
     // First get program categories from Firestore
-    for (var doc in docs) {
-      final data = doc.data() as Map<String, dynamic>;
+    for (final doc in docs) {
+      final data = doc.data();
       if (data['type'] != 'beneficiaries') {
         print('Skipping document - not of type beneficiaries');
         continue;
@@ -1035,7 +1022,7 @@ class CategoryFilterBottomSheet extends StatelessWidget {
       // Fetch program details to check category
       try {
         // Try both methods to get program details
-        Map<String, dynamic>? programData = await _getProgramDetails(programId);
+        ProgramInfo? programData = await _getProgramDetails(programId);
 
         // If first method failed, try the fallback method
         if (programData == null) {
@@ -1044,7 +1031,7 @@ class CategoryFilterBottomSheet extends StatelessWidget {
         }
 
         if (programData != null) {
-          final programCategory = programData['category'] ?? '';
+          final programCategory = programData.category;
           print(
               'Program category: $programCategory, target category: $category');
 
@@ -1068,20 +1055,28 @@ class CategoryFilterBottomSheet extends StatelessWidget {
           }
 
           if (matches) {
-            print('Match found! Program: ${programData['name']}');
+            print('Match found! Program: ${programData.name}');
             // Get the organization name
-            final orgId = programData['organizationId'] ?? '';
+            final orgId = programData.organizationId;
             final orgData = await _getOrganizationDetails(orgId);
 
+            final totalBeneficiaries =
+                (data['Total Beneficiaries'] as num?)?.toInt() ?? 0;
+
             // Add to results with enriched data
-            result.add({
-              'programId': programId,
-              'programName': programData['name'] ?? 'Unnamed Program',
-              'totalBeneficiaries': data['Total Beneficiaries'] ?? 0,
-              'organizationId': orgId,
-              'organizationName': orgData?['name'] ?? 'Unknown Organization',
-              'organizationLogo': orgData?['logoUrl'] ?? '',
-            });
+            result.add(
+              ProgramBeneficiarySummary(
+                programId: programId,
+                programName:
+                    programData.name.isNotEmpty ? programData.name : 'Unnamed Program',
+                totalBeneficiaries: totalBeneficiaries,
+                organizationId: orgId,
+                organizationName: orgData?.name.isNotEmpty == true
+                    ? orgData!.name
+                    : 'Unknown Organization',
+                organizationLogoUrl: orgData?.logoUrl ?? '',
+              ),
+            );
           } else {
             print('No category match found');
           }
@@ -1094,27 +1089,20 @@ class CategoryFilterBottomSheet extends StatelessWidget {
     }
 
     // Sort by beneficiary count (descending)
-    result.sort((a, b) => (b['totalBeneficiaries'] as int)
-        .compareTo(a['totalBeneficiaries'] as int));
+    result.sort((a, b) => b.totalBeneficiaries.compareTo(a.totalBeneficiaries));
 
     print('Filtered results count: ${result.length}');
     return result;
   }
 
   // Helper method to get program details
-  Future<Map<String, dynamic>?> _getProgramDetails(String programId) async {
+  Future<ProgramInfo?> _getProgramDetails(String programId) async {
     try {
       print('Looking for program with ID: $programId');
-      // First try the direct approach assuming we know the organization ID
-      final programs = await FirebaseFirestore.instance
-          .collectionGroup('programs')
-          .where('id', isEqualTo: programId)
-          .limit(1)
-          .get();
-
-      if (programs.docs.isNotEmpty) {
+      final program = await ProgramLookupService.getProgramDetails(programId);
+      if (program != null) {
         print('Found program via collectionGroup');
-        return programs.docs.first.data();
+        return program;
       }
 
       // If not found, return null
@@ -1127,29 +1115,16 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   }
 
   // Add a fallback method to find programs
-  Future<Map<String, dynamic>?> _getProgramDetailsFallback(
-      String programId) async {
+  Future<ProgramInfo?> _getProgramDetailsFallback(String programId) async {
     try {
-      // Try scanning through all organizations
-      final organizationsSnapshot =
-          await FirebaseFirestore.instance.collection('organizations').get();
-
-      for (var orgDoc in organizationsSnapshot.docs) {
-        final programsSnapshot = await FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(orgDoc.id)
-            .collection('programs')
-            .where('id', isEqualTo: programId)
-            .limit(1)
-            .get();
-
-        if (programsSnapshot.docs.isNotEmpty) {
-          print('Found program via manual search in org: ${orgDoc.id}');
-          return programsSnapshot.docs.first.data();
-        }
+      final program =
+          await ProgramLookupService.getProgramDetailsFallback(programId);
+      if (program != null) {
+        print('Found program via manual search fallback');
+        return program;
       }
 
-      print('Program not found in any organization');
+      print('Program not found in any organization (fallback)');
       return null;
     } catch (e) {
       print('Error in fallback program search: $e');
@@ -1158,18 +1133,14 @@ class CategoryFilterBottomSheet extends StatelessWidget {
   }
 
   // Helper method to get organization details
-  Future<Map<String, dynamic>?> _getOrganizationDetails(String orgId) async {
+  Future<OrganizationInfo?> _getOrganizationDetails(String orgId) async {
     if (orgId.isEmpty) return null;
 
     try {
-      final orgDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(orgId)
-          .get();
-
-      if (orgDoc.exists) {
-        print('Organization found: ${orgDoc.data()?['name']}');
-        return orgDoc.data();
+      final orgData = await ProgramLookupService.getOrganizationDetails(orgId);
+      if (orgData != null) {
+        print('Organization found: ${orgData.name}');
+        return orgData;
       }
 
       print('Organization not found: $orgId');

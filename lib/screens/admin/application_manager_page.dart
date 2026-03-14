@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:unloque/pages/admin/organization_response_builder.dart';
+import 'package:unloque/screens/admin/organization_response_builder.dart';
+import 'package:unloque/services/applications/admin_application_service.dart';
 
 class ApplicationManagerPage extends StatefulWidget {
   final String organizationId;
@@ -34,28 +35,6 @@ class _ApplicationManagerPageState extends State<ApplicationManagerPage>
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchApplications(
-      List<QueryDocumentSnapshot> users) async {
-    List<Map<String, dynamic>> applications = [];
-    for (var userDoc in users) {
-      final userId = userDoc.id;
-      final userEmail = userDoc['email'] ?? '';
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('users-application')
-          .where('id', isEqualTo: widget.programId)
-          .get();
-      for (var doc in query.docs) {
-        final data = Map<String, dynamic>.from(doc.data());
-        data['userId'] = userId;
-        data['userEmail'] = userEmail;
-        applications.add(data);
-      }
-    }
-    return applications;
   }
 
   @override
@@ -121,7 +100,7 @@ class _ApplicationManagerPageState extends State<ApplicationManagerPage>
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').snapshots(),
+        stream: AdminApplicationService.usersStream(),
         builder: (context, userSnapshot) {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
@@ -131,7 +110,10 @@ class _ApplicationManagerPageState extends State<ApplicationManagerPage>
           }
           final users = userSnapshot.data!.docs;
           return FutureBuilder<List<Map<String, dynamic>>>(
-            future: _fetchApplications(users),
+            future: AdminApplicationService.fetchApplicationsForProgram(
+              users: users,
+              programId: widget.programId,
+            ),
             builder: (context, appSnapshot) {
               if (appSnapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator());

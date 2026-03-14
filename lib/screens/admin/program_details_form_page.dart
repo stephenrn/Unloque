@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/services/admin/program_editor_service.dart';
+import 'package:unloque/models/organization_response_section.dart';
+import 'package:unloque/models/program_form_field.dart';
 
 // Import tab widgets
 import 'editor_basic.dart';
@@ -41,8 +43,8 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
   String _programStatus = "Closed";
 
   // Detail sections and form fields
-  List<Map<String, dynamic>> _detailSections = [];
-  List<Map<String, dynamic>> _formFields = [];
+  List<ResponseSection> _detailSections = [];
+  List<ProgramFormField> _formFields = [];
 
   // Change to a GlobalKey with the correct type
   final GlobalKey<DetailsEditorTabState> _detailsTabKey =
@@ -87,28 +89,14 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
     });
 
     try {
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .collection('programs')
-          .doc(widget.program['id'])
-          .get();
+      final details = await ProgramEditorService.loadDetailSections(
+        organizationId: widget.organizationId,
+        programId: widget.program['id'],
+      );
 
-      if (programDoc.exists && programDoc.data()?['detailSections'] != null) {
-        final detailsData =
-            programDoc.data()!['detailSections'] as List<dynamic>;
-
-        setState(() {
-          _detailSections = detailsData
-              .map((section) => Map<String, dynamic>.from(section))
-              .toList();
-        });
-      } else {
-        // Initialize with empty sections instead of defaults
-        setState(() {
-          _detailSections = [];
-        });
-      }
+      setState(() {
+        _detailSections = details;
+      });
     } catch (e) {
       print('Error loading detail sections: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,28 +117,14 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
     });
 
     try {
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .collection('programs')
-          .doc(widget.program['id'])
-          .get();
+      final fields = await ProgramEditorService.loadFormFields(
+        organizationId: widget.organizationId,
+        programId: widget.program['id'],
+      );
 
-      if (programDoc.exists && programDoc.data()?['formFields'] != null) {
-        final formFieldsData =
-            programDoc.data()!['formFields'] as List<dynamic>;
-
-        setState(() {
-          _formFields = formFieldsData
-              .map((field) => Map<String, dynamic>.from(field))
-              .toList();
-        });
-      } else {
-        // Initialize with empty form fields instead of defaults
-        setState(() {
-          _formFields = [];
-        });
-      }
+      setState(() {
+        _formFields = fields;
+      });
     } catch (e) {
       print('Error loading form fields: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,16 +162,64 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
     });
   }
 
-  void _updateDetailSections(List<Map<String, dynamic>> sections) {
+  void _updateDetailSections(List<ResponseSection> sections) {
     setState(() {
       _detailSections = sections;
     });
   }
 
-  void _updateFormFields(List<Map<String, dynamic>> fields) {
+  List<Map<String, dynamic>> _serializeDetailSectionsForSave(
+    List<ResponseSection> sections,
+  ) {
+    return sections.map((section) {
+      final map = section.toPersistedMap();
+
+      // Preserve older int ids in Firestore when possible.
+      final id = map['id'];
+      if (id is String) {
+        final parsed = int.tryParse(id);
+        if (parsed != null) {
+          map['id'] = parsed;
+        }
+      }
+
+      // Preserve existing behavior for pending attachments during editor save.
+      if (section is AttachmentResponseSection) {
+        map['files'] = section.files.map((file) {
+          if (file.isPending || file.localPath != null) {
+            return file.toEditorMap();
+          }
+          return file.toPersistedMap();
+        }).toList(growable: false);
+      }
+
+      return map;
+    }).toList(growable: false);
+  }
+
+  void _updateFormFields(List<ProgramFormField> fields) {
     setState(() {
       _formFields = fields;
     });
+  }
+
+  List<Map<String, dynamic>> _serializeFormFieldsForSave(
+    List<ProgramFormField> fields,
+  ) {
+    return fields.map((field) {
+      final map = field.toPersistedMap();
+
+      // Preserve older int ids in Firestore when possible.
+      final id = map['id'];
+      if (id is String) {
+        final parsed = int.tryParse(id);
+        if (parsed != null) {
+          map['id'] = parsed;
+        }
+      }
+
+      return map;
+    }).toList(growable: false);
   }
 
   // Add method to update program status
@@ -289,10 +311,10 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
     });
 
     // Store current data before any modifications
-    final List<Map<String, dynamic>> originalDetailSections =
-        List<Map<String, dynamic>>.from(_detailSections);
-    final List<Map<String, dynamic>> originalFormFields =
-        List<Map<String, dynamic>>.from(_formFields);
+    final List<ResponseSection> originalDetailSections =
+      List<ResponseSection>.from(_detailSections);
+    final List<ProgramFormField> originalFormFields =
+        List<ProgramFormField>.from(_formFields);
 
     try {
       // First, handle any pending file uploads in the details tab
@@ -309,10 +331,7 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
               await detailsTabState.saveDetailSections();
 
           // Only update the detail sections if we successfully got data back
-          if (updatedDetailSections.isNotEmpty) {
-            _detailSections =
-                List<Map<String, dynamic>>.from(updatedDetailSections);
-          }
+          _detailSections = List<ResponseSection>.from(updatedDetailSections);
         } catch (e) {
           print('Error uploading files: $e');
           // Show error message to user
@@ -333,19 +352,16 @@ class _ProgramDetailsFormPageState extends State<ProgramDetailsFormPage>
         'category': _selectedCategory,
         'deadline': _deadline,
         'color': _selectedColor.value,
-        'detailSections': _detailSections,
-        'formFields': _formFields,
+        'detailSections': _serializeDetailSectionsForSave(_detailSections),
+        'formFields': _serializeFormFieldsForSave(_formFields),
         'programStatus': _programStatus, // Add program status
-        'lastUpdated': FieldValue.serverTimestamp(),
       };
 
-      // Update Firestore document
-      await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .collection('programs')
-          .doc(widget.program['id'])
-          .update(programData);
+      await ProgramEditorService.updateProgram(
+        organizationId: widget.organizationId,
+        programId: widget.program['id'],
+        programData: programData,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Program saved successfully!')),

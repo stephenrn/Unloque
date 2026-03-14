@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:unloque/pages/category_details_page.dart';
-import 'package:unloque/data/available_applications_data.dart'; // Updated import
+import 'package:unloque/screens/category_details_page.dart';
+import 'package:provider/provider.dart';
+import 'package:unloque/providers/available_applications_provider.dart';
 
 class Category {
   final String name;
@@ -83,7 +84,7 @@ class _CategoriesSectionState extends State<CategoriesSection> {
                 });
 
                 // Clear cache to load fresh data
-                AvailableApplicationsData.clearCache();
+                context.read<AvailableApplicationsProvider>().clearCache();
 
                 // Navigate using the callback if provided, otherwise use direct navigation
                 if (widget.onNavigate != null) {

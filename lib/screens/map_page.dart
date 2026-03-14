@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_maps/maps.dart';
 import 'package:material_floating_search_bar_plus/material_floating_search_bar_plus.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Add Firestore import
+import 'package:unloque/services/map/map_data_service.dart';
+import 'package:unloque/services/map/quezon_population_service.dart';
+import 'package:unloque/models/program_beneficiaries_record.dart';
 
 // Import the new files
 import '../widgets/general_bottom_sheet.dart';
 import '../widgets/category_filter_bottom_sheet.dart';
 import '../widgets/selected_municipality_bottom_sheet.dart';
-import '../models/data_model.dart';
+import '../models/map_location.dart';
 
 class MapPage extends StatefulWidget {
   MapPage({Key? key}) : super(key: key);
@@ -20,7 +22,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   _MapPageState();
   late MapShapeSource _shapeSource;
   late MapShapeSource _sublayerSource;
-  late List<DataModel> _data;
+  late List<MapLocation> _data;
   int _selectedIndex = -1;
   int _selectedSublayerIndex = -1;
   late MapZoomPanBehavior _zoomPanBehavior;
@@ -31,10 +33,10 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Modified bottom sheet variables
   bool _isBottomSheetExpanded = false;
   double _bottomSheetHeight = 140.0; // Changed from 40.0 to 140.0
-  DataModel? _selectedLocation;
+  MapLocation? _selectedLocation;
 
   // Quezon province default data
-  final _quezonProvince = DataModel('Quezon Province', 14.1247, 121.9473);
+  final _quezonProvince = MapLocation('Quezon Province', 14.1247, 121.9473);
 
   // Tab controller for bottom sheet tabs
   late TabController _tabController;
@@ -72,49 +74,49 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Track if category data is loaded
   bool _isCategoryDataLoaded = false;
 
-  List<DataModel> _generateDataModel() {
-    return <DataModel>[
-      DataModel('Agdangan', 13.885378, 121.9359),
-      DataModel('Alabat', 14.1017, 122.0184),
-      DataModel('Atimonan', 14.0048, 121.9199),
-      DataModel('Buenavista', 13.7087, 122.4635),
-      DataModel('Burdeos', 14.7446, 121.9262),
-      DataModel('Calauag', 13.9547, 122.2872),
-      DataModel('Candelaria', 13.9311, 121.4233),
-      DataModel('Catanauan', 13.5927, 122.3208),
-      DataModel('Dolores', 14.0244, 121.3681),
-      DataModel('General Luna', 13.8425, 122.1494),
-      DataModel('General Nakar', 14.7631, 121.6349),
-      DataModel('Guinayangan', 13.9039, 122.4467),
-      DataModel('Gumaca', 13.9208, 122.1000),
-      DataModel('Infanta', 14.7425, 121.6494),
-      DataModel('Jomalig', 14.7131, 122.3677),
-      DataModel('Lopez', 13.8881, 122.2608),
-      DataModel('Lucban', 14.1114, 121.5575),
-      DataModel('Lucena City', 13.9419, 121.6169),
-      DataModel('Macalelon', 13.7458, 122.1294),
-      DataModel('Mauban', 14.1911, 121.7308),
-      DataModel('Mulanay', 13.5264, 122.4044),
-      DataModel('Padre Burgos', 13.9222, 121.8125),
-      DataModel('Pagbilao', 13.9789, 121.7119),
-      DataModel('Panukulan', 14.7472, 121.8139),
-      DataModel('Patnanungan', 14.7481, 122.1736),
-      DataModel('Perez', 14.1944, 121.9394),
-      DataModel('Pitogo', 13.7972, 122.0936),
-      DataModel('Plaridel', 13.9392, 122.0212),
-      DataModel('Polillo', 14.7111, 121.9556),
-      DataModel('Quezon', 14.0314, 122.1131),
-      DataModel('Real', 14.6647, 121.6081),
-      DataModel('Sampaloc', 14.1774, 121.6169),
-      DataModel('San Andres', 13.3252, 122.6504),
-      DataModel('San Antonio', 13.8951, 121.2970),
-      DataModel('San Francisco', 13.3471, 122.5202),
-      DataModel('San Narciso', 13.5689, 122.5662),
-      DataModel('Sariaya', 13.9633, 121.5253),
-      DataModel('Tagkawayan', 13.9647, 122.5472),
-      DataModel('Tayabas City', 14.0244, 121.5847),
-      DataModel('Tiaong', 13.9500, 121.3167),
-      DataModel('Unisan', 13.8558, 121.9686),
+  List<MapLocation> _generateDataModel() {
+    return <MapLocation>[
+      MapLocation('Agdangan', 13.885378, 121.9359),
+      MapLocation('Alabat', 14.1017, 122.0184),
+      MapLocation('Atimonan', 14.0048, 121.9199),
+      MapLocation('Buenavista', 13.7087, 122.4635),
+      MapLocation('Burdeos', 14.7446, 121.9262),
+      MapLocation('Calauag', 13.9547, 122.2872),
+      MapLocation('Candelaria', 13.9311, 121.4233),
+      MapLocation('Catanauan', 13.5927, 122.3208),
+      MapLocation('Dolores', 14.0244, 121.3681),
+      MapLocation('General Luna', 13.8425, 122.1494),
+      MapLocation('General Nakar', 14.7631, 121.6349),
+      MapLocation('Guinayangan', 13.9039, 122.4467),
+      MapLocation('Gumaca', 13.9208, 122.1000),
+      MapLocation('Infanta', 14.7425, 121.6494),
+      MapLocation('Jomalig', 14.7131, 122.3677),
+      MapLocation('Lopez', 13.8881, 122.2608),
+      MapLocation('Lucban', 14.1114, 121.5575),
+      MapLocation('Lucena City', 13.9419, 121.6169),
+      MapLocation('Macalelon', 13.7458, 122.1294),
+      MapLocation('Mauban', 14.1911, 121.7308),
+      MapLocation('Mulanay', 13.5264, 122.4044),
+      MapLocation('Padre Burgos', 13.9222, 121.8125),
+      MapLocation('Pagbilao', 13.9789, 121.7119),
+      MapLocation('Panukulan', 14.7472, 121.8139),
+      MapLocation('Patnanungan', 14.7481, 122.1736),
+      MapLocation('Perez', 14.1944, 121.9394),
+      MapLocation('Pitogo', 13.7972, 122.0936),
+      MapLocation('Plaridel', 13.9392, 122.0212),
+      MapLocation('Polillo', 14.7111, 121.9556),
+      MapLocation('Quezon', 14.0314, 122.1131),
+      MapLocation('Real', 14.6647, 121.6081),
+      MapLocation('Sampaloc', 14.1774, 121.6169),
+      MapLocation('San Andres', 13.3252, 122.6504),
+      MapLocation('San Antonio', 13.8951, 121.2970),
+      MapLocation('San Francisco', 13.3471, 122.5202),
+      MapLocation('San Narciso', 13.5689, 122.5662),
+      MapLocation('Sariaya', 13.9633, 121.5253),
+      MapLocation('Tagkawayan', 13.9647, 122.5472),
+      MapLocation('Tayabas City', 14.0244, 121.5847),
+      MapLocation('Tiaong', 13.9500, 121.3167),
+      MapLocation('Unisan', 13.8558, 121.9686),
     ];
   }
 
@@ -166,7 +168,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   // Initialize map sources before Firebase data is loaded
   void _initializeMapSources() {
     _shapeSource = MapShapeSource.asset(
-      'lib/map/PHGeoJSON.json',
+      'assets/map/PHGeoJSON.json',
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
@@ -174,7 +176,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
     // Initial configuration with placeholder data
     _sublayerSource = MapShapeSource.asset(
-      'lib/map/GeoJSON.json',
+    'assets/map/GeoJSON.json',
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
@@ -193,33 +195,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
   // Add method to fetch program categories
   Future<Map<String, String>> _fetchProgramCategories() async {
-    Map<String, String> programCategories = {};
-
     try {
-      // Query all organizations
-      final orgSnapshot =
-          await FirebaseFirestore.instance.collection('organizations').get();
-
-      // For each organization, get its programs
-      for (var orgDoc in orgSnapshot.docs) {
-        final programsSnapshot = await FirebaseFirestore.instance
-            .collection('organizations')
-            .doc(orgDoc.id)
-            .collection('programs')
-            .get();
-
-        // Store program id -> category mapping
-        for (var programDoc in programsSnapshot.docs) {
-          final data = programDoc.data();
-          final programId = data['id'] as String?;
-          final category = data['category'] as String?;
-
-          if (programId != null && category != null) {
-            programCategories[programId] = category;
-          }
-        }
-      }
-
+      final programCategories = await MapDataService.fetchProgramCategories();
       debugPrint('Fetched ${programCategories.length} program categories');
       return programCategories;
     } catch (e) {
@@ -242,11 +219,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         return;
       }
 
-      // Fetch all beneficiary data from mapdata collection
-      final beneficiarySnapshot = await FirebaseFirestore.instance
-          .collection('mapdata')
-          .where('type', isEqualTo: 'beneficiaries')
-          .get();
+        // Fetch all beneficiary data from mapdata collection
+        final beneficiaryDocs = await MapDataService.fetchBeneficiaryRecords();
 
       // Initialize category totals
       _healthcareTotalBeneficiaries = 0;
@@ -254,12 +228,11 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       _educationTotalBeneficiaries = 0;
 
       // Process each beneficiary document
-      for (var doc in beneficiarySnapshot.docs) {
-        final data = doc.data();
-        final programId = data['programId'] as String?;
+      for (final ProgramBeneficiariesRecord record in beneficiaryDocs) {
+        final programId = record.programId;
 
         // Skip if no programId or not in our categories map
-        if (programId == null || !programCategories.containsKey(programId)) {
+        if (programId.isEmpty || !programCategories.containsKey(programId)) {
           continue;
         }
 
@@ -279,28 +252,11 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           continue;
         }
 
-        // Fields to exclude when processing municipalities
-        final excludeFields = [
-          'programId',
-          'programName',
-          'organizationId',
-          'type',
-          'title',
-          'updatedAt',
-        ];
-
         // Get program's total beneficiaries (preferred method)
-        int totalBeneficiaries = 0;
-        if (data.containsKey('Total Beneficiaries')) {
-          totalBeneficiaries = (data['Total Beneficiaries'] as num).toInt();
-        } else {
-          // Fallback: Calculate by summing municipality counts if Total Beneficiaries is missing
-          for (String municipality in _data.map((e) => e.name)) {
-            if (data.containsKey(municipality) &&
-                !excludeFields.contains(municipality)) {
-              totalBeneficiaries += (data[municipality] as num).toInt();
-            }
-          }
+        int totalBeneficiaries = record.totalBeneficiaries;
+        if (totalBeneficiaries <= 0) {
+          totalBeneficiaries = record.municipalityCounts.values
+              .fold<int>(0, (sum, value) => sum + value);
         }
 
         // Add the program's total beneficiaries to the appropriate category total
@@ -317,23 +273,21 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
         // Process each municipality to populate municipality-specific data
         for (String municipality in _data.map((e) => e.name)) {
-          if (data.containsKey(municipality) &&
-              !excludeFields.contains(municipality)) {
-            int beneficiaries = (data[municipality] as num).toInt();
+          final beneficiaries = record.municipalityCounts[municipality] ?? 0;
+          if (beneficiaries <= 0) continue;
 
-            // Add to the category map for this municipality based on normalized categories
-            if (isHealthcare) {
-              _categoryData['Healthcare']![municipality] =
-                  (_categoryData['Healthcare']![municipality] ?? 0) +
-                      beneficiaries;
-            } else if (isSocial) {
-              _categoryData['Social']![municipality] =
-                  (_categoryData['Social']![municipality] ?? 0) + beneficiaries;
-            } else if (isEducational) {
-              _categoryData['Educational']![municipality] =
-                  (_categoryData['Educational']![municipality] ?? 0) +
-                      beneficiaries;
-            }
+          // Add to the category map for this municipality based on normalized categories
+          if (isHealthcare) {
+            _categoryData['Healthcare']![municipality] =
+                (_categoryData['Healthcare']![municipality] ?? 0) +
+                    beneficiaries;
+          } else if (isSocial) {
+            _categoryData['Social']![municipality] =
+                (_categoryData['Social']![municipality] ?? 0) + beneficiaries;
+          } else if (isEducational) {
+            _categoryData['Educational']![municipality] =
+                (_categoryData['Educational']![municipality] ?? 0) +
+                    beneficiaries;
           }
         }
       }
@@ -415,25 +369,18 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
       // Use a try-catch block without the timeout that was causing issues
       try {
-        final docSnapshot = await FirebaseFirestore.instance
-            .collection('mapdata')
-            .doc('quezon_population')
-            .get();
+        final data = await QuezonPopulationService.load();
 
-        if (docSnapshot.exists) {
-          final data = docSnapshot.data() as Map<String, dynamic>;
+        if (data.isNotEmpty) {
 
           // Store the total population
-          if (data.containsKey('Total Population')) {
-            _totalPopulation = (data['Total Population'] as num).toInt();
-          }
+          _totalPopulation = data['Total Population'];
 
           // Store raw population data
           for (String municipality in _data.map((e) => e.name)) {
-            if (data.containsKey(municipality)) {
-              _rawPopulationData[municipality] =
-                  (data[municipality] as num).toInt();
-            }
+            final value = data[municipality];
+            if (value == null) continue;
+            _rawPopulationData[municipality] = value;
           }
 
           // Find min and max population for better normalization
@@ -442,8 +389,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
 
           // First pass to find min/max values
           for (String municipality in _data.map((e) => e.name)) {
-            if (data.containsKey(municipality)) {
-              double populationValue = (data[municipality] as num).toDouble();
+            final rawValue = data[municipality];
+            if (rawValue != null) {
+              double populationValue = rawValue.toDouble();
               if (populationValue > 0) {
                 minPopulation = minPopulation > populationValue
                     ? populationValue
@@ -460,8 +408,9 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           if (range <= 0) range = 1; // Prevent division by zero
 
           for (String municipality in _data.map((e) => e.name)) {
-            if (data.containsKey(municipality)) {
-              double populationValue = (data[municipality] as num).toDouble();
+            final rawValue = data[municipality];
+            if (rawValue != null) {
+              double populationValue = rawValue.toDouble();
               double normalizedValue =
                   ((populationValue - minPopulation) / range * 100)
                       .clamp(0.0, 100.0);
@@ -541,7 +490,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     debugPrint('Updating shape sources for filter: $_selectedFilter');
 
     _sublayerSource = MapShapeSource.asset(
-      'lib/map/GeoJSON.json',
+      'assets/map/GeoJSON.json',
       shapeDataField: 'NAME_2',
       dataCount: _data.length,
       primaryValueMapper: (int index) => _data[index].name,
@@ -578,7 +527,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  List<DataModel> _getFilteredList() {
+  List<MapLocation> _getFilteredList() {
     if (_searchTerm.isEmpty) return [];
     return _data
         .where((item) =>
@@ -586,7 +535,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         .toList();
   }
 
-  void _selectMunicity(DataModel selected) {
+  void _selectMunicity(MapLocation selected) {
     final index = _data.indexWhere((item) => item.name == selected.name);
     if (index != -1) {
       // Get current filter to preserve it

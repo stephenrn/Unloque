@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:unloque/pages/application_details_page.dart';
+import 'package:unloque/screens/application_details_page.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:path/path.dart' as path;
-import 'package:unloque/pages/application_pending_page.dart';
+import 'package:unloque/screens/application_pending_page.dart';
+import 'package:unloque/models/program_form_field.dart';
+import 'package:unloque/models/application_form_submission_field.dart';
+import 'package:unloque/services/applications/application_form_service.dart';
+import 'package:unloque/services/applications/application_attachment_storage_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
 
 class ApplicationFormPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -22,6 +23,8 @@ class ApplicationFormPage extends StatefulWidget {
 }
 
 class _ApplicationFormPageState extends State<ApplicationFormPage> {
+  late final List<ProgramFormField> _formDefinitions;
+
   // Use int (field index) as key for all state maps
   Map<int, String?> selectedOptions = {};
   Map<int, Map<String, bool>> checkboxValues = {};
@@ -46,22 +49,25 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   @override
   void initState() {
     super.initState();
-    final forms = widget.application['details']['forms'] ?? [];
-    for (int i = 0; i < forms.length; i++) {
-      final form = forms[i];
-      if (form['type'] == 'checkbox') {
+
+    _formDefinitions =
+        ProgramFormField.listFromDynamic(widget.application['details']?['forms']);
+
+    for (int i = 0; i < _formDefinitions.length; i++) {
+      final form = _formDefinitions[i];
+      if (form.type == ProgramFormFieldType.checkbox) {
         checkboxValues[i] = {};
-        for (var option in form['options']) {
+        for (final option in form.options) {
           checkboxValues[i]![option] = false;
         }
-      } else if (form['type'] == 'date') {
+      } else if (form.type == ProgramFormFieldType.date) {
         selectedDates[i] = null;
-      } else if (form['type'] == 'attachment') {
+      } else if (form.type == ProgramFormFieldType.attachment) {
         attachedFilesMap[i] = [];
-      } else if (form['type'] == 'short_answer' ||
-          form['type'] == 'paragraph') {
+      } else if (form.type == ProgramFormFieldType.shortAnswer ||
+          form.type == ProgramFormFieldType.paragraph) {
         textControllers[i] = TextEditingController();
-      } else if (form['type'] == 'multiple_choice') {
+      } else if (form.type == ProgramFormFieldType.multipleChoice) {
         selectedOptions[i] = null;
       }
     }
@@ -76,7 +82,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = AuthSessionService.currentUser();
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('You must be signed in to save data'),
@@ -92,8 +98,9 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
 
         for (String downloadUrl in filesToDelete) {
           try {
-            final ref = FirebaseStorage.instance.refFromURL(downloadUrl);
-            await ref.delete();
+            await ApplicationAttachmentStorageService.deleteByDownloadUrl(
+              downloadUrl,
+            );
             print('Successfully deleted file with URL: $downloadUrl');
           } catch (e) {
             print('Error deleting file from storage: $e');
@@ -138,13 +145,9 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         }
 
         // Get the field label for this key (index)
-        final forms = widget.application['details']['forms'] ?? [];
-        String fieldLabel = '';
-        if (key < forms.length) {
-          fieldLabel = forms[key]['label'] ?? key.toString();
-        } else {
-          fieldLabel = key.toString();
-        }
+        final String fieldLabel = (key >= 0 && key < _formDefinitions.length)
+            ? _formDefinitions[key].label
+            : key.toString();
 
         for (int i = 0; i < attachedFilesMap[key]!.length; i++) {
           final fileData = attachedFilesMap[key]![i];
@@ -185,35 +188,14 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                     'Uploading files ($currentFileUploadIndex/$totalFilesToUpload)';
               });
 
-              final fileName = path.basename(file.path);
-              final uniqueFileName =
-                  '${DateTime.now().millisecondsSinceEpoch}_$fileName';
-
-              final storageRef = FirebaseStorage.instance.ref().child(
-                  'users/${user.uid}/applications/${widget.application['id']}/$fieldLabel/$uniqueFileName');
-
-              // Upload file with retry logic and timeout
               try {
-                final metadata = SettableMetadata(
-                    contentType: _getContentType(fileName),
-                    customMetadata: {'picked-file-path': file.path});
-
-                final uploadTask = storageRef.putFile(file, metadata);
-                final completer = Completer<TaskSnapshot>();
-
-                uploadTask.then(completer.complete).catchError((error) {
-                  print('Upload task error: $error');
-                  completer.completeError(error);
-                });
-
-                final snapshot = await completer.future
-                    .timeout(Duration(minutes: 5), onTimeout: () {
-                  print('Upload timed out after 5 minutes');
-                  uploadTask.cancel();
-                  throw TimeoutException('Upload timed out after 5 minutes');
-                });
-
-                final downloadUrl = await snapshot.ref.getDownloadURL();
+                final downloadUrl =
+                    await ApplicationAttachmentStorageService.uploadApplicationAttachment(
+                  uid: user.uid,
+                  applicationId: widget.application['id'].toString(),
+                  fieldLabel: fieldLabel,
+                  file: file,
+                );
 
                 // Add the file to the updated map with the download URL
                 updatedAttachedFilesMap[key]!.add({
@@ -263,45 +245,40 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                 .map((item) => Map<String, dynamic>.from(item)));
       }
 
-      // Get the original form fields
-      final forms = widget.application['details']['forms'] ?? [];
-
       // Create the new formFields structure with answers
-      final formFields = [];
+      final List<Map<String, dynamic>> formFields = [];
 
-      for (int i = 0; i < forms.length; i++) {
-        var form = forms[i];
-        var formField = Map<String, dynamic>.from(form);
+      for (int i = 0; i < _formDefinitions.length; i++) {
+        final form = _formDefinitions[i];
+        final formField = form.toPersistedMap();
 
         // Add answers based on form type
-        switch (form['type']) {
-          case 'short_answer':
-          case 'paragraph':
+        switch (form.type) {
+          case ProgramFormFieldType.shortAnswer:
+          case ProgramFormFieldType.paragraph:
             formField['answer'] = textControllers[i]?.text ?? '';
             break;
 
-          case 'multiple_choice':
+          case ProgramFormFieldType.multipleChoice:
             formField['selectedOption'] = selectedOptions[i];
             break;
 
-          case 'checkbox':
+          case ProgramFormFieldType.checkbox:
             // For checkbox, create a list of selected options
-            if (form['options'] != null) {
-              final List<String> selectedOptionsList = [];
-              for (var option in form['options']) {
-                if (checkboxValues[i]?[option] == true) {
-                  selectedOptionsList.add(option);
-                }
+            final List<String> selectedOptionsList = [];
+            for (final option in form.options) {
+              if (checkboxValues[i]?[option] == true) {
+                selectedOptionsList.add(option);
               }
-              formField['selectedOptions'] = selectedOptionsList;
             }
+            formField['selectedOptions'] = selectedOptionsList;
             break;
 
-          case 'date':
+          case ProgramFormFieldType.date:
             formField['selectedDate'] = selectedDates[i]?.toIso8601String();
             break;
 
-          case 'attachment':
+          case ProgramFormFieldType.attachment:
             // For attachments, add the file information
             if (attachedFilesMap.containsKey(i)) {
               formField['files'] = attachedFilesMap[i]!
@@ -320,12 +297,11 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       }
 
       // Save the formFields to Firebase
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(widget.application['id'])
-          .update({'formFields': formFields});
+      await ApplicationFormService.saveFormFields(
+        uid: user.uid,
+        applicationId: widget.application['id'].toString(),
+        formFields: formFields,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -350,76 +326,72 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
   }
 
   Future<void> loadFormData() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = AuthSessionService.currentUser();
     if (user == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(widget.application['id'])
-          .get();
+      final doc = await ApplicationFormService.getUserApplicationDoc(
+        uid: user.uid,
+        applicationId: widget.application['id'].toString(),
+      );
 
       if (doc.exists && doc.data() != null) {
-        final formFields = doc.data()!['formFields'] ?? [];
+        final rawFormFields = doc.data()!['formFields'];
+        if (rawFormFields is! List) return;
 
-        // Process each form field and populate the UI
-        for (int i = 0; i < formFields.length; i++) {
-          final field = formFields[i];
-          final String fieldType = field['type'] ?? '';
+        final submittedFields =
+          ApplicationSubmittedFormField.listFromDynamic(rawFormFields);
 
-          switch (fieldType) {
-            case 'short_answer':
-            case 'paragraph':
+        final int count =
+            submittedFields.length < _formDefinitions.length
+                ? submittedFields.length
+                : _formDefinitions.length;
+
+        for (int i = 0; i < count; i++) {
+          final submitted = submittedFields[i];
+          final definition = _formDefinitions[i];
+
+          switch (submitted.type) {
+            case ProgramFormFieldType.shortAnswer:
+            case ProgramFormFieldType.paragraph:
               if (textControllers.containsKey(i)) {
-                textControllers[i]!.text = field['answer'] ?? '';
+                textControllers[i]!.text = submitted.answer ?? '';
               }
               break;
 
-            case 'multiple_choice':
+            case ProgramFormFieldType.multipleChoice:
               setState(() {
-                selectedOptions[i] = field['selectedOption'];
+                selectedOptions[i] = submitted.selectedOption;
               });
               break;
 
-            case 'checkbox':
-              if (field['options'] != null &&
-                  field['selectedOptions'] != null) {
-                if (!checkboxValues.containsKey(i)) {
-                  checkboxValues[i] = {};
-                }
-                for (var option in field['options']) {
-                  checkboxValues[i]![option] =
-                      field['selectedOptions'].contains(option);
-                }
+            case ProgramFormFieldType.checkbox:
+              checkboxValues.putIfAbsent(i, () => <String, bool>{});
+              for (final option in definition.options) {
+                checkboxValues[i]![option] =
+                    submitted.selectedOptions.contains(option);
               }
               break;
 
-            case 'date':
-              if (field['selectedDate'] != null) {
-                setState(() {
-                  selectedDates[i] = DateTime.parse(field['selectedDate']);
-                });
-              }
+            case ProgramFormFieldType.date:
+              setState(() {
+                selectedDates[i] = submitted.selectedDate;
+              });
               break;
 
-            case 'attachment':
-              if (field['files'] != null) {
-                final List<dynamic> files = field['files'];
-                attachedFilesMap[i] = [];
-                originalAttachedFilesMap[i.toString()] = [];
+            case ProgramFormFieldType.attachment:
+              attachedFilesMap[i] = [];
+              originalAttachedFilesMap[i.toString()] = [];
 
-                for (var file in files) {
-                  final fileMap = {
-                    'name': file['name'],
-                    'downloadUrl': file['downloadUrl'],
-                    'path': null // Local path will be populated when downloaded
-                  };
-                  attachedFilesMap[i]!.add(fileMap);
-                  originalAttachedFilesMap[i.toString()]!
-                      .add(Map<String, dynamic>.from(fileMap));
-                }
+              for (final file in submitted.files) {
+                final fileMap = {
+                  'name': file.name,
+                  'downloadUrl': file.downloadUrl,
+                  'path': null,
+                };
+                attachedFilesMap[i]!.add(fileMap);
+                originalAttachedFilesMap[i.toString()]!
+                    .add(Map<String, dynamic>.from(fileMap));
               }
               break;
           }
@@ -433,26 +405,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
           backgroundColor: Colors.red,
         ),
       );
-    }
-  }
-
-  // Helper method to determine content type
-  String _getContentType(String fileName) {
-    final ext = path.extension(fileName).toLowerCase();
-    switch (ext) {
-      case '.pdf':
-        return 'application/pdf';
-      case '.doc':
-        return 'application/msword';
-      case '.docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case '.jpg':
-      case '.jpeg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      default:
-        return 'application/octet-stream';
     }
   }
 
@@ -566,7 +518,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = AuthSessionService.currentUser();
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -578,15 +530,15 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       }
 
       // Reference to the application document
-      final applicationRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(widget.application['id']);
+      final applicationId = widget.application['id'].toString();
 
       // Get the current form data to find all attached files
-      final applicationDoc = await applicationRef.get();
-      final formData = applicationDoc.data()?['form_data'];
+      final applicationData = await ApplicationFormService.getUserApplicationData(
+        uid: user.uid,
+        applicationId: applicationId,
+      );
+
+      final formData = applicationData?['form_data'];
 
       // Delete all files from Firebase Storage if they exist
       if (formData != null && formData['attachments'] != null) {
@@ -599,9 +551,9 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                 file['downloadUrl'].toString().isNotEmpty) {
               try {
                 // Delete file from Firebase Storage
-                final ref =
-                    FirebaseStorage.instance.refFromURL(file['downloadUrl']);
-                await ref.delete();
+                await ApplicationAttachmentStorageService.deleteByDownloadUrl(
+                  file['downloadUrl'],
+                );
                 print('Deleted file: ${file['name']} from Firebase Storage');
               } catch (e) {
                 print('Error deleting file from storage: $e');
@@ -613,7 +565,10 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       }
 
       // Delete the application document from Firestore
-      await applicationRef.delete();
+      await ApplicationFormService.deleteUserApplication(
+        uid: user.uid,
+        applicationId: applicationId,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -681,17 +636,16 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       await saveFormData();
 
       // Update application status to Pending
-      final user = FirebaseAuth.instance.currentUser;
+      final user = AuthSessionService.currentUser();
       if (user == null) {
         throw Exception('User not signed in');
       }
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('users-application')
-          .doc(widget.application['id'])
-          .update({'status': 'Pending'});
+      await ApplicationFormService.updateStatus(
+        uid: user.uid,
+        applicationId: widget.application['id'].toString(),
+        status: 'Pending',
+      );
 
       // Navigate to pending page with replacement and also set result for any parent pages
       Navigator.pushReplacement(
@@ -731,7 +685,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final forms = widget.application['details']['forms'] ?? [];
+    final forms = _formDefinitions;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -983,13 +937,13 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: List.generate(forms.length, (i) {
                             final form = forms[i];
-                            final label = form['label'];
+                            final label = form.label;
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Render each form question
-                                if (form['type'] == 'short_answer' ||
-                                    form['type'] == 'paragraph') ...[
+                                if (form.type == ProgramFormFieldType.shortAnswer ||
+                                    form.type == ProgramFormFieldType.paragraph) ...[
                                   Text(
                                     label,
                                     style: TextStyle(
@@ -1002,14 +956,14 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                   TextField(
                                     controller: textControllers[i],
                                     maxLines:
-                                        form['type'] == 'paragraph' ? 5 : 1,
+                                        form.type == ProgramFormFieldType.paragraph ? 5 : 1,
                                     decoration: InputDecoration(
-                                      hintText: form['placeholder'],
+                                      hintText: form.placeholder,
                                       border: OutlineInputBorder(),
                                     ),
                                   ),
-                                ] else if (form['type'] ==
-                                    'multiple_choice') ...[
+                                ] else if (form.type ==
+                                    ProgramFormFieldType.multipleChoice) ...[
                                   Text(
                                     label,
                                     style: TextStyle(
@@ -1019,19 +973,19 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                     ),
                                   ),
                                   SizedBox(height: 8),
-                                  ...form['options'].map<Widget>((option) {
-                                    return RadioListTile(
+                                  ...form.options.map<Widget>((option) {
+                                    return RadioListTile<String>(
                                       value: option,
                                       groupValue: selectedOptions[i],
                                       onChanged: (value) {
                                         setState(() {
-                                          selectedOptions[i] = value as String?;
+                                          selectedOptions[i] = value;
                                         });
                                       },
                                       title: Text(option),
                                     );
                                   }).toList(),
-                                ] else if (form['type'] == 'checkbox') ...[
+                                ] else if (form.type == ProgramFormFieldType.checkbox) ...[
                                   Text(
                                     label,
                                     style: TextStyle(
@@ -1041,7 +995,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                     ),
                                   ),
                                   SizedBox(height: 8),
-                                  ...form['options'].map<Widget>((option) {
+                                  ...form.options.map<Widget>((option) {
                                     // Make sure the value is never null
                                     final bool isChecked =
                                         checkboxValues[i]?[option] ?? false;
@@ -1058,7 +1012,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                       title: Text(option),
                                     );
                                   }).toList(),
-                                ] else if (form['type'] == 'date') ...[
+                                ] else if (form.type == ProgramFormFieldType.date) ...[
                                   Text(
                                     label,
                                     style: TextStyle(
@@ -1079,7 +1033,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
                                     readOnly: true,
                                     onTap: () => _selectDate(context, i),
                                   ),
-                                ] else if (form['type'] == 'attachment') ...[
+                                ] else if (form.type == ProgramFormFieldType.attachment) ...[
                                   Text(
                                     label,
                                     style: TextStyle(

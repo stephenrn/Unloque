@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unloque/models/program_form_field.dart';
+import 'package:unloque/models/organization_response_section.dart';
 
-class AvailableApplicationsData {
+class AvailableApplicationsService {
   // Cache for program data to reduce Firebase reads
   static Map<String, dynamic> _programCache = {};
   static Map<String, List<Map<String, dynamic>>> _categoryCache = {};
@@ -201,6 +203,9 @@ class AvailableApplicationsData {
     Map<String, dynamic> orgData,
     String orgId,
   ) {
+    final typedDetailSections =
+        ResponseSection.listFromDynamic(programData['detailSections']);
+
     return {
       'id': programData['id'],
       'category': programData['category'] ?? 'Uncategorized',
@@ -215,16 +220,14 @@ class AvailableApplicationsData {
       'organizationId': orgId,
       'programStatus': programData['programStatus'] ?? 'Closed',
       'details': {
-        'description': _getDescriptionFromDetailSections(
-            programData['detailSections'] ?? []),
-        'requirements': _getRequirementsFromDetailSections(
-            programData['detailSections'] ?? []),
+        'description': _getDescriptionFromDetailSections(typedDetailSections),
+        'requirements':
+            _getRequirementsFromDetailSections(typedDetailSections),
         'eligibility': {
-          'points': _getEligibilityFromDetailSections(
-              programData['detailSections'] ?? []),
+          'points': _getEligibilityFromDetailSections(typedDetailSections),
           'extra': '',
         },
-        'forms': programData['formFields'] ?? [],
+        'forms': ProgramFormField.listFromDynamic(programData['formFields']),
         'detailSections':
             programData['detailSections'] ?? [], // Include detailSections
       },
@@ -233,15 +236,13 @@ class AvailableApplicationsData {
 
   // Extract description from detail sections
   static String _getDescriptionFromDetailSections(
-      List<dynamic> detailSections) {
-    for (var section in detailSections) {
-      if (section['type'] == 'paragraph' &&
-          (section['label'] == 'Description' ||
-              section['label']
-                  .toString()
-                  .toLowerCase()
-                  .contains('description'))) {
-        return section['content'] ?? '';
+      List<ResponseSection> detailSections) {
+    for (final section in detailSections) {
+      if (section is! ParagraphResponseSection) continue;
+
+      final label = section.label.toLowerCase();
+      if (section.label == 'Description' || label.contains('description')) {
+        return section.content;
       }
     }
     return '';
@@ -249,15 +250,13 @@ class AvailableApplicationsData {
 
   // Extract requirements from detail sections
   static List<String> _getRequirementsFromDetailSections(
-      List<dynamic> detailSections) {
-    for (var section in detailSections) {
-      if (section['type'] == 'list' &&
-          (section['label'] == 'Requirements' ||
-              section['label']
-                  .toString()
-                  .toLowerCase()
-                  .contains('requirement'))) {
-        return List<String>.from(section['items'] ?? []);
+      List<ResponseSection> detailSections) {
+    for (final section in detailSections) {
+      if (section is! ListResponseSection) continue;
+
+      final label = section.label.toLowerCase();
+      if (section.label == 'Requirements' || label.contains('requirement')) {
+        return section.items;
       }
     }
     return ['No requirements specified'];
@@ -265,12 +264,13 @@ class AvailableApplicationsData {
 
   // Extract eligibility from detail sections
   static List<String> _getEligibilityFromDetailSections(
-      List<dynamic> detailSections) {
-    for (var section in detailSections) {
-      if (section['type'] == 'list' &&
-          (section['label'] == 'Eligibility' ||
-              section['label'].toString().toLowerCase().contains('eligible'))) {
-        return List<String>.from(section['items'] ?? []);
+      List<ResponseSection> detailSections) {
+    for (final section in detailSections) {
+      if (section is! ListResponseSection) continue;
+
+      final label = section.label.toLowerCase();
+      if (section.label == 'Eligibility' || label.contains('eligible')) {
+        return section.items;
       }
     }
     return ['No eligibility criteria specified'];

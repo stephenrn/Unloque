@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'preview_response_program_page.dart';
+import 'package:unloque/services/applications/organization_response_service.dart';
+import 'package:path/path.dart' as path;
+import 'package:unloque/services/storage/firebase_storage_file_service.dart';
+import 'package:unloque/models/organization_response_section.dart';
+import 'package:unloque/models/application_form_submission_field.dart';
+import 'package:unloque/models/program_form_field.dart';
 
 class OrganizationResponseBuilderPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -20,9 +24,8 @@ class _OrganizationResponseBuilderPageState
     extends State<OrganizationResponseBuilderPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<Map<String, dynamic>> _responseSections = [];
+  List<ResponseSection> _responseSections = [];
   final List<String> _sectionTypes = ['paragraph', 'list', 'attachment'];
-  final Map<String, List<Map<String, dynamic>>> _pendingFileUploads = {};
   bool _isUploading = false;
 
   // Add state for fetched info
@@ -55,32 +58,16 @@ class _OrganizationResponseBuilderPageState
     String deadline = '';
     String category = '';
 
-    if (organizationId != null && programId != null) {
-      // Fetch program info
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .collection('programs')
-          .doc(programId)
-          .get();
-      if (programDoc.exists) {
-        final data = programDoc.data() ?? {};
-        programName = (data['name'] ?? '').toString();
-        deadline = (data['deadline'] ?? '').toString();
-        category = (data['category'] ?? '').toString();
-      }
+    final header = await OrganizationResponseService.fetchHeaderData(
+      organizationId: organizationId?.toString(),
+      programId: programId?.toString(),
+    );
 
-      // Fetch organization info
-      final orgDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .get();
-      if (orgDoc.exists) {
-        final data = orgDoc.data() ?? {};
-        orgName = (data['name'] ?? '').toString();
-        logoUrl = (data['logoUrl'] ?? '').toString();
-      }
-    }
+    programName = header['programName'] ?? '';
+    orgName = header['orgName'] ?? '';
+    logoUrl = header['logoUrl'] ?? '';
+    deadline = header['deadline'] ?? '';
+    category = header['category'] ?? '';
 
     // Fallback to application object if Firestore values are empty
     if (programName.isEmpty) programName = app['programName'] ?? '';
@@ -100,20 +87,33 @@ class _OrganizationResponseBuilderPageState
 
   void _addSection(String type) {
     setState(() {
-      final id = DateTime.now().millisecondsSinceEpoch;
-      Map<String, dynamic> section = {
-        'id': id,
-        'type': type,
-        'label': 'New Section',
-      };
-      if (type == 'paragraph') {
-        section['content'] = '';
-      } else if (type == 'list') {
-        section['items'] = ['Enter an item'];
-      } else if (type == 'attachment') {
-        section['files'] = [];
+      final id = DateTime.now().millisecondsSinceEpoch.toString();
+      final sectionType = responseSectionTypeFromString(type);
+      switch (sectionType) {
+        case ResponseSectionType.paragraph:
+          _responseSections.add(
+            ParagraphResponseSection(id: id, label: 'New Section', content: ''),
+          );
+          break;
+        case ResponseSectionType.list:
+          _responseSections.add(
+            ListResponseSection(
+              id: id,
+              label: 'New Section',
+              items: const ['Enter an item'],
+            ),
+          );
+          break;
+        case ResponseSectionType.attachment:
+          _responseSections.add(
+            AttachmentResponseSection(
+              id: id,
+              label: 'New Section',
+              files: const <ResponseAttachmentFile>[],
+            ),
+          );
+          break;
       }
-      _responseSections.add(section);
     });
   }
 
@@ -123,9 +123,9 @@ class _OrganizationResponseBuilderPageState
     });
   }
 
-  void _updateSection(int index, Map<String, dynamic> newData) {
+  void _setSection(int index, ResponseSection section) {
     setState(() {
-      _responseSections[index] = {..._responseSections[index], ...newData};
+      _responseSections[index] = section;
     });
   }
 
@@ -149,9 +149,10 @@ class _OrganizationResponseBuilderPageState
 
   void _editSectionDialog(int index) {
     final section = _responseSections[index];
-    final labelController = TextEditingController(text: section['label']);
-    final contentController =
-        TextEditingController(text: section['content'] ?? '');
+    final labelController = TextEditingController(text: section.label);
+    final contentController = TextEditingController(
+      text: section is ParagraphResponseSection ? section.content : '',
+    );
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -163,7 +164,7 @@ class _OrganizationResponseBuilderPageState
               controller: labelController,
               decoration: InputDecoration(labelText: 'Section Label'),
             ),
-            if (section['type'] == 'paragraph') ...[
+            if (section.type == ResponseSectionType.paragraph) ...[
               SizedBox(height: 12),
               TextField(
                 controller: contentController,
@@ -179,11 +180,18 @@ class _OrganizationResponseBuilderPageState
               child: Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              final newData = {'label': labelController.text};
-              if (section['type'] == 'paragraph') {
-                newData['content'] = contentController.text;
+              final updatedLabel = labelController.text;
+              if (section is ParagraphResponseSection) {
+                _setSection(
+                  index,
+                  section.copyWith(
+                    label: updatedLabel,
+                    content: contentController.text,
+                  ),
+                );
+              } else {
+                _setSection(index, section.copyWith(label: updatedLabel));
               }
-              _updateSection(index, newData);
               Navigator.pop(context);
             },
             child: Text('Save'),
@@ -194,40 +202,38 @@ class _OrganizationResponseBuilderPageState
   }
 
   void _addListItem(int sectionIndex) {
-    setState(() {
-      (_responseSections[sectionIndex]['items'] as List).add('Enter an item');
-    });
+    final section = _responseSections[sectionIndex];
+    if (section is! ListResponseSection) return;
+    final nextItems = [...section.items, 'Enter an item'];
+    _setSection(sectionIndex, section.copyWith(items: nextItems));
   }
 
   void _removeListItem(int sectionIndex, int itemIndex) {
-    setState(() {
-      (_responseSections[sectionIndex]['items'] as List).removeAt(itemIndex);
-    });
+    final section = _responseSections[sectionIndex];
+    if (section is! ListResponseSection) return;
+    final nextItems = List<String>.from(section.items);
+    nextItems.removeAt(itemIndex);
+    _setSection(sectionIndex, section.copyWith(items: nextItems));
   }
 
   Future<void> _pickFiles(int sectionIndex) async {
     FilePickerResult? result =
         await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result != null) {
-      setState(() {
-        if (_responseSections[sectionIndex]['files'] == null) {
-          _responseSections[sectionIndex]['files'] = [];
-        }
-        for (var file in result.files) {
-          _responseSections[sectionIndex]['files'].add({
-            'name': file.name,
-            'path': file.path,
-            'isPending': true,
-          });
-          _pendingFileUploads['${_responseSections[sectionIndex]['id']}'] ??=
-              [];
-          _pendingFileUploads['${_responseSections[sectionIndex]['id']}']!.add({
-            'name': file.name,
-            'path': file.path,
-            'sectionId': _responseSections[sectionIndex]['id'].toString(),
-          });
-        }
-      });
+      final section = _responseSections[sectionIndex];
+      if (section is! AttachmentResponseSection) return;
+
+      final nextFiles = List<ResponseAttachmentFile>.from(section.files);
+      for (final file in result.files) {
+        nextFiles.add(
+          ResponseAttachmentFile(
+            name: file.name,
+            localPath: file.path,
+            isPending: true,
+          ),
+        );
+      }
+      _setSection(sectionIndex, section.copyWith(files: nextFiles));
     }
   }
 
@@ -236,11 +242,11 @@ class _OrganizationResponseBuilderPageState
       final fileName = path.basename(file.path);
       final uniqueFileName =
           '${DateTime.now().millisecondsSinceEpoch}_$fileName';
-      final storageRef = FirebaseStorage.instance.ref().child(
-          'organization_responses/${widget.application['organizationId']}/${widget.application['id']}/$sectionId/$uniqueFileName');
-      final uploadTask = storageRef.putFile(file);
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      return await FirebaseStorageFileService.uploadFile(
+        storagePath:
+            'organization_responses/${widget.application['organizationId']}/${widget.application['id']}/$sectionId/$uniqueFileName',
+        file: file,
+      );
     } catch (e) {
       print('Error uploading file: $e');
       return null;
@@ -249,38 +255,42 @@ class _OrganizationResponseBuilderPageState
 
   Future<void> _uploadPendingFiles() async {
     int totalPending = 0;
-    _pendingFileUploads.forEach((_, files) => totalPending += files.length);
+    for (final section in _responseSections) {
+      if (section is AttachmentResponseSection) {
+        totalPending += section.files.where((f) => f.isPending).length;
+      }
+    }
     if (totalPending == 0) return;
+
     setState(() {
       _isUploading = true;
     });
     try {
-      for (var sectionId in _pendingFileUploads.keys) {
-        final sectionFiles = _pendingFileUploads[sectionId]!;
-        if (sectionFiles.isEmpty) continue;
-        int? sectionIndex = _responseSections
-            .indexWhere((s) => s['id'].toString() == sectionId);
-        if (sectionIndex == -1) continue;
-        for (var fileData in sectionFiles) {
-          final file = File(fileData['path']);
-          final downloadUrl = await _uploadFile(file, sectionId);
-          if (downloadUrl != null) {
-            List files = List.from(_responseSections[sectionIndex]['files']);
-            for (int j = 0; j < files.length; j++) {
-              if (files[j]['name'] == fileData['name'] &&
-                  files[j]['isPending'] == true) {
-                files[j] = {
-                  'name': fileData['name'],
-                  'downloadUrl': downloadUrl,
-                  'uploadedAt': DateTime.now().toIso8601String(),
-                };
-                break;
-              }
-            }
-            _responseSections[sectionIndex]['files'] = files;
-          }
+      for (int sectionIndex = 0;
+          sectionIndex < _responseSections.length;
+          sectionIndex++) {
+        final section = _responseSections[sectionIndex];
+        if (section is! AttachmentResponseSection) continue;
+
+        final nextFiles = List<ResponseAttachmentFile>.from(section.files);
+        for (int fileIndex = 0; fileIndex < nextFiles.length; fileIndex++) {
+          final fileData = nextFiles[fileIndex];
+          if (!fileData.isPending) continue;
+          final localPath = fileData.localPath;
+          if (localPath == null || localPath.isEmpty) continue;
+
+          final file = File(localPath);
+          final downloadUrl = await _uploadFile(file, section.id);
+          if (downloadUrl == null) continue;
+
+          nextFiles[fileIndex] = fileData.copyWith(
+            downloadUrl: downloadUrl,
+            isPending: false,
+            uploadedAt: DateTime.now().toIso8601String(),
+          );
         }
-        _pendingFileUploads[sectionId] = [];
+
+        _setSection(sectionIndex, section.copyWith(files: nextFiles));
       }
     } finally {
       setState(() {
@@ -295,44 +305,22 @@ class _OrganizationResponseBuilderPageState
     });
     try {
       await _uploadPendingFiles();
-      final orgId = widget.application['organizationId'];
+
+      final orgId = widget.application['organizationId'] ??
+          widget.application['orgId'];
       final userId = widget.application['userId'];
       final appId = widget.application['id'];
-      final userAppRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('users-application')
-          .doc(appId);
+      final programId = widget.application['programId'] ?? appId;
 
-      await userAppRef.update({
-        'organizationResponse': {
-          'organizationId': orgId,
-          'userId': userId,
-          'applicationId': appId,
-          'responseSections': _responseSections,
-          'createdAt': FieldValue.serverTimestamp(),
-        },
-        'status': 'Completed',
-      });
-
-      // Add a notification for the user
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('notifications')
-          .add({
-        'title': 'Response Received',
-        'message':
-            'Organization $_orgName has responded to your application for $_programName',
-        'type': 'response',
-        'programId': widget.application['programId'] ?? appId,
-        'programName': _programName,
-        'organizationId': orgId,
-        'organizationName': _orgName,
-        'isRead': false,
-        'timestamp': FieldValue.serverTimestamp(),
-        'applicationId': appId,
-      });
+      await OrganizationResponseService.sendResponse(
+        organizationId: orgId?.toString(),
+        userId: userId?.toString(),
+        applicationId: appId?.toString(),
+        programId: programId?.toString(),
+        orgName: _orgName,
+        programName: _programName,
+        responseSections: _responseSections,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -357,9 +345,9 @@ class _OrganizationResponseBuilderPageState
     }
   }
 
-  Widget _buildSectionCard(int index, Map<String, dynamic> section) {
-    final type = section['type'];
-    final label = section['label'];
+  Widget _buildSectionCard(int index, ResponseSection section) {
+    final type = responseSectionTypeToString(section.type);
+    final label = section.label;
     return Card(
       margin: EdgeInsets.only(bottom: 12),
       child: Column(
@@ -408,19 +396,20 @@ class _OrganizationResponseBuilderPageState
     );
   }
 
-  Widget _buildSectionContent(int index, Map<String, dynamic> section) {
-    switch (section['type']) {
-      case 'paragraph':
+  Widget _buildSectionContent(int index, ResponseSection section) {
+    switch (section) {
+      case ParagraphResponseSection():
         // Use a controller to avoid the "typing backwards" bug.
         // Store controllers in a map by section index to persist state.
         _paragraphControllers ??= {};
         if (!_paragraphControllers!.containsKey(index)) {
           _paragraphControllers![index] =
-              TextEditingController(text: section['content'] ?? '');
+              TextEditingController(text: section.content);
         } else {
           final controller = _paragraphControllers![index]!;
-          if (controller.text != (section['content'] ?? '')) {
-            controller.text = section['content'] ?? '';
+          final nextValue = section.content;
+          if (controller.text != nextValue) {
+            controller.text = nextValue;
             controller.selection = TextSelection.fromPosition(
                 TextPosition(offset: controller.text.length));
           }
@@ -432,12 +421,14 @@ class _OrganizationResponseBuilderPageState
             border: OutlineInputBorder(),
           ),
           controller: _paragraphControllers![index],
-          onChanged: (value) => _updateSection(index, {'content': value}),
+          onChanged: (value) {
+            _setSection(index, section.copyWith(content: value));
+          },
         );
-      case 'list':
+      case ListResponseSection():
         // For each item, use a controller per item to avoid typing issues.
         _listItemControllers ??= {};
-        final items = List<String>.from(section['items'] ?? []);
+        final items = section.items;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -468,9 +459,9 @@ class _OrganizationResponseBuilderPageState
                         contentPadding: EdgeInsets.only(bottom: 8),
                       ),
                       onChanged: (value) {
-                        final newItems = List<String>.from(items);
-                        newItems[itemIndex] = value;
-                        _updateSection(index, {'items': newItems});
+                        final nextItems = List<String>.from(items);
+                        nextItems[itemIndex] = value;
+                        _setSection(index, section.copyWith(items: nextItems));
                       },
                     ),
                   ),
@@ -491,8 +482,8 @@ class _OrganizationResponseBuilderPageState
             ),
           ],
         );
-      case 'attachment':
-        final files = List<Map<String, dynamic>>.from(section['files'] ?? []);
+      case AttachmentResponseSection():
+        final files = section.files;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -504,8 +495,8 @@ class _OrganizationResponseBuilderPageState
             if (files.isNotEmpty) ...[
               SizedBox(height: 8),
               ...files.map((file) {
-                final fileName = file['name'] ?? 'Unnamed File';
-                final isPending = file['isPending'] == true;
+                final fileName = file.name;
+                final isPending = file.isPending;
                 return Row(
                   children: [
                     Icon(
@@ -533,43 +524,46 @@ class _OrganizationResponseBuilderPageState
             ],
           ],
         );
-      default:
-        return Text('Unknown section type');
     }
   }
 
   Widget _buildSubmittedInfo(List<dynamic> formFields) {
-    List<Widget> items = [];
-    for (var field in formFields) {
-      if (field is! Map) continue;
-      final type = field['type'] ?? '';
-      final label = field['label'] ?? '';
-      switch (type) {
-        case 'short_answer':
-        case 'paragraph':
-          items.add(_reviewField(label, field['answer'] ?? ''));
+    final submittedFields =
+      ApplicationSubmittedFormField.listFromDynamic(formFields);
+
+    final items = <Widget>[];
+    for (final field in submittedFields) {
+      switch (field.type) {
+        case ProgramFormFieldType.shortAnswer:
+        case ProgramFormFieldType.paragraph:
+          items.add(_reviewField(field.label, field.answer ?? ''));
           break;
-        case 'multiple_choice':
-          if ((field['selectedOption'] ?? '').toString().isNotEmpty) {
-            items.add(_reviewField(label, field['selectedOption'].toString()));
+        case ProgramFormFieldType.multipleChoice:
+          final selectedOption = field.selectedOption;
+          if (selectedOption != null && selectedOption.isNotEmpty) {
+            items.add(_reviewField(field.label, selectedOption));
           }
           break;
-        case 'checkbox':
-          final selected = field['selectedOptions'];
-          if (selected is List && selected.isNotEmpty) {
-            items.add(_reviewField(label, selected.join(', ')));
+        case ProgramFormFieldType.checkbox:
+          if (field.selectedOptions.isNotEmpty) {
+            items.add(
+              _reviewField(field.label, field.selectedOptions.join(', ')),
+            );
           }
           break;
-        case 'date':
-          final date = field['selectedDate'];
-          if (date != null) {
-            items.add(_reviewField(label, date.toString().split('T')[0]));
+        case ProgramFormFieldType.date:
+          if (field.selectedDate != null) {
+            items.add(
+              _reviewField(
+                field.label,
+                field.selectedDate!.toString().split(' ')[0],
+              ),
+            );
           }
           break;
-        case 'attachment':
-          final files = field['files'];
-          if (files is List && files.isNotEmpty) {
-            items.add(_reviewAttachment(label, files));
+        case ProgramFormFieldType.attachment:
+          if (field.files.isNotEmpty) {
+            items.add(_reviewAttachment(field.label, field.files));
           }
           break;
       }
@@ -624,7 +618,8 @@ class _OrganizationResponseBuilderPageState
     );
   }
 
-  Widget _reviewAttachment(String label, List files) {
+  Widget _reviewAttachment(
+      String label, List<ApplicationSubmittedAttachment> files) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -650,8 +645,10 @@ class _OrganizationResponseBuilderPageState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: files.map<Widget>((file) {
-                final fileName = file['name'] ?? 'Unnamed File';
-                final downloadUrl = file['downloadUrl'];
+                final fileName =
+                    file.name.isNotEmpty ? file.name : 'Unnamed File';
+                final downloadUrl =
+                    file.downloadUrl.isNotEmpty ? file.downloadUrl : null;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/available_applications_data.dart';
+import 'package:provider/provider.dart';
+import 'package:unloque/providers/available_applications_provider.dart';
 import 'application_details_page.dart';
 
 class CategoryDetailsPage extends StatefulWidget {
@@ -17,42 +18,31 @@ class CategoryDetailsPage extends StatefulWidget {
 }
 
 class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
-  bool _isLoading = true;
-  List<Map<String, dynamic>> _applications = [];
-
   @override
   void initState() {
     super.initState();
-    _loadApplications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<AvailableApplicationsProvider>()
+          .loadCategory(widget.categoryName);
+    });
   }
 
-  Future<void> _loadApplications() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Force clearing cache to ensure fresh data
-      AvailableApplicationsData.clearCache();
-
-      final applications =
-          await AvailableApplicationsData.getApplicationsByCategory(
-              widget.categoryName);
-
-      setState(() {
-        _applications = applications;
-      });
-    } catch (e) {
-      print('Error loading applications: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  Future<void> _refreshApplications({bool forceRefresh = false}) async {
+    await context.read<AvailableApplicationsProvider>().loadCategory(
+          widget.categoryName,
+          forceRefresh: forceRefresh,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AvailableApplicationsProvider>();
+    final applications = provider.applicationsForCategory(widget.categoryName);
+    final isLoading =
+        provider.isCategoryLoading(widget.categoryName) && applications.isEmpty;
+
     return Scaffold(
       backgroundColor: Colors.grey[850],
       appBar: AppBar(
@@ -107,9 +97,9 @@ class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
             top: Radius.circular(16),
           ),
         ),
-        child: _isLoading
+        child: isLoading
             ? Center(child: CircularProgressIndicator())
-            : _applications.isEmpty
+            : applications.isEmpty
                 ? Center(
                     child: Text(
                       'No available applications',
@@ -122,9 +112,9 @@ class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
                 : ListView.builder(
                     padding:
                         EdgeInsets.only(top: 50, bottom: 0, left: 0, right: 0),
-                    itemCount: _applications.length,
+                    itemCount: applications.length,
                     itemBuilder: (context, index) => AvailableApplicationCard(
-                      application: _applications[index],
+                      application: applications[index],
                     ),
                   ),
       ),
@@ -160,7 +150,7 @@ class AvailableApplicationCard extends StatelessWidget {
           final categoryDetailsState =
               context.findAncestorStateOfType<_CategoryDetailsPageState>();
           if (categoryDetailsState != null) {
-            categoryDetailsState._loadApplications();
+            categoryDetailsState._refreshApplications(forceRefresh: true);
           }
 
           // Also propagate to parent if needed

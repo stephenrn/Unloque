@@ -44,6 +44,42 @@ Follow these steps to run the project on your local machine:
    flutter build apk
    ```
 
+## Project Structure
+
+The app is being migrated toward a simple “clean-ish” structure to keep UI, state, and data access separated and easier to maintain.
+See `docs/ARCHITECTURE.md` for the detailed conventions.
+
+### Folder diagram
+
+```text
+lib/
+   screens/       UI screens/pages only (Scaffold, routing, layout)
+   widgets/       Reusable UI components used by screens
+   providers/     State management (ChangeNotifier/ViewModel-style)
+   services/      Data access (Firebase/HTTP/local IO); no UI code
+   models/        Plain data models
+   constants/     App-wide constants (colors, keys, etc.)
+   utils/         Small helpers (formatting, parsing, etc.)
+
+assets/
+   images/        Image assets
+   map/           GeoJSON assets
+```
+
+### Conventions
+
+- File names: `snake_case.dart`
+- Classes/widgets: `PascalCase`
+- Variables/functions: `camelCase`
+- Imports: prefer `package:unloque/...` for cross-feature imports
+
+### Where code should live
+
+- `screens/`: build methods, navigation, and composing widgets
+- `widgets/`: UI pieces that can be reused across screens
+- `providers/`: async loading + UI state; calls into `services/`
+- `services/`: Firestore/Storage/Auth, HTTP, and persistence logic
+
 ### Resources
 
 A few resources to get you started if this is your first Flutter project:

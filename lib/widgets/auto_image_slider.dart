@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import '../models/slider_item.dart';
+import '../models/news_card_item.dart';
 import '../constants/category_colors.dart';
 
 class AutoImageSlider extends StatelessWidget {
   // Move the sliderItems list here
-  final List<SliderItem> items = [
-    SliderItem(
+  final List<NewsCardItem> items = [
+    NewsCardItem(
       categoryLabel: 'Education',
       source: 'Department of Education',
       date: 'Feb 10, 2024',
@@ -14,7 +14,7 @@ class AutoImageSlider extends StatelessWidget {
       backgroundImage:
           'https://www.borgenmagazine.com/wp-content/uploads/2024/08/8644294742_96b35cd70a_k.jpg',
     ),
-    SliderItem(
+    NewsCardItem(
       categoryLabel: 'Scholarship',
       source: 'DOST-SEI',
       date: 'Feb 15, 2024',
@@ -85,7 +85,7 @@ class AutoImageSlider extends StatelessWidget {
 }
 
 class NewsCard extends StatelessWidget {
-  final SliderItem item;
+  final NewsCardItem item;
 
   const NewsCard({super.key, required this.item});
 

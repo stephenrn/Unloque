@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'dart:io';
+import 'package:unloque/services/admin/program_preview_service.dart';
+import 'package:unloque/models/organization_response_section.dart';
 
 class PreviewProgramDetailsPage extends StatefulWidget {
   final String organizationId;
@@ -27,7 +28,7 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
   bool _isLoading = true;
   Map<String, dynamic> _programData = {};
   Map<String, dynamic> _organizationData = {};
-  List<Map<String, dynamic>> _detailSections = [];
+  List<ResponseSection> _detailSections = [];
 
   // Downloading states
   Map<String, bool> _downloadingFiles = {};
@@ -46,38 +47,37 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
     });
 
     try {
-      // Load program data from Firebase first
-      final programDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .collection('programs')
-          .doc(widget.programId)
-          .get();
+      final programData = await ProgramPreviewService.fetchProgram(
+        organizationId: widget.organizationId,
+        programId: widget.programId,
+      );
 
-      if (programDoc.exists) {
-        _programData = programDoc.data() ?? {};
+      if (programData != null) {
+        _programData = programData;
 
         // Always use detail sections from Firebase only
-        if (_programData['detailSections'] != null) {
-          _detailSections = List<Map<String, dynamic>>.from(
-            _programData['detailSections'] as List<dynamic>,
-          );
+        final rawSections = _programData['detailSections'];
+        if (rawSections is List) {
+          _detailSections = rawSections
+              .whereType<Map>()
+              .map((m) => ResponseSection.fromMap(
+                    Map<String, dynamic>.from(m),
+                  ))
+              .toList(growable: false);
         } else {
-          _detailSections = [];
+          _detailSections = const <ResponseSection>[];
         }
       } else {
         // If program doesn't exist in Firebase, show empty details
-        _detailSections = [];
+        _detailSections = const <ResponseSection>[];
       }
 
-      // Load organization data
-      final orgDoc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(widget.organizationId)
-          .get();
+      final orgData = await ProgramPreviewService.fetchOrganization(
+        organizationId: widget.organizationId,
+      );
 
-      if (orgDoc.exists) {
-        _organizationData = orgDoc.data() ?? {};
+      if (orgData != null) {
+        _organizationData = orgData;
       }
     } catch (error) {
       setState(() {
@@ -440,8 +440,7 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
 
     for (int i = 0; i < _detailSections.length; i++) {
       final section = _detailSections[i];
-      final sectionType = section['type'] as String;
-      final sectionLabel = section['label'] as String;
+      final sectionLabel = section.label;
 
       // Add section header
       sections.add(
@@ -457,19 +456,20 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
       sections.add(SizedBox(height: 8));
 
       // Render content based on section type
-      if (sectionType == 'paragraph') {
+      if (section is ParagraphResponseSection) {
         sections.add(
           Text(
-            section['content'] ?? 'No content available',
+            section.content.isNotEmpty
+                ? section.content
+                : 'No content available',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
             ),
           ),
         );
-      } else if (sectionType == 'list') {
-        final items = section['items'] as List<dynamic>? ?? [];
-        for (var item in items) {
+      } else if (section is ListResponseSection) {
+        for (var item in section.items) {
           sections.add(
             Padding(
               padding: const EdgeInsets.only(
@@ -483,7 +483,7 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
                   ),
                   Expanded(
                     child: Text(
-                      item.toString(),
+                      item,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -495,9 +495,8 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
             ),
           );
         }
-      } else if (sectionType == 'attachment') {
-        final files = section['files'] as List<dynamic>? ?? [];
-        if (files.isEmpty) {
+      } else if (section is AttachmentResponseSection) {
+        if (section.files.isEmpty) {
           sections.add(
             Text(
               'No attachments available',
@@ -509,79 +508,74 @@ class _PreviewProgramDetailsPageState extends State<PreviewProgramDetailsPage> {
             ),
           );
         } else {
-          for (var fileData in files) {
-            if (fileData is Map<String, dynamic>) {
-              final fileName = fileData['name'] ?? 'Unnamed file';
-              final downloadUrl = fileData['downloadUrl'];
-              final isDownloading = _downloadingFiles[fileName] ?? false;
+          for (final fileData in section.files) {
+            final fileName = fileData.name;
+            final downloadUrl = fileData.downloadUrl;
+            final isDownloading = _downloadingFiles[fileName] ?? false;
 
-              sections.add(
-                Container(
-                  padding: EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      if (isDownloading)
-                        Container(
-                          width: 24,
-                          height: 24,
-                          padding: EdgeInsets.all(4),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        Icon(
-                          downloadUrl != null
-                              ? Icons.insert_drive_file
-                              : Icons.file_present_outlined,
-                          size: 20,
-                          color:
-                              downloadUrl != null ? Colors.blue : Colors.grey,
-                        ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: InkWell(
-                          onTap: downloadUrl != null
-                              ? () =>
-                                  _downloadAndOpenFile(downloadUrl, fileName)
-                              : () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'This file has no download URL. Save the details first.'),
-                                    ),
-                                  );
-                                },
-                          child: Text(
-                            fileName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: downloadUrl != null
-                                  ? Colors.blue
-                                  : Colors.grey,
-                              decoration: downloadUrl != null
-                                  ? TextDecoration.underline
-                                  : null,
-                            ),
+            sections.add(
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    if (isDownloading)
+                      Container(
+                        width: 24,
+                        height: 24,
+                        padding: EdgeInsets.all(4),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        downloadUrl != null
+                            ? Icons.insert_drive_file
+                            : Icons.file_present_outlined,
+                        size: 20,
+                        color: downloadUrl != null ? Colors.blue : Colors.grey,
+                      ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: downloadUrl != null
+                            ? () => _downloadAndOpenFile(downloadUrl, fileName)
+                            : () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'This file has no download URL. Save the details first.'),
+                                  ),
+                                );
+                              },
+                        child: Text(
+                          fileName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                                downloadUrl != null ? Colors.blue : Colors.grey,
+                            decoration: downloadUrl != null
+                                ? TextDecoration.underline
+                                : null,
                           ),
                         ),
                       ),
-                      if (downloadUrl != null)
-                        Tooltip(
-                          message: 'Download and Preview',
-                          child: IconButton(
-                            icon: Icon(Icons.visibility, size: 18),
-                            onPressed: () =>
-                                _downloadAndOpenFile(downloadUrl, fileName),
-                            constraints:
-                                BoxConstraints(minWidth: 32, minHeight: 32),
-                            padding: EdgeInsets.zero,
-                            color: Colors.blue,
-                          ),
+                    ),
+                    if (downloadUrl != null)
+                      Tooltip(
+                        message: 'Download and Preview',
+                        child: IconButton(
+                          icon: Icon(Icons.visibility, size: 18),
+                          onPressed: () =>
+                              _downloadAndOpenFile(downloadUrl, fileName),
+                          constraints:
+                              BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                          color: Colors.blue,
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
-              );
-            }
+              ),
+            );
           }
         }
       }

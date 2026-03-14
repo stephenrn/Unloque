@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../components/application_progress_card.dart';
-import '../data/application_data.dart'; // Import the updated data source
+import '../widgets/application_progress_card.dart';
+import 'package:provider/provider.dart';
+import 'package:unloque/providers/user_applications_provider.dart';
 
 class ApplicationProgressSection extends StatefulWidget {
   final VoidCallback scrollToCategories;
@@ -18,64 +18,32 @@ class ApplicationProgressSection extends StatefulWidget {
 
 class ApplicationProgressSectionState
     extends State<ApplicationProgressSection> {
-  List<Map<String, dynamic>> _applications = [];
-  bool _isLoading = true;
-  String _errorMessage = '';
-
   @override
   void initState() {
     super.initState();
-    _loadApplications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<UserApplicationsProvider>().loadAll();
+    });
   }
 
   // Method to refresh the applications list
   Future<void> refreshApplications() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-    _loadApplications();
-  }
-
-  // Load applications from Firebase
-  Future<void> _loadApplications() async {
-    try {
-      // Check if user is logged in
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        setState(() {
-          _isLoading = false;
-          _applications = [];
-        });
-        return;
-      }
-
-      // Get all user applications from Firebase
-      final applications = await ApplicationData.getUserApplications();
-
-      // Update state with loaded applications
-      setState(() {
-        _isLoading = false;
-        _applications = applications;
-      });
-    } catch (e) {
-      print('Error loading applications: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Failed to load applications';
-      });
-    }
+    await context.read<UserApplicationsProvider>().loadAll(forceRefresh: true);
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<UserApplicationsProvider>();
+    final applications = provider.applications;
+
     // Calculate application counts by status
     final ongoingApplications =
-        _applications.where((app) => app['status'] == 'Ongoing').toList();
+      applications.where((app) => app['status'] == 'Ongoing').toList();
     final pendingApplications =
-        _applications.where((app) => app['status'] == 'Pending').toList();
+      applications.where((app) => app['status'] == 'Pending').toList();
     final completedApplications =
-        _applications.where((app) => app['status'] == 'Completed').toList();
+      applications.where((app) => app['status'] == 'Completed').toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -114,7 +82,7 @@ class ApplicationProgressSectionState
           ),
 
           // Applications section
-          if (_isLoading)
+          if (provider.isLoading)
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -136,16 +104,16 @@ class ApplicationProgressSectionState
                 ),
               ),
             )
-          else if (_errorMessage.isNotEmpty)
+          else if ((provider.errorMessage ?? '').isNotEmpty)
             Expanded(
               child: Center(
                 child: Text(
-                  _errorMessage,
+                  provider.errorMessage ?? 'Failed to load applications',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
             )
-          else if (_applications.isEmpty)
+          else if (applications.isEmpty)
             // Center the empty state content horizontally
             Expanded(
               child: Container(

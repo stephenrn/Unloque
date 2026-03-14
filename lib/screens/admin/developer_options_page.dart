@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:unloque/pages/admin/population_editor_page.dart';
+import 'package:unloque/screens/admin/population_editor_page.dart';
+import 'package:unloque/services/admin/developer_options_service.dart';
 import 'organization_page.dart';
 
 class DeveloperOptionsPage extends StatefulWidget {
@@ -36,24 +36,14 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
     });
 
     try {
-      // Create a unique ID for the organization
-      final organizationId =
-          FirebaseFirestore.instance.collection('organizations').doc().id;
+      final organizationId = DeveloperOptionsService.generateOrganizationId();
 
-      // Prepare organization data
-      final organizationData = {
-        'id': organizationId,
-        'name': _nameController.text.trim(),
-        'logoUrl': _logoUrlController.text.trim(),
-        'website': _websiteController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      // Save to Firebase organizations collection (not under users)
-      await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .set(organizationData);
+      await DeveloperOptionsService.createOrganization(
+        organizationId: organizationId,
+        name: _nameController.text.trim(),
+        logoUrl: _logoUrlController.text.trim(),
+        website: _websiteController.text.trim(),
+      );
 
       // Clear form and show success message
       _nameController.clear();
@@ -74,99 +64,14 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
     }
   }
 
-  Future<void> _recursivelyDeleteFolder(Reference storageRef) async {
-    try {
-      // First list everything in this folder
-      final ListResult result = await storageRef.listAll();
-
-      // Delete all nested files
-      for (var item in result.items) {
-        try {
-          await item.delete();
-          print('Deleted file: ${item.fullPath}');
-        } catch (e) {
-          print('Error deleting file ${item.fullPath}: $e');
-        }
-      }
-
-      // Recursively delete subfolders
-      for (var prefix in result.prefixes) {
-        await _recursivelyDeleteFolder(prefix);
-      }
-
-      // Note: Firebase Storage doesn't have a direct way to delete empty folders
-      // as folders are just prefixes and disappear when all items are deleted
-    } catch (e) {
-      print('Error in recursive deletion: $e');
-    }
-  }
-
   Future<void> _deleteOrganizationData(String organizationId) async {
     try {
-      // 1. First, collect all the Firebase Storage refs to delete later
-      final List<Reference> storageRefsToDelete = [];
-
-      // 2. Get all programs
-      final programsSnapshot = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .collection('programs')
-          .get();
-
-      // Process each program
-      for (final programDoc in programsSnapshot.docs) {
-        final programId = programDoc.id;
-
-        try {
-          // Store storage references to delete later
-          final storageRef = FirebaseStorage.instance
-              .ref()
-              .child('organizations/$organizationId/programs/$programId');
-
-          // Add to the list of references to delete
-          storageRefsToDelete.add(storageRef);
-
-          // Delete the program document from Firestore
-          await programDoc.reference.delete();
-          print('Deleted program document: $programId');
-        } catch (e) {
-          print('Error processing program $programId: $e');
-        }
-      }
-
-      // 3. Delete the organization document itself
-      await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(organizationId)
-          .delete();
-      print('Deleted organization document: $organizationId');
-
-      // 4. After Firestore operations are complete, delete all storage references
-      for (var storageRef in storageRefsToDelete) {
-        try {
-          // Use recursive deletion for each program folder
-          await _recursivelyDeleteFolder(storageRef);
-        } catch (e) {
-          print('Error deleting program storage: ${storageRef.fullPath}: $e');
-        }
-      }
-
-      // 5. Finally, delete the main organization folder recursively
-      try {
-        final orgStorageRef = FirebaseStorage.instance
-            .ref()
-            .child('organizations/$organizationId');
-
-        print(
-            'Attempting to delete organization folder: ${orgStorageRef.fullPath}');
-        await _recursivelyDeleteFolder(orgStorageRef);
-        print('Successfully completed organization storage deletion process');
-      } catch (e) {
-        print('Error deleting organization-level storage: $e');
-      }
+      await DeveloperOptionsService.deleteOrganizationData(
+        organizationId: organizationId,
+      );
     } catch (e) {
       print('Error in deletion process: $e');
-      throw e; // Rethrow to be caught by the calling function
+      rethrow;
     }
   }
 
@@ -532,10 +437,8 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
               ),
 
               // Organization list with improved cards
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('organizations')
-                    .snapshots(),
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: DeveloperOptionsService.organizationsStream(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(
@@ -607,7 +510,7 @@ class DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
                       final doc = snapshot.data!.docs[index];
-                      final data = doc.data() as Map<String, dynamic>;
+                      final data = doc.data();
 
                       return Card(
                         elevation: 2,

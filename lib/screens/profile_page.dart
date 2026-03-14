@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:unloque/pages/welcome_page.dart';
+import 'package:unloque/screens/welcome_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:unloque/pages/terms_and_conditions_page.dart';
-import 'package:unloque/pages/faqs_page.dart';
-import 'package:unloque/pages/profile_details_page.dart';
+import 'package:unloque/screens/terms_and_conditions_page.dart';
+import 'package:unloque/screens/faqs_page.dart';
+import 'package:unloque/screens/profile_details_page.dart';
+import 'package:unloque/services/users/user_profile_service.dart';
+import 'package:unloque/services/auth/auth_session_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,10 +16,10 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final user = FirebaseAuth.instance.currentUser;
+  final user = AuthSessionService.currentUser();
 
   Future<void> signOut(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
+    await AuthSessionService.signOut();
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => WelcomePage()),
@@ -55,18 +57,18 @@ class _ProfilePageState extends State<ProfilePage> {
             )
           ],
         ),
-        child: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user?.uid)
-              .snapshots(),
+        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: user?.uid == null
+              ? const Stream.empty()
+              : UserProfileService.userDocStream(user!.uid),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
             }
 
-            final username = snapshot.hasData && snapshot.data!.exists
-                ? snapshot.data!['username']
+            final data = snapshot.data?.data();
+            final username = (data != null && data['username'] != null)
+                ? data['username']
                 : 'User';
 
             return Column(
@@ -203,7 +205,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
+        stream: AuthSessionService.authStateChanges(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
