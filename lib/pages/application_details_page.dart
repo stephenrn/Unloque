@@ -517,8 +517,7 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
     if (_applicationDetails['detailSections'] != null &&
         _applicationDetails['detailSections'] is List) {
       detailSections = _applicationDetails['detailSections'] as List<dynamic>;
-    } else if (details != null &&
-        details['detailSections'] != null &&
+    } else if (details['detailSections'] != null &&
         details['detailSections'] is List) {
       detailSections = details['detailSections'] as List<dynamic>;
     }
@@ -707,41 +706,5 @@ class _ApplicationDetailsPageState extends State<ApplicationDetailsPage> {
     }
 
     return sections;
-  }
-
-  // Helper method to determine the appropriate icon based on file extension
-  IconData _getFileIcon(String fileName) {
-    final extension = fileName.toLowerCase().split('.').last;
-
-    switch (extension) {
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'doc':
-      case 'docx':
-        return Icons.description;
-      case 'xls':
-      case 'xlsx':
-        return Icons.table_chart;
-      case 'ppt':
-      case 'pptx':
-        return Icons.slideshow;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return Icons.image;
-      case 'mp4':
-      case 'mov':
-      case 'avi':
-        return Icons.video_file;
-      case 'mp3':
-      case 'wav':
-        return Icons.audio_file;
-      case 'zip':
-      case 'rar':
-        return Icons.folder_zip;
-      default:
-        return Icons.insert_drive_file;
-    }
   }
 }

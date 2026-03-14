@@ -465,7 +465,6 @@ Keep your response factual and objective. Format tables properly with clear head
 
       // Find municipalities with highest total beneficiaries
       Map<String, int> municipalityTotals = {};
-      Map<String, int> municipalityPopulation = {};
 
       // First get all municipality names
       Set<String> allMunicipalities = {};

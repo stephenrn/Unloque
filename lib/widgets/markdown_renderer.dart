@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_html/flutter_html.dart';
 import 'dart:convert'; // For HTML escaping and Unicode handling
 
 class MarkdownRenderer extends StatelessWidget {
@@ -401,89 +400,11 @@ class MarkdownRenderer extends StatelessWidget {
     // Escape HTML entities to prevent rendering issues
     sanitized = _escapeHTML(sanitized);
 
-    // Final safety check - replace any remaining problematic characters with ?
-    if (sanitized.contains(RegExp(r'[^\x20-\x7E]'))) {
-      sanitized = sanitized.replaceAll(RegExp(r'[^\x20-\x7E]'), '?');
-    }
-
     return sanitized;
   }
 
-  // Better HTML escaping function
-  String _escapeHTML(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
-  }
-
-  // Generate HTML table with robust character handling
-  String _generateHtmlTable(String headerLine, List<String> contentRows) {
-    // Parse header and rows with improved sanitization
-    final List<String> headers = _parseTableRow(headerLine);
-    final List<List<String>> rows =
-        contentRows.map((row) => _parseTableRow(row)).toList();
-
-    debugPrint('TABLE HEADERS (SANITIZED): $headers');
-    if (rows.isNotEmpty) {
-      debugPrint('FIRST ROW (SANITIZED): ${rows[0]}');
-    }
-
-    StringBuffer html = StringBuffer();
-
-    // Create a fully self-contained table with inline styles
-    html.write('''
-    <!DOCTYPE html>
-    <div style="width:100%; overflow-x:auto; margin:16px 0px;">
-      <table style="width:100%; border-collapse:collapse; border:1px solid #ddd; margin-bottom:16px; table-layout:fixed;">
-        <thead>
-          <tr style="background-color:#edf6ff;">
-    ''');
-
-    // Add header cells
-    for (String header in headers) {
-      html.write(
-          '<th style="padding:12px; text-align:center; border:1px solid #ddd; font-weight:bold;">$header</th>');
-    }
-
-    html.write('''
-          </tr>
-        </thead>
-        <tbody>
-    ''');
-
-    // Add data rows
-    for (int i = 0; i < rows.length; i++) {
-      String bgColor = i % 2 == 0 ? '#ffffff' : '#f8f9fa';
-      html.write('<tr style="background-color:$bgColor;">');
-
-      for (int j = 0; j < rows[i].length && j < headers.length; j++) {
-        html.write(
-            '<td style="padding:10px; text-align:center; border:1px solid #ddd;">${rows[i][j]}</td>');
-      }
-
-      // Fill in any missing cells if row is short
-      for (int j = rows[i].length; j < headers.length; j++) {
-        html.write(
-            '<td style="padding:10px; text-align:center; border:1px solid #ddd;"></td>');
-      }
-
-      html.write('</tr>');
-    }
-
-    html.write('''
-        </tbody>
-      </table>
-    </div>
-    ''');
-
-    final result = html.toString();
-    debugPrint(
-        'GENERATED COMPLETELY SANITIZED HTML TABLE (FIRST 100 CHARS): ${result.substring(0, result.length > 100 ? 100 : result.length)}...');
-
-    return result;
+  String _escapeHTML(String value) {
+    return const HtmlEscape().convert(value);
   }
 
   // Get default style sheet for markdown

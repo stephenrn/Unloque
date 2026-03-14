@@ -24,9 +24,6 @@ class _OrganizationResponseBuilderPageState
   final List<String> _sectionTypes = ['paragraph', 'list', 'attachment'];
   final Map<String, List<Map<String, dynamic>>> _pendingFileUploads = {};
   bool _isUploading = false;
-  String _uploadProgressMessage = '';
-  int _totalFilesToUpload = 0;
-  int _currentFileUploading = 0;
 
   // Add state for fetched info
   String _programName = '';
@@ -178,7 +175,8 @@ class _OrganizationResponseBuilderPageState
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               final newData = {'label': labelController.text};
@@ -255,9 +253,6 @@ class _OrganizationResponseBuilderPageState
     if (totalPending == 0) return;
     setState(() {
       _isUploading = true;
-      _totalFilesToUpload = totalPending;
-      _currentFileUploading = 0;
-      _uploadProgressMessage = 'Uploading files...';
     });
     try {
       for (var sectionId in _pendingFileUploads.keys) {
@@ -267,11 +262,6 @@ class _OrganizationResponseBuilderPageState
             .indexWhere((s) => s['id'].toString() == sectionId);
         if (sectionIndex == -1) continue;
         for (var fileData in sectionFiles) {
-          _currentFileUploading++;
-          setState(() {
-            _uploadProgressMessage =
-                'Uploading $_currentFileUploading of $_totalFilesToUpload: ${fileData['name']}';
-          });
           final file = File(fileData['path']);
           final downloadUrl = await _uploadFile(file, sectionId);
           if (downloadUrl != null) {
@@ -302,7 +292,6 @@ class _OrganizationResponseBuilderPageState
   Future<void> _sendResponse() async {
     setState(() {
       _isUploading = true;
-      _uploadProgressMessage = 'Sending response...';
     });
     try {
       await _uploadPendingFiles();
@@ -549,248 +538,6 @@ class _OrganizationResponseBuilderPageState
     }
   }
 
-  Widget _buildReviewTab() {
-    final app = widget.application;
-    final userEmail = app['userEmail'] ?? app['userId'] ?? '';
-    final userId = app['userId'] ?? '';
-    final submittedAt = app['submittedAt'] ?? app['createdAt'];
-    String submittedDate = '-';
-    if (submittedAt != null) {
-      try {
-        if (submittedAt is Timestamp) {
-          submittedDate = submittedAt.toDate().toString().split(' ')[0];
-        } else if (submittedAt is DateTime) {
-          submittedDate = submittedAt.toString().split(' ')[0];
-        } else if (submittedAt is String && submittedAt.length >= 10) {
-          submittedDate = submittedAt.substring(0, 10);
-        }
-      } catch (_) {}
-    }
-    final formFields = app['formFields'] ?? [];
-
-    // Use fetched header info
-    final programName = _programName;
-    final orgName = _orgName;
-    final logoUrl = _logoUrl;
-    final deadline = _deadline;
-    final category = _category;
-
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: logoUrl.toString().isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    logoUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(Icons.business,
-                                          color: Colors.grey[800]);
-                                    },
-                                  ),
-                                )
-                              : Icon(Icons.business, color: Colors.grey[800]),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                programName,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                orgName,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              // Email and User ID on a new line
-                              if (userEmail.toString().isNotEmpty)
-                                Text(
-                                  userEmail,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[800],
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              if (userId.toString().isNotEmpty)
-                                Text(
-                                  'User ID: $userId',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(16),
-                        bottomRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today,
-                            color: Colors.grey[800], size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'Due: ',
-                          style:
-                              TextStyle(fontSize: 14, color: Colors.grey[800]),
-                        ),
-                        Text(
-                          deadline.isNotEmpty ? deadline : 'No Deadline',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Spacer(),
-                        Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            category.isNotEmpty ? category : 'No Category',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue[800],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        left: 16, right: 16, bottom: 12, top: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time,
-                            color: Colors.grey[600], size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          'Submitted: $submittedDate',
-                          style:
-                              TextStyle(fontSize: 13, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Add "Submitted Information" title above the card
-          Padding(
-            padding:
-                const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Submitted Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: formFields == null ||
-                        (formFields is List && formFields.isEmpty)
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Text(
-                            'No form data submitted.',
-                            style: TextStyle(
-                                color: Colors.grey[600], fontSize: 16),
-                          ),
-                        ),
-                      )
-                    : _buildSubmittedInfo(formFields),
-              ),
-            ),
-          ),
-          SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSubmittedInfo(List<dynamic> formFields) {
     List<Widget> items = [];
     for (var field in formFields) {
@@ -935,6 +682,23 @@ class _OrganizationResponseBuilderPageState
         ],
       ),
     );
+  }
+
+  String _getSubmittedDate(Map<String, dynamic> application) {
+    final submittedAt = application['submittedAt'] ?? application['createdAt'];
+    if (submittedAt == null) return '-';
+    try {
+      if (submittedAt is Timestamp) {
+        return submittedAt.toDate().toString().split(' ')[0];
+      }
+      if (submittedAt is DateTime) {
+        return submittedAt.toString().split(' ')[0];
+      }
+      if (submittedAt is String && submittedAt.length >= 10) {
+        return submittedAt.substring(0, 10);
+      }
+    } catch (_) {}
+    return '-';
   }
 
   @override
@@ -1338,7 +1102,7 @@ class _OrganizationResponseBuilderPageState
                                         title: Text('Add Response Section'),
                                         content:
                                             DropdownButtonFormField<String>(
-                                          value: selectedType,
+                                          initialValue: selectedType,
                                           items: _sectionTypes.map((type) {
                                             String displayText =
                                                 type[0].toUpperCase() +
@@ -1405,27 +1169,4 @@ class _OrganizationResponseBuilderPageState
     );
   }
 
-  // Helper to get submitted date string
-  String _getSubmittedDate(Map<String, dynamic> app) {
-    final submittedAt = app['submittedAt'] ?? app['createdAt'];
-    if (submittedAt == null) return '-';
-    try {
-      if (submittedAt is Timestamp) {
-        return submittedAt.toDate().toString().split(' ')[0];
-      } else if (submittedAt is DateTime) {
-        return submittedAt.toString().split(' ')[0];
-      } else if (submittedAt is String && submittedAt.length >= 10) {
-        return submittedAt.substring(0, 10);
-      }
-    } catch (_) {}
-    return '-';
-  }
-
-  @override
-  void dispose() {
-    // Dispose controllers to avoid memory leaks
-    _paragraphControllers?.forEach((_, c) => c.dispose());
-    _listItemControllers?.forEach((_, c) => c.dispose());
-    super.dispose();
-  }
 }

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../data/application_data.dart';
-import '../data/available_applications_data.dart';
 import '../pages/application_form_page.dart';
 import '../pages/application_pending_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'application_complete_page.dart';
 
 class HistoryPage extends StatelessWidget {
@@ -161,7 +159,6 @@ class ApplicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color baseColor = application['categoryColor'];
-    final Color lightColor = baseColor.withOpacity(0.15);
 
     return InkWell(
       onTap: () async {

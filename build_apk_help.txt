@@ -1,0 +1,110 @@
+Build an Android APK file from your app.
+
+This command can build debug and release versions of your application. 'debug' builds support debugging and a quick development cycle. 'release' builds don't support debugging and are suitable for deploying to app stores. If you are deploying the app to the Play Store, it's recommended to use app bundles or split the APK to reduce the APK size. Learn more at:
+
+ * https://developer.android.com/guide/app-bundle
+ * https://developer.android.com/studio/build/configure-apk-splits#configure-abi-split
+
+Global options:
+-h, --help                      Print this usage information.
+-v, --verbose                   Noisy logging, including all shell commands executed.
+                                If used with "--help", shows hidden options. If used with "flutter doctor", shows additional diagnostic information. (Use "-vv" to force verbose logging in those cases.)
+    --prefixed-errors           Causes lines sent to stderr to be prefixed with "ERROR:".
+    --quiet                     Reduce the amount of output from some commands.
+    --[no-]wrap                 Toggles output word wrapping, regardless of whether or not the output is a terminal.
+                                (defaults to on)
+    --wrap-column               Sets the output wrap column. If not set, uses the width of the terminal. No wrapping occurs if not writing to a terminal. Use "--no-wrap" to turn off wrapping when connected to a terminal.
+-d, --device-id                 Target device id or name (prefixes allowed).
+    --version                   Reports the version of this tool.
+    --machine                   When used with the "--version" flag, outputs the information using JSON.
+    --[no-]color                Whether to use terminal colors (requires support for ANSI escape sequences).
+                                (defaults to on)
+    --[no-]version-check        Allow Flutter to check for updates when this command runs.
+                                (defaults to on)
+    --enable-analytics          Enable telemetry reporting each time a flutter or dart command runs.
+    --disable-analytics         Disable telemetry reporting each time a flutter or dart command runs, until it is re-enabled.
+    --suppress-analytics        Suppress analytics reporting for the current CLI invocation.
+    --packages                  Path to your "package_config.json" file.
+    --print-dtd                 Print the address of the Dart Tooling Daemon, if one is hosted by the Flutter CLI.
+
+Local build selection options (not normally required):
+    --local-engine-src-path     Path to your engine src directory, if you are building Flutter locally.
+                                Defaults to $FLUTTER_ENGINE if set, otherwise defaults to the path given in your pubspec.yaml dependency_overrides for sky_engine, if any.
+    --local-engine              Name of a build output within the engine out directory, if you are building Flutter locally.
+                                Use this to select a specific version of the engine if you have built multiple engine targets.
+                                This path is relative to "--local-engine-src-path" (see above).
+    --local-engine-host         The host operating system for which engine artifacts should be selected, if you are building Flutter locally.
+                                This is only used when "--local-engine" is also specified.
+                                By default, the host is determined automatically, but you may need to specify this if you are building on one platform (e.g. MacOS ARM64) but intend to run Flutter on another (e.g. Android).
+    --local-web-sdk             Name of a build output within the engine out directory, if you are building Flutter locally.
+                                Use this to select a specific version of the web sdk if you have built multiple engine targets.
+                                This path is relative to "--local-engine-src-path" (see above).
+
+Options for testing the "flutter" tool itself:
+    --show-test-device          List the special "flutter-tester" device in device listings. This headless device is used to test Flutter tooling.
+    --show-web-server-device    List the special "web-server" device in device listings.
+    --ci                        Enable a set of CI-specific test debug settings.
+    --debug-logs-dir            Path to a directory where logs for debugging may be added.
+
+Usage: flutter build apk [arguments]
+-h, --help                                                   Print this usage information.
+    --[no-]fatal-warnings                                    Causes the command to fail if warnings are sent to the console during its execution.
+    --[no-]tree-shake-icons                                  Tree shake icon fonts so that only glyphs used by the application remain.
+                                                             (defaults to on)
+-t, --target=<path>                                          The main entry-point file of the application, as run on the device.
+                                                             If the "--target" option is omitted, but a file name is provided on the command line, then that is used instead.
+                                                             (defaults to "lib/main.dart")
+    --debug                                                  Build a debug version of your app.
+    --profile                                                Build a version of your app specialized for performance profiling.
+    --release                                                Build a release version of your app (default mode).
+    --jit-release                                            Build a JIT release version of your app (default mode).
+    --flavor                                                 Build a custom app flavor as defined by platform-specific build setup.
+                                                             Supports the use of product flavors in Android Gradle scripts, and the use of custom Xcode schemes.
+                                                             Overrides the value of the "default-flavor" entry in the flutter pubspec.
+    --[no-]pub                                               Whether to run "flutter pub get" before executing this command.
+                                                             (defaults to on)
+    --build-number                                           An identifier used as an internal version number.
+                                                             Each build must have a unique identifier to differentiate it from previous builds.
+                                                             It is used to determine whether one build is more recent than another, with higher numbers indicating more recent build.
+                                                             On Android it is used as "versionCode".
+                                                             On Xcode builds it is used as "CFBundleVersion".
+                                                             On Windows it is used as the build suffix for the product and file versions.
+    --build-name=<x.y.z>                                     A "x.y.z" string used as the version number shown to users.
+                                                             For each new version of your app, you will provide a version number to differentiate it from previous versions.
+                                                             On Android it is used as "versionName".
+                                                             On Xcode builds it is used as "CFBundleShortVersionString".
+                                                             On Windows it is used as the major, minor, and patch parts of the product and file versions.
+    --[no-]shrink                                            This flag has no effect. Code shrinking is always enabled in release builds. To learn more, see: https://developer.android.com/studio/build/shrink-code
+    --split-debug-info=<v1.2.3/>                             In a release build, this flag reduces application size by storing Dart program symbols in a separate file on the host rather than in the application. The value of the flag should be a directory where program symbol files can be stored for later use. These symbol files contain the information needed to symbolize Dart stack traces. For an app built with this flag, the "flutter symbolize" command with the right program symbol file is required to obtain a human readable stack trace.
+                                                             This flag cannot be combined with "--analyze-size".
+    --[no-]obfuscate                                         In a release build, this flag removes identifiers and replaces them with randomized values for the purposes of source code obfuscation. This flag must always be combined with "--split-debug-info" option, the mapping between the values and the original identifiers is stored in the symbol map created in the specified directory. For an app built with this flag, the "flutter symbolize" command with the right program symbol file is required to obtain a human readable stack trace.
+
+                                                             Because all identifiers are renamed, methods like Object.runtimeType, Type.toString, Enum.toString, Stacktrace.toString, Symbol.toString (for constant symbols or those generated by runtime system) will return obfuscated results. Any code or tests that rely on exact names will break.
+-D, --dart-define=<foo=bar>                                  Additional key-value pairs that will be available as constants from the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors.
+                                                             Multiple defines can be passed by repeating "--dart-define" multiple times.
+    --dart-define-from-file=<use-define-config.json|.env>    The path of a .json or .env file containing key-value pairs that will be available as environment variables.
+                                                             These can be accessed using the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors.
+                                                             Multiple defines can be passed by repeating "--dart-define-from-file" multiple times.
+                                                             Entries from "--dart-define" with identical keys take precedence over entries from these files.
+    --extra-front-end-options=<--foo,--bar>                  A comma-separated list of additional command line arguments that will be passed directly to the Dart front end. For example, "--extra-front-end-options=--enable-experiment=nonfunction-type-aliases".
+    --extra-gen-snapshot-options=<--foo,--bar>               A comma-separated list of additional command line arguments that will be passed directly to the Dart native compiler. (Only used in "--profile" or "--release" builds.) For example, "--extra-gen-snapshot-options=--no-strip".
+    --enable-experiment                                      The name of an experimental Dart feature to enable. For more information see: https://github.com/dart-lang/sdk/blob/main/docs/process/experimental-flags.md
+    --performance-measurement-file                           The name of a file where flutter assemble performance and cached-ness information will be written in a JSON format.
+    --[no-]analyze-size                                      Whether to produce additional profile information for artifact output size. This flag is only supported on "--release" builds. When building for Android, a single ABI must be specified at a time with the "--target-platform" flag. When building for iOS, only the symbols from the arm64 architecture are used to analyze code size.
+                                                             By default, the intermediate output files will be placed in a transient directory in the build directory. This can be overridden with the "--code-size-directory" option.
+                                                             This flag cannot be combined with "--split-debug-info".
+    --code-size-directory                                    The location to write code size analysis files. If this is not specified, files are written to a temporary directory under the build directory.
+    --[no-]android-gradle-daemon                             Whether to enable the Gradle daemon when performing an Android build. Starting the daemon is the default behavior of the gradle wrapper script created in a Flutter project. Setting this flag to false corresponds to passing "--no-daemon" to the gradle wrapper script. This flag will cause the daemon process to terminate after the build is completed.
+                                                             (defaults to on)
+    --[no-]android-skip-build-dependency-validation          Whether to skip version checking for Java, Gradle, the Android Gradle Plugin (AGP), and the Kotlin Gradle Plugin (KGP) during Android builds.
+-P, --android-project-arg                                    Additional arguments specified as key=value that are passed directly to the gradle project via the -P flag. These can be accessed in build.gradle via the "project.property" API.
+    --android-project-cache-dir                              Specifies the project-specific cache directory. Defaults to .gradle.
+    --ignore-deprecation                                     Indicates that the app should ignore deprecation warnings and continue to build using deprecated APIs. Use of this flag may cause your app to fail to build when deprecated APIs are removed.
+    --split-per-abi                                          Whether to split the APKs per ABIs. To learn more, see: https://developer.android.com/studio/build/configure-apk-splits#configure-abi-split
+    --[no-]config-only                                       Generate build files used by flutter but do not build any artifacts.
+    --target-platform                                        The target platform for which the app is compiled.
+                                                             [android-arm, android-arm64, android-x64]
+    --[no-]track-widget-creation                             Track widget creation locations. This enables features such as the widget inspector. This parameter is only functional in debug mode (i.e. when compiling JIT, not AOT).
+                                                             (defaults to on)
+
+Run "flutter help" to see global options.

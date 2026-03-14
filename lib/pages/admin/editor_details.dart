@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import 'preview_details_program_page.dart'; // Add this import
+import 'preview_details_program_page.dart';
 
 class DetailsEditorTab extends StatefulWidget {
   final String organizationId;
@@ -277,8 +273,11 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
       final storageRef = FirebaseStorage.instance.ref().child(
           'organizations/${widget.organizationId}/programs/${widget.programId}/details/$sectionId/$uniqueFileName');
 
+        // Set metadata for the file
+        final metadata = SettableMetadata(contentType: _getContentType(fileName));
+
       // Start upload
-      final uploadTask = storageRef.putFile(file);
+        final uploadTask = storageRef.putFile(file, metadata);
 
       // Monitor upload progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
@@ -288,9 +287,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
           _uploadProgressMessage = 'Uploading: ${progress.toStringAsFixed(1)}%';
         });
       });
-
-      // Set metadata for the file
-      final metadata = SettableMetadata(contentType: _getContentType(fileName));
 
       // Wait for upload to complete
       final snapshot = await uploadTask;
@@ -321,37 +317,6 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
         return 'image/png';
       default:
         return 'application/octet-stream';
-    }
-  }
-
-  // Method to download and open a file
-  Future<void> _downloadAndOpenFile(String downloadUrl, String fileName) async {
-    setState(() {
-      _uploadingFiles[fileName] = true;
-    });
-
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final localPath = '${appDir.path}/$fileName';
-      final file = File(localPath);
-
-      // Download file if it doesn't exist locally
-      if (!await file.exists()) {
-        final response = await http.get(Uri.parse(downloadUrl));
-        await file.writeAsBytes(response.bodyBytes);
-      }
-
-      // Open the file
-      await OpenFilex.open(localPath);
-    } catch (e) {
-      print('Error downloading/opening file: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening file: $e')),
-      );
-    } finally {
-      setState(() {
-        _uploadingFiles[fileName] = false;
-      });
     }
   }
 
@@ -406,7 +371,7 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: selectedType,
+                          initialValue: selectedType,
                           items: _detailTypes.map((type) {
                             String displayText = type;
                             switch (type) {
@@ -521,7 +486,7 @@ class DetailsEditorTabState extends State<DetailsEditorTab> {
                   Text('Select Section Type'),
                   SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     items: _detailTypes.map((type) {
                       String displayText = type;
                       switch (type) {

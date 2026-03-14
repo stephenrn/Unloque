@@ -281,7 +281,7 @@ class _BasicEditorTabState extends State<BasicEditorTab> {
                       ),
                       SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: widget.selectedCategory,
+                        initialValue: widget.selectedCategory,
                         items: ['Educational', 'Social', 'Healthcare']
                             .map((category) {
                           return DropdownMenuItem<String>(

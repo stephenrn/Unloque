@@ -95,7 +95,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   items: _fieldTypes.map((type) {
                     String displayText = _getFieldTypeDisplay(type);
                     return DropdownMenuItem(
@@ -198,17 +198,6 @@ class _FormEditorTabState extends State<FormEditorTab> {
     String selectedType = field['type'];
     bool isRequired = field['required'] ?? true;
 
-    // For multiple choice and checkbox options
-    List<String> optionValues = [];
-    if ((field['type'] == 'multiple_choice' || field['type'] == 'checkbox') &&
-        field['options'] != null) {
-      optionValues =
-          (field['options'] as List).map((e) => e.toString()).toList();
-    } else if (selectedType == 'multiple_choice' ||
-        selectedType == 'checkbox') {
-      optionValues = ['', '', ''];
-    }
-
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -237,7 +226,7 @@ class _FormEditorTabState extends State<FormEditorTab> {
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: selectedType,
+                          initialValue: selectedType,
                           items: _fieldTypes.map((type) {
                             String displayText = type;
                             switch (type) {
@@ -364,24 +353,6 @@ class _FormEditorTabState extends State<FormEditorTab> {
         ),
       ),
     );
-  }
-
-  // Helper method to add an option with proper controller management
-  void _addOptionWithController(
-      List<TextEditingController> controllers, StateSetter setState) {
-    setState(() {
-      controllers.add(TextEditingController(text: 'New Option'));
-    });
-  }
-
-  // Helper method to remove an option with proper controller disposal
-  void _removeOptionWithController(List<TextEditingController> controllers,
-      int index, StateSetter setState) {
-    setState(() {
-      // Dispose the controller before removing it
-      controllers[index].dispose();
-      controllers.removeAt(index);
-    });
   }
 
   // Add methods to move fields up and down

@@ -140,7 +140,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         // Get the field label for this key (index)
         final forms = widget.application['details']['forms'] ?? [];
         String fieldLabel = '';
-        if (key is int && key < forms.length) {
+        if (key < forms.length) {
           fieldLabel = forms[key]['label'] ?? key.toString();
         } else {
           fieldLabel = key.toString();
@@ -150,8 +150,7 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
           final fileData = attachedFilesMap[key]![i];
 
           // Validate file data
-          if (fileData == null ||
-              !fileData.containsKey('path') ||
+          if (!fileData.containsKey('path') ||
               fileData['path'] == null) {
             print('Invalid file data: $fileData');
             continue;
@@ -273,7 +272,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
       for (int i = 0; i < forms.length; i++) {
         var form = forms[i];
         var formField = Map<String, dynamic>.from(form);
-        final label = form['label'];
 
         // Add answers based on form type
         switch (form['type']) {
@@ -370,7 +368,6 @@ class _ApplicationFormPageState extends State<ApplicationFormPage> {
         for (int i = 0; i < formFields.length; i++) {
           final field = formFields[i];
           final String fieldType = field['type'] ?? '';
-          final String fieldLabel = field['label'] ?? '';
 
           switch (fieldType) {
             case 'short_answer':

@@ -89,11 +89,7 @@ class _ApplicationCompletePageState extends State<ApplicationCompletePage> {
           final category = header['category'] ?? '';
           final responseSections =
               header['responseSections'] as List<Map<String, dynamic>>?;
-          final formDoc = header['formDoc'] as DocumentSnapshot?;
-          Map<String, dynamic> formData = {};
-          try {
-            formData = formDoc?.data() as Map<String, dynamic>? ?? {};
-          } catch (_) {}
+          // formDoc is included in the header for other use-cases; not needed here.
 
           return SingleChildScrollView(
             child: Column(

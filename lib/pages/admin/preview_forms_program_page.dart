@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
-import 'package:path/path.dart' as path;
 
 class PreviewFormsProgramPage extends StatefulWidget {
   final String organizationId;
@@ -126,20 +122,6 @@ class _PreviewFormsProgramPageState extends State<PreviewFormsProgramPage> {
       } else if (type == 'attachment') {
         _attachedFilesMap[label] = [];
       }
-    }
-  }
-
-  Future<void> _selectDate(BuildContext context, String label) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDates[label] = picked;
-      });
     }
   }
 

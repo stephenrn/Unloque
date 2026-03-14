@@ -5,11 +5,7 @@ import 'package:unloque/pages/admin/program_beneficiaries_editor.dart';
 import 'package:unloque/pages/admin/program_details_form_page.dart';
 // Add import for ApplicationManagerPage at the top
 import 'package:unloque/pages/admin/application_manager_page.dart';
-// Add these imports:
-import 'package:unloque/constants/category_colors.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
-import 'package:flutter/services.dart';
 // Update the import for web_viewer.dart - add this at the top with other imports
 import '../../utils/web_viewer.dart';
 
@@ -256,7 +252,6 @@ class _ProgramsTab extends StatelessWidget {
     final nameController = TextEditingController();
     String? selectedCategory;
     final deadlineController = TextEditingController();
-    DateTime? selectedDeadline;
     Color selectedColor =
         Colors.blue[100]!; // Update initial color to lighter blue
 
@@ -309,7 +304,7 @@ class _ProgramsTab extends StatelessWidget {
                         labelText: 'Category',
                         border: OutlineInputBorder(),
                       ),
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       items: categories.map((String category) {
                         return DropdownMenuItem<String>(
                           value: category,
@@ -343,7 +338,6 @@ class _ProgramsTab extends StatelessWidget {
                           lastDate: DateTime(2100),
                         );
                         if (pickedDate != null) {
-                          selectedDeadline = pickedDate;
                           deadlineController.text =
                               pickedDate.toIso8601String().split('T')[0];
                         }
@@ -873,7 +867,7 @@ class _NewsTabState extends State<_NewsTab> {
                         labelText: 'Category',
                         border: OutlineInputBorder(),
                       ),
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       items: categories
                           .map((cat) => DropdownMenuItem(
                                 value: cat,

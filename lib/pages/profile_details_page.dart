@@ -49,7 +49,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       if (_user != null) {
         final userData = await FirebaseFirestore.instance
             .collection('users')
-            .doc(_user!.uid)
+            .doc(_user.uid)
             .get();
 
         if (userData.exists) {
@@ -226,7 +226,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         // Update user profile data
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(_user!.uid)
+            .doc(_user.uid)
             .update({
           'username': _usernameController.text.trim(),
           'phone': _phoneController.text.trim(),
@@ -235,9 +235,9 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         });
 
         // Update Firebase Auth user profile too
-        await _user!.updateDisplayName(_usernameController.text.trim());
+        await _user.updateDisplayName(_usernameController.text.trim());
         if (photoUrl != null) {
-          await _user!.updatePhotoURL(photoUrl);
+          await _user.updatePhotoURL(photoUrl);
         }
 
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_maps/maps.dart';
-import 'package:syncfusion_flutter_core/theme.dart';
-import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
+import 'package:material_floating_search_bar_plus/material_floating_search_bar_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Add Firestore import
 
 // Import the new files
@@ -611,13 +610,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     _searchBarController.close();
   }
 
-  void _handleEnterPress() {
-    final filteredList = _getFilteredList();
-    if (filteredList.isNotEmpty) {
-      _selectMunicity(filteredList.first);
-    }
-  }
-
   void _handleSearch(String query) {
     final filteredList = _getFilteredList();
     if (filteredList.isNotEmpty) {
@@ -1024,13 +1016,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   }
 
   // Format number with commas
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
-  }
-
   // Add this method to show the info dialog
   void _showMapInfoDialog() {
     showDialog(

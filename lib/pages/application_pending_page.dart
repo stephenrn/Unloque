@@ -5,8 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:unloque/pages/admin/organization_response_builder.dart';
 import 'package:unloque/pages/application_details_page.dart';
-import 'package:unloque/pages/admin/organization_response_builder.dart'; // Add this import
 
 class ApplicationPendingPage extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -40,26 +40,30 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
       final localPath = '${appDir.path}/$fileName';
       final localFile = File(localPath);
 
-      // If file doesn't exist locally, download it
       if (!await localFile.exists()) {
         final response = await http.get(Uri.parse(downloadUrl));
+        if (response.statusCode != 200) {
+          throw Exception('Download failed (${response.statusCode})');
+        }
         await localFile.writeAsBytes(response.bodyBytes);
       }
 
-      // Open the file
       await OpenFilex.open(localPath);
-    } catch (error) {
-      print('Error downloading/opening file: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error opening file: ${error.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        processingFiles[fileName] = false;
-      });
+      if (mounted) {
+        setState(() {
+          processingFiles[fileName] = false;
+        });
+      }
     }
   }
 
@@ -494,20 +498,6 @@ class _ApplicationPendingPageState extends State<ApplicationPendingPage> {
       'category': category,
       'formDoc': formDoc,
     };
-  }
-
-  Future<DocumentSnapshot> _loadFormData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception('User not signed in');
-    }
-
-    return await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('users-application')
-        .doc(widget.application['id'])
-        .get();
   }
 
   Widget _buildSubmittedFormContent(

@@ -5,9 +5,7 @@ import 'package:data_table_2/data_table_2.dart';
 // Import the data model and other necessary classes
 import '../models/data_model.dart';
 import '../services/ai_insights_service.dart';
-import '../services/api_keys.dart';
 import '../widgets/markdown_renderer.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 
 class GeneralBottomSheet extends StatefulWidget {
   final DataModel location;
@@ -959,7 +957,7 @@ class _GeneralBottomSheetState extends State<GeneralBottomSheet> {
           bool isTotal = item['category'] == 'Total Beneficiaries';
 
           return DataRow2(
-            color: isTotal ? MaterialStateProperty.all(Colors.grey[100]) : null,
+            color: isTotal ? WidgetStateProperty.all(Colors.grey[100]) : null,
             cells: [
               DataCell(
                 // Remove Flexible widget and use Row directly

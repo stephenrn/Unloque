@@ -648,7 +648,7 @@ class SelectedMunicipalityBottomSheet extends StatelessWidget {
         bool isTotal = item['category'] == 'Total';
 
         return DataRow2(
-          color: isTotal ? MaterialStateProperty.all(Colors.grey[100]) : null,
+          color: isTotal ? WidgetStateProperty.all(Colors.grey[100]) : null,
           cells: [
             DataCell(
               Row(

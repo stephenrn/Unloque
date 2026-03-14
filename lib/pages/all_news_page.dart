@@ -78,19 +78,6 @@ class _AllNewsPageState extends State<AllNewsPage> {
     }
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'healthcare':
-        return Colors.red[300]!;
-      case 'education':
-        return Colors.blue[300]!;
-      case 'social':
-        return Colors.green[300]!;
-      default:
-        return Colors.grey[300]!;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

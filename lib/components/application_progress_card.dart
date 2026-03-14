@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unloque/pages/application_form_page.dart';
 import 'package:unloque/pages/application_pending_page.dart';
-import 'package:unloque/data/available_applications_data.dart';
 import 'package:unloque/pages/dashboard_page.dart'; // Add this import to access DashboardPageState
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -38,7 +37,7 @@ class ApplicationProgressCard extends StatelessWidget {
       height: 170, // Reduce height slightly further
       margin: EdgeInsets.only(right: 8), // Remove bottom margin completely
       decoration: BoxDecoration(
-        color: categoryColor ?? Colors.grey, // Handle null categoryColor
+        color: categoryColor,
         borderRadius: BorderRadius.circular(15),
       ),
       child: Material(

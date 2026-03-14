@@ -119,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'User ID: ${user?.uid?.substring(0, 8) ?? ''}...',
+                  'User ID: ${user?.uid.substring(0, 8) ?? ''}...',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.normal,

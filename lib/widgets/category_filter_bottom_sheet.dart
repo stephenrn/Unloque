@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:data_table_2/data_table_2.dart';
 
 // Import the data model
-import '../models/data_model.dart';
 
 class CategoryFilterBottomSheet extends StatelessWidget {
   final String selectedFilter;
@@ -97,19 +96,7 @@ class CategoryFilterBottomSheet extends StatelessWidget {
       child: Column(
         children: [
           // Enhanced drag handle
-          Container(
-            width: double.infinity,
-            height: 24,
-            alignment: Alignment.center,
-            child: Container(
-              width: 50,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
+          _buildDragHandle(),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

@@ -17,7 +17,6 @@ class _WelcomePageState extends State<WelcomePage>
   bool _isLoading = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _statusMessage = '';
   AnimationController? _animationController;
   Animation<double>? _fadeAnimation;
   final PageController _programsController = PageController();
@@ -483,7 +482,6 @@ class _WelcomePageState extends State<WelcomePage>
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
     final fadeAnimation = _fadeAnimation ?? const AlwaysStoppedAnimation(1.0);
 
     return Scaffold(

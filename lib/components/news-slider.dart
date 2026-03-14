@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
-import '../models/slider_item.dart';
-import '../constants/category_colors.dart';
 import '../utils/web_viewer.dart';
 import '../pages/all_news_page.dart'; // Add this import
-import 'dart:async';
+
 
 class AutoImageSlider extends StatefulWidget {
   const AutoImageSlider({super.key});
@@ -192,7 +188,7 @@ class _NewsSliderItem {
 class _NewsCard extends StatelessWidget {
   final _NewsSliderItem item;
 
-  const _NewsCard({super.key, required this.item});
+  const _NewsCard({required this.item});
 
   // Updated colors to even lighter variants
   Color _getCategoryColor(String category) {

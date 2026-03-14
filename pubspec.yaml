@@ -38,6 +38,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  path: ^1.9.0
   file_picker: ^10.0.0
   open_filex: ^4.7.0
   firebase_storage: ^12.4.5
@@ -45,7 +46,7 @@ dependencies:
   path_provider: ^2.1.5
   carousel_slider: ^5.0.0
   syncfusion_flutter_maps: ^28.2.5
-  material_floating_search_bar_2: ^0.5.0
+  material_floating_search_bar_plus: ^1.0.1
   firebase_app_check: ^0.3.2+5
   url_launcher: ^6.3.1
   webview_flutter: ^4.10.0
@@ -68,19 +69,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^5.0.0
 
 flutter_icons:
   android: true
   ios: true
   image_path: "assets/icon2.png"
-
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

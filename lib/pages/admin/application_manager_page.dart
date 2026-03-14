@@ -23,8 +23,6 @@ class ApplicationManagerPage extends StatefulWidget {
 class _ApplicationManagerPageState extends State<ApplicationManagerPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoading = false;
-  String _loadingMessage = '';
 
   @override
   void initState() {
