@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 
 enum GoogleSignInStage {
   connecting,
@@ -18,7 +19,28 @@ class GoogleSignInService {
     GoogleSignInStageCallback? onStage,
   }) async {
     onStage?.call(GoogleSignInStage.connecting);
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    final GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      final String raw = e.toString();
+      final String message = (e.message ?? '').toString();
+      final String details = (e.details ?? '').toString();
+
+      final bool isApi10 = raw.contains('ApiException: 10') ||
+          message.contains('ApiException: 10') ||
+          details.contains('ApiException: 10');
+
+      if (e.code == 'sign_in_failed' && isApi10) {
+        throw Exception(
+          'Google Sign-In is misconfigured for Android (ApiException: 10). '
+          'Add your app signing SHA-1 in Firebase Console → Project settings → Your Android app, '
+          'download a fresh android/app/google-services.json, then rebuild the app.',
+        );
+      }
+
+      rethrow;
+    }
     if (googleUser == null) return null;
 
     onStage?.call(GoogleSignInStage.authenticating);

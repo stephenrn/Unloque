@@ -44,6 +44,33 @@ Follow these steps to run the project on your local machine:
    flutter build apk
    ```
 
+### Troubleshooting
+
+#### Google Sign-In: `PlatformException(sign_in_failed, ApiException: 10, ...)`
+
+This almost always means the Android app signing SHA certificate fingerprint (SHA-1) is not registered for your Firebase Android app.
+
+1. Get the SHA-1 for your current debug keystore:
+   ```bash
+   keytool -list -v -alias androiddebugkey \
+     -keystore "$HOME/.android/debug.keystore" \
+     -storepass android -keypass android
+   ```
+2. In Firebase Console → **Project settings** → **Your apps** → **Android app**, add the **SHA-1** fingerprint.
+3. Download an updated `google-services.json` and replace `android/app/google-services.json`.
+4. Rebuild:
+   ```bash
+   flutter clean
+   flutter pub get
+   flutter run
+   ```
+
+If you also build a release/APK/AAB for testers or Play Store, you must add the SHA-1 for your release key (or Play App Signing key) too.
+
+#### Android builds fail due to Java version
+
+Android/Gradle builds require Java 11+ (typically Java 17). If you see errors about “This build uses a Java 8 JVM”, install/configure a newer JDK and ensure `JAVA_HOME` points to it.
+
 ## Project Structure
 
 The app is being migrated toward a simple “clean-ish” structure to keep UI, state, and data access separated and easier to maintain.

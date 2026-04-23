@@ -14,6 +14,38 @@
       },
       "oauth_client": [
         {
+          "client_id": "77901567813-2418bis8cmk3k9airb8ekkbu0mp377k5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "591d35fa7706814b06744a420b863b04695cf74d"
+          }
+        },
+        {
+          "client_id": "77901567813-4vnmpv48r14tvc14ek1el80eb9pffcgv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "c2576818fe5a84af01fd3ca9276b26805eff5987"
+          }
+        },
+        {
+          "client_id": "77901567813-b0uc5ua0tjkk6e4pa1mnnitrdp4acb0p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "840c26ba8fda248d820ce4fa2999b7657d7035f6"
+          }
+        },
+        {
+          "client_id": "77901567813-d97p2eh3pjoott0vn0nq88dmhf6dop7f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unloque",
+            "certificate_hash": "5fccd80df680c197d9a104a12aedc49eafaceaca"
+          }
+        },
+        {
           "client_id": "77901567813-j1ia0ga87nl7luo2ao66cidobdahctqt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
