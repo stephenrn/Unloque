@@ -33,6 +33,12 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Local secrets (do not commit)
+secrets.json
+secrets.*.json
+.env
+.env.*
+
 # Symbolication related
 app.*.symbols
 

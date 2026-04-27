@@ -5,6 +5,33 @@ import 'package:http/http.dart' as http;
 import 'api_keys.dart';
 
 class AIInsightsService {
+  static Uri _openAIChatCompletionsUri() {
+    final baseUrl = APIKeys.getOpenAIBaseUrl().trim();
+    final normalizedBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    return Uri.parse('$normalizedBaseUrl/chat/completions');
+  }
+
+  static Map<String, String> _openAIHeaders({required String apiKey}) {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $apiKey',
+    };
+
+    final orgId = APIKeys.getOpenAIOrganizationId().trim();
+    if (orgId.isNotEmpty) {
+      headers['OpenAI-Organization'] = orgId;
+    }
+
+    final projectId = APIKeys.getOpenAIProjectId().trim();
+    if (projectId.isNotEmpty) {
+      headers['OpenAI-Project'] = projectId;
+    }
+
+    return headers;
+  }
+
   // Generate data summary using AI
   static Future<String> generateDataSummary({
     required Map<String, dynamic> populationData,
@@ -157,13 +184,10 @@ Keep your response factual and objective. Format tables properly with clear head
       }
 
       final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
+        _openAIChatCompletionsUri(),
+        headers: _openAIHeaders(apiKey: apiKey),
         body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
+          'model': APIKeys.getOpenAIModel(),
           'messages': [
             {
               'role': 'system',
@@ -248,13 +272,10 @@ Keep your response factual and objective. Format tables properly with clear head
 
       try {
         final response = await http.post(
-          Uri.parse('https://api.openai.com/v1/chat/completions'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $apiKey',
-          },
+          _openAIChatCompletionsUri(),
+          headers: _openAIHeaders(apiKey: apiKey),
           body: jsonEncode({
-            'model': 'gpt-3.5-turbo',
+            'model': APIKeys.getOpenAIModel(),
             'messages': [
               {
                 'role': 'system',
@@ -581,13 +602,10 @@ Keep your response factual and objective. Format tables properly with clear head
       }
 
       final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
+        _openAIChatCompletionsUri(),
+        headers: _openAIHeaders(apiKey: apiKey),
         body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
+          'model': APIKeys.getOpenAIModel(),
           'messages': [
             {
               'role': 'system',

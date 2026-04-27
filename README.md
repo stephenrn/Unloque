@@ -46,6 +46,42 @@ Follow these steps to run the project on your local machine:
 
 ### Troubleshooting
 
+#### AI Insights not working (OpenAI)
+
+The AI insights/translation feature calls OpenAI from the client via `AIInsightsService`.
+To (re)enable it, provide a valid OpenAI API key at build/run time.
+
+Option A (recommended): create a local `secrets.json` (this file is gitignored)
+
+```json
+{
+   "OPENAI_API_KEY": "YOUR_KEY_HERE",
+   "OPENAI_MODEL": "gpt-4o-mini"
+}
+```
+
+Then run/build with:
+
+```bash
+flutter run --dart-define-from-file=secrets.json
+flutter build apk --debug --dart-define-from-file=secrets.json
+```
+
+Option B: pass defines directly
+
+```bash
+flutter run --dart-define=OPENAI_API_KEY=YOUR_KEY_HERE --dart-define=OPENAI_MODEL=gpt-4o-mini
+```
+
+Optional (only if your account requires it):
+- `OPENAI_ORG_ID`
+- `OPENAI_PROJECT_ID`
+- `OPENAI_BASE_URL` (defaults to `https://api.openai.com/v1`)
+
+Common failures:
+- `401` / "invalid_api_key": key is missing/expired/revoked
+- `404` / "model_not_found": set `OPENAI_MODEL` to a model your key can access
+
 #### Google Sign-In: `PlatformException(sign_in_failed, ApiException: 10, ...)`
 
 This almost always means the Android app signing SHA certificate fingerprint (SHA-1) is not registered for your Firebase Android app.

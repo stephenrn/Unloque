@@ -1,12 +1,37 @@
-// This file should be added to .gitignore to keep API keys secure
-
+/// Lightweight compile-time config for external API keys.
+///
+/// Configure these via Flutter/Dart defines (recommended):
+/// - `--dart-define=OPENAI_API_KEY=...`
+/// - `--dart-define=OPENAI_MODEL=...` (optional)
+/// - `--dart-define=OPENAI_BASE_URL=...` (optional)
+/// - `--dart-define=OPENAI_ORG_ID=...` (optional)
+/// - `--dart-define=OPENAI_PROJECT_ID=...` (optional)
+///
+/// Tip: You can also use `--dart-define-from-file=secrets.json`.
 class APIKeys {
-  // The API key is obfuscated here but should be stored more securely in production
-  // Consider using Flutter's secure storage or environment variables
   static String getOpenAIKey() {
-    // The API key is obfuscated for security
-    final String obscuredKey =
-        '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';
-    return obscuredKey;
+    return const String.fromEnvironment('OPENAI_API_KEY');
+  }
+
+  static String getOpenAIModel() {
+    return const String.fromEnvironment(
+      'OPENAI_MODEL',
+      defaultValue: 'gpt-4o-mini',
+    );
+  }
+
+  static String getOpenAIBaseUrl() {
+    return const String.fromEnvironment(
+      'OPENAI_BASE_URL',
+      defaultValue: 'https://api.openai.com/v1',
+    );
+  }
+
+  static String getOpenAIOrganizationId() {
+    return const String.fromEnvironment('OPENAI_ORG_ID');
+  }
+
+  static String getOpenAIProjectId() {
+    return const String.fromEnvironment('OPENAI_PROJECT_ID');
   }
 }
